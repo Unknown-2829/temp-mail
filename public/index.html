@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temp Mail - Disposable Email Service</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+  
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    
+    <!-- Header -->
+    <div class="text-center mb-12">
+      <h1 class="text-5xl font-bold text-gray-800 mb-4">📬 Temp Mail</h1>
+      <p class="text-gray-600 text-lg">Disposable temporary email addresses. No registration required!</p>
+    </div>
+
+    <!-- Generate Email Section -->
+    <div class="bg-white rounded-2xl shadow-xl p-8 mb-8">
+      <div id="generate-section" class="text-center">
+        <button 
+          onclick="generateEmail()"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-all transform hover:scale-105"
+        >
+          ✨ Generate Temp Email
+        </button>
+        <p class="text-gray-500 mt-4 text-sm">Click to create a temporary email address</p>
+      </div>
+
+      <div id="email-section" class="hidden">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Temporary Email</h2>
+        
+        <div class="flex items-center gap-3 bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+          <code id="email-display" class="flex-1 text-lg text-gray-800 break-all"></code>
+          <button 
+            onclick="copyEmail()"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-all"
+            id="copy-btn"
+          >
+            📋 Copy
+          </button>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-600">⏱️ Expires in 1 hour</span>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" id="auto-refresh" class="w-4 h-4" onchange="toggleAutoRefresh()">
+              <span class="text-gray-600">Auto-refresh</span>
+            </label>
+          </div>
+          
+          <button onclick="deleteEmail()" class="text-red-600 hover:text-red-700 font-medium text-sm">
+            🗑️ Delete
+          </button>
+        </div>
+
+        <button 
+          onclick="checkEmails()"
+          class="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-lg font-medium transition-all"
+        >
+          🔄 Check for New Emails
+        </button>
+      </div>
+    </div>
+
+    <!-- Emails Section -->
+    <div id="emails-section" class="bg-white rounded-2xl shadow-xl p-8 hidden">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6">
+        📬 Received Emails (<span id="email-count">0</span>)
+      </h2>
+
+      <div id="emails-container"></div>
+    </div>
+
+    <!-- Features -->
+    <div class="mt-12 grid md:grid-cols-3 gap-6">
+      <div class="bg-white p-6 rounded-xl shadow-lg text-center">
+        <div class="text-4xl mb-3">🚀</div>
+        <h3 class="font-bold text-gray-800 mb-2">Instant</h3>
+        <p class="text-sm text-gray-600">Create emails in seconds. No signup required.</p>
+      </div>
+      
+      <div class="bg-white p-6 rounded-xl shadow-lg text-center">
+        <div class="text-4xl mb-3">🔒</div>
+        <h3 class="font-bold text-gray-800 mb-2">Private</h3>
+        <p class="text-sm text-gray-600">Your emails are temporary and auto-deleted.</p>
+      </div>
+      
+      <div class="bg-white p-6 rounded-xl shadow-lg text-center">
+        <div class="text-4xl mb-3">🆓</div>
+        <h3 class="font-bold text-gray-800 mb-2">Free</h3>
+        <p class="text-sm text-gray-600">Completely free. No hidden costs or limits.</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-12 text-gray-600 text-sm">
+      <p>Made with ❤️ using Cloudflare</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
