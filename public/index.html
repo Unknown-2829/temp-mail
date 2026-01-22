@@ -1,213 +1,153 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TempMail Pro - Instant Disposable Email</title>
+  <title>TempMail - Disposable Email Address</title>
   <meta name="description"
-    content="Create instant disposable email addresses. Receive OTPs, verification codes, and more - completely free!">
+    content="Free temporary email address. Receive emails, OTPs, and verification codes instantly.">
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📬</text></svg>">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-  <div class="app-container">
 
-    <!-- Sidebar -->
-    <aside class="sidebar">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
       <div class="logo">
         <span class="logo-icon">📬</span>
-        <span class="logo-text">TempMail<span class="pro">Pro</span></span>
+        <span class="logo-text">TEMPMAIL</span>
+      </div>
+      <div class="header-quote" id="header-quote">
+        <span>"Privacy is the foundation of all other rights."</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <h1>Your Temporary Email Address</h1>
+
+      <div class="email-box">
+        <input type="text" id="email-display" class="email-input" readonly placeholder="Generating..." value="">
+        <button class="qr-btn" onclick="showQR()" title="Show QR Code">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm-3 0h2v3h-2v-3zm3 3h3v2h-3v-2zm0 3h3v3h-3v-3zm-3 0h2v3h-2v-3z" />
+          </svg>
+        </button>
+        <button class="copy-btn" onclick="copyEmail()" id="copy-btn" title="Copy to clipboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+          </svg>
+        </button>
       </div>
 
-      <button class="generate-btn" onclick="generateEmail()" id="generate-btn">
-        <span class="btn-icon">✨</span>
-        <span>New Email</span>
-      </button>
+      <p class="hero-text">
+        Forget about spam, advertising mailings, hacking and attacking robots.<br>
+        Keep your real mailbox clean and secure. TempMail provides temporary,<br>
+        secure, anonymous, free, disposable email address.
+      </p>
 
-      <nav class="nav-menu">
-        <a href="#" class="nav-item active" onclick="showInbox(); return false;">
-          <span class="nav-icon">📥</span>
-          <span>Inbox</span>
-          <span class="badge" id="inbox-count">0</span>
-        </a>
-        <div class="theme-toggle" onclick="toggleTheme()">
-          <span class="nav-icon">🌙</span>
-          <span>Dark Mode</span>
-          <div class="theme-toggle-switch" id="theme-switch"></div>
-        </div>
-      </nav>
+      <div class="action-buttons">
+        <button class="action-btn" onclick="copyEmail()">
+          <span class="btn-icon">📋</span>
+          <span>Copy</span>
+        </button>
+        <button class="action-btn" onclick="refreshEmails()">
+          <span class="btn-icon">🔄</span>
+          <span>Refresh</span>
+        </button>
+        <button class="action-btn" onclick="changeEmail()">
+          <span class="btn-icon">✏️</span>
+          <span>Change</span>
+        </button>
+        <button class="action-btn" onclick="deleteEmail()">
+          <span class="btn-icon">🗑️</span>
+          <span>Delete</span>
+        </button>
+      </div>
+    </div>
+  </section>
 
-      <div class="sidebar-footer">
-        <div class="quote-section">
-          <p class="quote-text" id="quote-text">"Privacy is not something that I'm merely entitled to, it's an absolute
-            prerequisite."</p>
-          <p class="quote-author" id="quote-author">— Marlon Brando</p>
+  <!-- Inbox Section -->
+  <section class="inbox">
+    <div class="container">
+      <div class="inbox-table">
+        <div class="inbox-header">
+          <div class="col-sender">SENDER</div>
+          <div class="col-subject">SUBJECT</div>
+          <div class="col-view">VIEW</div>
         </div>
-        <div class="stats">
-          <div class="stat-item">
-            <span class="stat-value" id="emails-received">0</span>
-            <span class="stat-label">Received</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value" id="time-left">60m</span>
-            <span class="stat-label">Expires</span>
+        <div class="inbox-body" id="inbox-body">
+          <div class="empty-inbox" id="empty-inbox">
+            <div class="loading-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12A10 10 0 1 1 12 2" />
+              </svg>
+            </div>
+            <p class="empty-title">Your inbox is empty</p>
+            <p class="empty-subtitle">Waiting for incoming emails</p>
           </div>
         </div>
       </div>
-    </aside>
+    </div>
+  </section>
 
-    <!-- Main Content -->
-    <main class="main-content">
+  <!-- Info Section -->
+  <section class="info">
+    <div class="container">
+      <h2>What is Disposable Temporary E-mail?</h2>
+      <p>
+        <strong>Disposable email</strong> - is a free email service that allows to receive email at a temporary address
+        that self-destructed after a certain time elapses. It is also known by names like: tempmail, 10minutemail,
+        10minmail, throwaway email, fake-mail, fake email generator, burner mail or trash-mail. Many forums, Wi-Fi
+        owners, websites and blogs ask visitors to register before they can view content, post comments or download
+        something.
+      </p>
+      <p class="quote-text" id="info-quote">
+        "In the digital age, privacy is not a luxury—it's a necessity."
+      </p>
+    </div>
+  </section>
 
-      <!-- Header -->
-      <header class="header">
-        <div class="email-display" id="email-container">
-          <div class="no-email" id="no-email">
-            <p>👆 Click <strong>"New Email"</strong> to generate your temporary address</p>
-          </div>
-          <div class="current-email hidden" id="current-email">
-            <div class="email-badge">
-              <span class="email-icon">📧</span>
-              <code id="email-address"></code>
-              <button class="copy-btn" onclick="copyEmail()" id="copy-btn" title="Copy to clipboard">
-                <span>📋</span>
-              </button>
-            </div>
-            <div class="email-actions">
-              <button class="action-btn refresh" onclick="checkEmails()">
-                <span>🔄</span> Refresh
-              </button>
-              <label class="auto-refresh-toggle">
-                <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()">
-                <span>Auto</span>
-              </label>
-              <button class="action-btn delete" onclick="deleteEmail()">
-                <span>🗑️</span> Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <!-- Email List & Viewer -->
-      <div class="content-area">
-
-        <!-- Welcome Screen -->
-        <div class="welcome-screen" id="welcome-screen">
-          <div class="welcome-content">
-            <div class="welcome-icon">📬</div>
-            <h1>Welcome to TempMail Pro</h1>
-            <p>Create instant disposable email addresses. Perfect for OTPs, verifications, and protecting your real
-              inbox!</p>
-
-            <div class="welcome-quote">
-              <p class="quote-text">"In the digital age, privacy is not a luxury—it's a necessity."</p>
-              <p class="quote-author">— Unknown</p>
-            </div>
-
-            <button class="cta-btn" onclick="generateEmail()">
-              ✨ Generate Your Temp Email
-            </button>
-
-            <div class="features-grid">
-              <div class="feature">
-                <span class="feature-icon">🚀</span>
-                <h3>Instant Setup</h3>
-                <p>No signup, no hassle. Get your email in seconds.</p>
-              </div>
-              <div class="feature">
-                <span class="feature-icon">🔒</span>
-                <h3>Privacy First</h3>
-                <p>Emails auto-delete after 1 hour. No traces left.</p>
-              </div>
-              <div class="feature">
-                <span class="feature-icon">📎</span>
-                <h3>Attachments</h3>
-                <p>Receive files up to 1MB with full support.</p>
-              </div>
-              <div class="feature">
-                <span class="feature-icon">🆓</span>
-                <h3>100% Free</h3>
-                <p>No hidden costs. No premium tiers. Just free.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Inbox View -->
-        <div class="inbox-view hidden" id="inbox-view">
-
-          <!-- Email List -->
-          <div class="email-list" id="email-list">
-            <div class="list-header">
-              <h2>📥 Inbox</h2>
-              <span class="email-count">(<span id="list-count">0</span> emails)</span>
-            </div>
-            <div class="emails-container" id="emails-container">
-              <div class="empty-inbox" id="empty-inbox">
-                <div class="empty-icon">📭</div>
-                <h3>Waiting for emails...</h3>
-                <p>Emails will appear here automatically</p>
-                <div class="loading-dots">
-                  <span></span><span></span><span></span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Email Viewer -->
-          <div class="email-viewer" id="email-viewer">
-            <div class="viewer-placeholder" id="viewer-placeholder">
-              <div class="placeholder-icon">✉️</div>
-              <p>Select an email to view its contents</p>
-            </div>
-            <div class="viewer-content hidden" id="viewer-content">
-              <div class="viewer-header">
-                <button class="back-btn" onclick="closeEmail()">← Back to Inbox</button>
-                <div class="viewer-actions">
-                  <button class="viewer-action" onclick="downloadEmail()">📥 Download</button>
-                </div>
-              </div>
-              <div class="email-details">
-                <h1 class="email-subject" id="view-subject"></h1>
-                <div class="email-meta">
-                  <div class="sender-info">
-                    <div class="sender-avatar" id="sender-avatar">A</div>
-                    <div class="sender-details">
-                      <span class="sender-name" id="view-from"></span>
-                      <span class="sender-email" id="view-from-email"></span>
-                    </div>
-                  </div>
-                  <div class="email-time" id="view-time"></div>
-                </div>
-              </div>
-              <div class="email-body-container">
-                <div class="email-body" id="view-body"></div>
-              </div>
-              <div class="attachments-section hidden" id="attachments-section">
-                <h3>📎 Attachments</h3>
-                <div class="attachments-list" id="attachments-list"></div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
+  <!-- Email Modal -->
+  <div class="modal" id="email-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-subject">Email Subject</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
-
-    </main>
-
+      <div class="modal-meta">
+        <div class="sender-info">
+          <div class="sender-avatar" id="modal-avatar">A</div>
+          <div>
+            <div class="sender-name" id="modal-from">sender@example.com</div>
+            <div class="sender-time" id="modal-time">Jan 22, 2026, 10:00 PM</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body" id="modal-body">
+        Email content here...
+      </div>
+      <div class="modal-attachments hidden" id="modal-attachments">
+        <h4>📎 Attachments</h4>
+        <div id="attachments-list"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div class="toast hidden" id="toast">
-    <span class="toast-icon">✓</span>
-    <span class="toast-message" id="toast-message">Copied!</span>
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span id="toast-message">Copied!</span>
   </div>
 
   <script src="app.js"></script>
