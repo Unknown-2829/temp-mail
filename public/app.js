@@ -12,7 +12,8 @@ const quotes = [
   "Zero spam. Zero tracking.",
   "Protect your real inbox.",
   "Temporary email. Permanent privacy.",
-  "No signup. No traces."
+  "No signup. No traces.",
+  "Anonymous by design."
 ];
 
 // Initialize
@@ -22,7 +23,6 @@ async function init() {
   rotateQuotes();
   setInterval(rotateQuotes, 8000);
 
-  // Check for saved email
   const saved = sessionStorage.getItem('tempEmail');
   const savedTime = sessionStorage.getItem('emailCreatedAt');
 
@@ -38,24 +38,21 @@ async function init() {
 
 function rotateQuotes() {
   const quote = quotes[Math.floor(Math.random() * quotes.length)];
-  document.getElementById('quote-text').textContent = `"${quote}"`;
+  const el = document.getElementById('quote-text');
+  if (el) el.textContent = `"${quote}"`;
 }
 
-// Generate Email with 2 second delay
+// Generate Email
 async function generateEmail() {
   const input = document.getElementById('email-display');
   input.value = 'Generating...';
   input.style.opacity = '0.6';
 
-  // Show generating for 2 seconds
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise(r => setTimeout(r, 1500));
 
   try {
     const response = await fetch('/api/generate', { method: 'POST' });
-
-    if (!response.ok) {
-      throw new Error('Failed to generate');
-    }
+    if (!response.ok) throw new Error('Failed');
 
     const data = await response.json();
     currentEmail = data.email;
@@ -63,22 +60,18 @@ async function generateEmail() {
     input.value = currentEmail;
     input.style.opacity = '1';
 
-    // Save
     sessionStorage.setItem('tempEmail', currentEmail);
     sessionStorage.setItem('emailCreatedAt', Date.now().toString());
 
     startAutoRefresh();
     showToast('✨ Email ready!');
-
-  } catch (error) {
-    console.error(error);
-    input.value = 'Error - Click Regenerate';
+  } catch (e) {
+    input.value = 'Error - Tap Regenerate';
     input.style.opacity = '1';
-    showToast('❌ Error generating email');
+    showToast('❌ Error');
   }
 }
 
-// Regenerate Email
 async function regenerateEmail() {
   stopAutoRefresh();
   emailsList = [];
@@ -86,23 +79,19 @@ async function regenerateEmail() {
   await generateEmail();
 }
 
-// Delete Email
 function deleteEmail() {
   stopAutoRefresh();
   currentEmail = '';
   emailsList = [];
-  sessionStorage.removeItem('tempEmail');
-  sessionStorage.removeItem('emailCreatedAt');
+  sessionStorage.clear();
   document.getElementById('email-display').value = '';
   renderInbox();
   showToast('🗑️ Deleted');
   setTimeout(generateEmail, 500);
 }
 
-// Copy Email
 function copyEmail() {
   if (!currentEmail) return;
-
   navigator.clipboard.writeText(currentEmail).then(() => {
     showToast('📋 Copied!');
   }).catch(() => {
@@ -113,7 +102,7 @@ function copyEmail() {
   });
 }
 
-// Refresh Emails
+// Refresh
 async function refreshEmails() {
   if (!currentEmail) return;
 
@@ -125,13 +114,12 @@ async function refreshEmails() {
     emailsList = data.emails || [];
 
     if (emailsList.length > oldCount && oldCount > 0) {
-      showToast(`📧 ${emailsList.length - oldCount} new email(s)!`);
+      showToast(`📧 ${emailsList.length - oldCount} new!`);
     }
 
     renderInbox();
-
-  } catch (error) {
-    console.error('Refresh error:', error);
+  } catch (e) {
+    console.error(e);
   }
 }
 
@@ -150,13 +138,17 @@ function renderInbox() {
     return;
   }
 
-  container.innerHTML = emailsList.map((email, index) => {
-    const sender = extractSenderName(email.from);
+  container.innerHTML = emailsList.map((email, i) => {
+    const sender = parseSender(email.from);
     const subject = email.subject || '(No Subject)';
+    const initial = sender.name.charAt(0).toUpperCase();
 
     return `
-      <div class="email-row ${email.read ? '' : 'unread'}" onclick="viewEmail(${index})">
-        <div class="email-sender">${escapeHtml(sender)}</div>
+      <div class="email-row ${email.read ? '' : 'unread'}" onclick="viewEmail(${i})">
+        <div class="email-sender">
+          <div class="sender-dot">${initial}</div>
+          <span class="sender-name">${escapeHtml(sender.name)}</span>
+        </div>
         <div class="email-subject">${escapeHtml(subject)}</div>
         <div class="email-view">
           <button class="view-btn">View</button>
@@ -166,7 +158,30 @@ function renderInbox() {
   }).join('');
 }
 
-// View Email - Full content, preserved HTML
+// Parse Sender - Better identification
+function parseSender(from) {
+  if (!from) return { name: 'Unknown', email: '' };
+
+  // Try "Name <email>" format
+  let match = from.match(/^"?([^"<]+)"?\s*<([^>]+)>/);
+  if (match) {
+    return { name: match[1].trim(), email: match[2].trim() };
+  }
+
+  // Just email
+  match = from.match(/<?([^@<\s]+)@([^>\s]+)>?/);
+  if (match) {
+    let name = match[1];
+    // Capitalize and clean
+    name = name.replace(/[._-]/g, ' ');
+    name = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return { name, email: `${match[1]}@${match[2]}` };
+  }
+
+  return { name: from, email: from };
+}
+
+// View Email
 function viewEmail(index) {
   const email = emailsList[index];
   if (!email) return;
@@ -174,27 +189,36 @@ function viewEmail(index) {
   email.read = true;
   renderInbox();
 
-  document.getElementById('modal-subject').textContent = email.subject || '(No Subject)';
-  document.getElementById('modal-from').textContent = email.from;
-  document.getElementById('modal-time').textContent = formatDateTime(email.timestamp);
-  document.getElementById('modal-avatar').textContent = extractSenderName(email.from).charAt(0).toUpperCase();
+  const sender = parseSender(email.from);
 
-  // Render full email body - HTML preserved
-  const bodyContainer = document.getElementById('modal-body');
+  document.getElementById('modal-subject').textContent = email.subject || '(No Subject)';
+  document.getElementById('modal-avatar').textContent = sender.name.charAt(0).toUpperCase();
+  document.getElementById('modal-time').textContent = formatDateTime(email.timestamp);
+
+  // Update sender info
+  const senderInfo = document.querySelector('.sender-info');
+  senderInfo.innerHTML = `
+    <div class="sender-avatar">${sender.name.charAt(0).toUpperCase()}</div>
+    <div class="sender-details">
+      <div class="sender-name-full">${escapeHtml(sender.name)}</div>
+      <div class="sender-email-full">${escapeHtml(sender.email || email.from)}</div>
+      <div class="sender-time">${formatDateTime(email.timestamp)}</div>
+    </div>
+  `;
+
+  // Body - Full HTML preserved
+  const body = document.getElementById('modal-body');
 
   if (email.htmlBody) {
-    // Full HTML preserved
-    bodyContainer.innerHTML = sanitizeHtml(email.htmlBody);
-    // Make links work
-    bodyContainer.querySelectorAll('a').forEach(a => {
+    body.innerHTML = sanitizeHtml(email.htmlBody);
+    body.querySelectorAll('a').forEach(a => {
       a.setAttribute('target', '_blank');
       a.setAttribute('rel', 'noopener');
     });
   } else if (email.body) {
-    // Plain text with links
-    bodyContainer.innerHTML = `<div style="white-space: pre-wrap;">${linkify(escapeHtml(email.body))}</div>`;
+    body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;">${linkify(escapeHtml(email.body))}</div>`;
   } else {
-    bodyContainer.innerHTML = '<p style="color: #888;">No content</p>';
+    body.innerHTML = '<p style="color:#888;">No content</p>';
   }
 
   // Attachments
@@ -207,7 +231,7 @@ function viewEmail(index) {
       <div class="attachment-item" onclick="downloadAttachment(${index}, ${i})">
         <span>${getFileIcon(att.filename)}</span>
         <span>${escapeHtml(att.filename)}</span>
-        <span style="color:#888;font-size:11px;">(${formatFileSize(att.size)})</span>
+        <span style="color:#888;">(${formatSize(att.size)})</span>
       </div>
     `).join('');
   } else {
@@ -215,38 +239,37 @@ function viewEmail(index) {
   }
 
   document.getElementById('email-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
 }
 
 function closeModal() {
   document.getElementById('email-modal').classList.remove('show');
+  document.body.style.overflow = '';
 }
 
-// Download Attachment
-function downloadAttachment(emailIndex, attachmentIndex) {
-  const att = emailsList[emailIndex].attachments[attachmentIndex];
-  if (!att || !att.data) {
+// Download
+function downloadAttachment(ei, ai) {
+  const att = emailsList[ei]?.attachments?.[ai];
+  if (!att?.data) {
     showToast('❌ Not available');
     return;
   }
 
   try {
-    const byteChars = atob(att.data);
-    const byteArray = new Uint8Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) {
-      byteArray[i] = byteChars.charCodeAt(i);
-    }
-    const blob = new Blob([byteArray], { type: att.contentType || 'application/octet-stream' });
+    const bytes = atob(att.data);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
 
+    const blob = new Blob([arr], { type: att.contentType || 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = att.filename;
     a.click();
     URL.revokeObjectURL(url);
-
     showToast('📥 Downloading...');
   } catch (e) {
-    showToast('❌ Download failed');
+    showToast('❌ Failed');
   }
 }
 
@@ -264,20 +287,11 @@ function stopAutoRefresh() {
 }
 
 // Helpers
-function extractSenderName(from) {
-  if (!from) return 'Unknown';
-  const match = from.match(/^"?([^"<]+)"?\s*</);
-  if (match) return match[1].trim();
-  const emailMatch = from.match(/([^@<\s]+)@/);
-  if (emailMatch) return emailMatch[1];
-  return from.split('@')[0] || 'Unknown';
-}
-
 function escapeHtml(text) {
   if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
 }
 
 function sanitizeHtml(html) {
@@ -289,38 +303,44 @@ function sanitizeHtml(html) {
 }
 
 function linkify(text) {
-  const urlRegex = /(https?:\/\/[^\s<]+)/g;
-  return text.replace(urlRegex, '<a href="$1" target="_blank" style="color:#00d09c;">$1</a>');
+  return text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#00d09c;">$1</a>');
 }
 
 function formatDateTime(ts) {
   if (!ts) return '';
-  return new Date(ts).toLocaleString();
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = now - d;
+
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function formatFileSize(bytes) {
+function formatSize(bytes) {
   if (!bytes) return '0 B';
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB'];
+  const s = ['B', 'KB', 'MB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + s[i];
 }
 
-function getFileIcon(filename) {
-  if (!filename) return '📎';
-  const ext = filename.split('.').pop().toLowerCase();
-  const icons = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', zip: '📦', mp3: '🎵', mp4: '🎬' };
+function getFileIcon(name) {
+  if (!name) return '📎';
+  const ext = name.split('.').pop().toLowerCase();
+  const icons = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', zip: '📦', mp3: '🎵', mp4: '🎬', txt: '📃' };
   return icons[ext] || '📎';
 }
 
 function showToast(msg) {
-  const toast = document.getElementById('toast');
+  const t = document.getElementById('toast');
   document.getElementById('toast-message').textContent = msg;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 3000);
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// Keyboard
+// Events
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
