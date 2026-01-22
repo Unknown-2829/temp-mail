@@ -4,16 +4,15 @@ let currentEmail = '';
 let emailsList = [];
 let autoRefreshInterval = null;
 
-// Quotes
+// Short powerful quotes
 const quotes = [
-  "Privacy is the foundation of all other rights.",
-  "In the digital age, privacy is not a luxury—it's a necessity.",
-  "Your digital footprint is permanent. Guard it wisely.",
-  "Privacy isn't about hiding. It's about control.",
-  "Data is the new oil, and privacy is the new green.",
-  "Arguing you don't care about privacy because you have nothing to hide is like saying you don't care about free speech because you have nothing to say.",
-  "Privacy is not something that I'm merely entitled to, it's an absolute prerequisite.",
-  "The right to privacy is the right to be left alone."
+  "Privacy is power.",
+  "Your data. Your rules.",
+  "Stay anonymous. Stay safe.",
+  "Zero spam. Zero tracking.",
+  "Protect your real inbox.",
+  "Temporary email. Permanent privacy.",
+  "No signup. No traces."
 ];
 
 // Initialize
@@ -21,14 +20,14 @@ document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   rotateQuotes();
-  setInterval(rotateQuotes, 30000);
+  setInterval(rotateQuotes, 8000);
 
   // Check for saved email
-  const savedEmail = sessionStorage.getItem('tempEmail');
+  const saved = sessionStorage.getItem('tempEmail');
   const savedTime = sessionStorage.getItem('emailCreatedAt');
 
-  if (savedEmail && savedTime && (Date.now() - parseInt(savedTime)) < 3600000) {
-    currentEmail = savedEmail;
+  if (saved && savedTime && (Date.now() - parseInt(savedTime)) < 3600000) {
+    currentEmail = saved;
     document.getElementById('email-display').value = currentEmail;
     startAutoRefresh();
     refreshEmails();
@@ -39,48 +38,48 @@ async function init() {
 
 function rotateQuotes() {
   const quote = quotes[Math.floor(Math.random() * quotes.length)];
-  const headerQuote = document.getElementById('header-quote');
-  const infoQuote = document.getElementById('info-quote');
-
-  if (headerQuote) headerQuote.innerHTML = `<span>"${quote}"</span>`;
-  if (infoQuote) infoQuote.textContent = `"${quote}"`;
+  document.getElementById('quote-text').textContent = `"${quote}"`;
 }
 
-// Generate Email
+// Generate Email with 2 second delay
 async function generateEmail() {
-  const emailInput = document.getElementById('email-display');
-  emailInput.value = 'Generating...';
+  const input = document.getElementById('email-display');
+  input.value = 'Generating...';
+  input.style.opacity = '0.6';
+
+  // Show generating for 2 seconds
+  await new Promise(resolve => setTimeout(resolve, 2000));
 
   try {
     const response = await fetch('/api/generate', { method: 'POST' });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to generate email');
+      throw new Error('Failed to generate');
     }
 
     const data = await response.json();
     currentEmail = data.email;
-    emailInput.value = currentEmail;
 
-    // Save to session
+    input.value = currentEmail;
+    input.style.opacity = '1';
+
+    // Save
     sessionStorage.setItem('tempEmail', currentEmail);
     sessionStorage.setItem('emailCreatedAt', Date.now().toString());
 
-    // Start auto refresh
     startAutoRefresh();
-
-    showToast('✨ Email generated!');
+    showToast('✨ Email ready!');
 
   } catch (error) {
-    console.error('Generate error:', error);
-    emailInput.value = 'Error - Click Change to retry';
-    showToast('❌ ' + error.message);
+    console.error(error);
+    input.value = 'Error - Click Regenerate';
+    input.style.opacity = '1';
+    showToast('❌ Error generating email');
   }
 }
 
-// Change Email (Generate New)
-async function changeEmail() {
+// Regenerate Email
+async function regenerateEmail() {
   stopAutoRefresh();
   emailsList = [];
   renderInbox();
@@ -96,9 +95,7 @@ function deleteEmail() {
   sessionStorage.removeItem('emailCreatedAt');
   document.getElementById('email-display').value = '';
   renderInbox();
-  showToast('🗑️ Email deleted');
-
-  // Generate new one
+  showToast('🗑️ Deleted');
   setTimeout(generateEmail, 500);
 }
 
@@ -107,9 +104,8 @@ function copyEmail() {
   if (!currentEmail) return;
 
   navigator.clipboard.writeText(currentEmail).then(() => {
-    showToast('📋 Copied to clipboard!');
+    showToast('📋 Copied!');
   }).catch(() => {
-    // Fallback
     const input = document.getElementById('email-display');
     input.select();
     document.execCommand('copy');
@@ -142,17 +138,11 @@ async function refreshEmails() {
 // Render Inbox
 function renderInbox() {
   const container = document.getElementById('inbox-body');
-  const emptyInbox = document.getElementById('empty-inbox');
 
   if (emailsList.length === 0) {
-    container.innerHTML = '';
     container.innerHTML = `
       <div class="empty-inbox">
-        <div class="loading-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 12A10 10 0 1 1 12 2"/>
-          </svg>
-        </div>
+        <div class="loader"></div>
         <p class="empty-title">Your inbox is empty</p>
         <p class="empty-subtitle">Waiting for incoming emails</p>
       </div>
@@ -176,7 +166,7 @@ function renderInbox() {
   }).join('');
 }
 
-// View Email
+// View Email - Full content, preserved HTML
 function viewEmail(index) {
   const email = emailsList[index];
   if (!email) return;
@@ -184,45 +174,46 @@ function viewEmail(index) {
   email.read = true;
   renderInbox();
 
-  // Populate modal
   document.getElementById('modal-subject').textContent = email.subject || '(No Subject)';
   document.getElementById('modal-from').textContent = email.from;
   document.getElementById('modal-time').textContent = formatDateTime(email.timestamp);
   document.getElementById('modal-avatar').textContent = extractSenderName(email.from).charAt(0).toUpperCase();
 
-  // Render body
+  // Render full email body - HTML preserved
   const bodyContainer = document.getElementById('modal-body');
+
   if (email.htmlBody) {
+    // Full HTML preserved
     bodyContainer.innerHTML = sanitizeHtml(email.htmlBody);
-    // Open links in new tab
+    // Make links work
     bodyContainer.querySelectorAll('a').forEach(a => {
       a.setAttribute('target', '_blank');
       a.setAttribute('rel', 'noopener');
     });
   } else if (email.body) {
-    bodyContainer.innerHTML = linkify(escapeHtml(email.body));
+    // Plain text with links
+    bodyContainer.innerHTML = `<div style="white-space: pre-wrap;">${linkify(escapeHtml(email.body))}</div>`;
   } else {
     bodyContainer.innerHTML = '<p style="color: #888;">No content</p>';
   }
 
   // Attachments
-  const attachmentsSection = document.getElementById('modal-attachments');
-  const attachmentsList = document.getElementById('attachments-list');
+  const attachSection = document.getElementById('modal-attachments');
+  const attachList = document.getElementById('attachments-list');
 
   if (email.attachments && email.attachments.length > 0) {
-    attachmentsSection.classList.remove('hidden');
-    attachmentsList.innerHTML = email.attachments.map((att, i) => `
+    attachSection.classList.remove('hidden');
+    attachList.innerHTML = email.attachments.map((att, i) => `
       <div class="attachment-item" onclick="downloadAttachment(${index}, ${i})">
-        <span class="attachment-icon">${getFileIcon(att.filename)}</span>
-        <span class="attachment-name">${escapeHtml(att.filename)}</span>
-        <span class="attachment-size">(${formatFileSize(att.size)})</span>
+        <span>${getFileIcon(att.filename)}</span>
+        <span>${escapeHtml(att.filename)}</span>
+        <span style="color:#888;font-size:11px;">(${formatFileSize(att.size)})</span>
       </div>
     `).join('');
   } else {
-    attachmentsSection.classList.add('hidden');
+    attachSection.classList.add('hidden');
   }
 
-  // Show modal
   document.getElementById('email-modal').classList.add('show');
 }
 
@@ -232,33 +223,28 @@ function closeModal() {
 
 // Download Attachment
 function downloadAttachment(emailIndex, attachmentIndex) {
-  const email = emailsList[emailIndex];
-  const att = email.attachments[attachmentIndex];
-
+  const att = emailsList[emailIndex].attachments[attachmentIndex];
   if (!att || !att.data) {
-    showToast('❌ Attachment not available');
+    showToast('❌ Not available');
     return;
   }
 
   try {
     const byteChars = atob(att.data);
-    const byteNumbers = new Array(byteChars.length);
+    const byteArray = new Uint8Array(byteChars.length);
     for (let i = 0; i < byteChars.length; i++) {
-      byteNumbers[i] = byteChars.charCodeAt(i);
+      byteArray[i] = byteChars.charCodeAt(i);
     }
-    const byteArray = new Uint8Array(byteNumbers);
     const blob = new Blob([byteArray], { type: att.contentType || 'application/octet-stream' });
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = att.filename;
-    document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    showToast('📥 Download started');
+    showToast('📥 Downloading...');
   } catch (e) {
     showToast('❌ Download failed');
   }
@@ -277,7 +263,7 @@ function stopAutoRefresh() {
   }
 }
 
-// Helper Functions
+// Helpers
 function extractSenderName(from) {
   if (!from) return 'Unknown';
   const match = from.match(/^"?([^"<]+)"?\s*</);
@@ -298,19 +284,18 @@ function sanitizeHtml(html) {
   if (!html) return '';
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
     .replace(/javascript:/gi, '#')
-    .replace(/on\w+\s*=/gi, 'data-removed=');
+    .replace(/on\w+\s*=/gi, 'data-x=');
 }
 
 function linkify(text) {
   const urlRegex = /(https?:\/\/[^\s<]+)/g;
-  return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  return text.replace(urlRegex, '<a href="$1" target="_blank" style="color:#00d09c;">$1</a>');
 }
 
-function formatDateTime(timestamp) {
-  if (!timestamp) return '';
-  return new Date(timestamp).toLocaleString();
+function formatDateTime(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleString();
 }
 
 function formatFileSize(bytes) {
@@ -324,35 +309,22 @@ function formatFileSize(bytes) {
 function getFileIcon(filename) {
   if (!filename) return '📎';
   const ext = filename.split('.').pop().toLowerCase();
-  const icons = {
-    pdf: '📄', doc: '📝', docx: '📝', txt: '📃',
-    xls: '📊', xlsx: '📊', csv: '📊',
-    jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️',
-    mp3: '🎵', wav: '🎵',
-    mp4: '🎬', mov: '🎬',
-    zip: '📦', rar: '📦'
-  };
+  const icons = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', zip: '📦', mp3: '🎵', mp4: '🎬' };
   return icons[ext] || '📎';
 }
 
-function showQR() {
-  showToast('QR Code feature coming soon!');
-}
-
-// Toast
-function showToast(message) {
+function showToast(msg) {
   const toast = document.getElementById('toast');
-  document.getElementById('toast-message').textContent = message;
+  document.getElementById('toast-message').textContent = msg;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// Close modal on escape
-document.addEventListener('keydown', (e) => {
+// Keyboard
+document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
-// Close modal on backdrop click
-document.getElementById('email-modal')?.addEventListener('click', (e) => {
+document.getElementById('email-modal')?.addEventListener('click', e => {
   if (e.target.id === 'email-modal') closeModal();
 });
