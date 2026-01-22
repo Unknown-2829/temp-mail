@@ -15,7 +15,7 @@ Cloudflare Email Worker (Receives emails)
 ```
 
 ## Project Structure
-
+    
 ```
 temp-email/
 ├── public/
