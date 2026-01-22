@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TempMail - Free Disposable Email</title>
-  <meta name="description" content="Free temporary disposable email. Receive emails, OTPs instantly.">
+  <meta name="description" content="Free temporary disposable email. Receive emails instantly.">
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📬</text></svg>">
   <link
@@ -24,20 +24,21 @@
     </div>
   </header>
 
-  <!-- Main Section -->
+  <!-- Main -->
   <section class="main-section">
     <div class="container">
 
       <!-- Quote -->
-      <div class="quote-banner" id="quote-banner">
-        <span id="quote-text">"Privacy is power."</span>
+      <div class="quote-banner">
+        <span class="quote-text">"In the digital age, privacy is not a luxury—it's a necessity."</span>
+        <span class="quote-author">- Unknown</span>
       </div>
 
       <h1>Your Temporary Email Address</h1>
 
       <div class="email-box">
-        <input type="text" id="email-display" class="email-input" readonly placeholder="Generating..." value="">
-        <button class="copy-btn" onclick="copyEmail()" id="copy-btn" title="Copy">
+        <input type="text" id="email-display" class="email-input" readonly placeholder="Generating...">
+        <button class="copy-btn" onclick="copyEmail()" title="Copy">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path
               d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
@@ -45,9 +46,7 @@
         </button>
       </div>
 
-      <p class="tagline">
-        Forget spam. Keep your real inbox clean and secure.
-      </p>
+      <p class="tagline">Forget spam. Keep your real inbox clean and secure.</p>
 
       <div class="action-buttons">
         <button class="action-btn" onclick="copyEmail()">
@@ -64,30 +63,10 @@
         </button>
       </div>
 
-      <!-- Features -->
-      <div class="features">
-        <div class="feature" id="feature-1">
-          <span class="feature-icon">🚀</span>
-          <span>Instant</span>
-        </div>
-        <div class="feature" id="feature-2">
-          <span class="feature-icon">🔒</span>
-          <span>Private</span>
-        </div>
-        <div class="feature" id="feature-3">
-          <span class="feature-icon">🆓</span>
-          <span>Free</span>
-        </div>
-        <div class="feature" id="feature-4">
-          <span class="feature-icon">📎</span>
-          <span>Attachments</span>
-        </div>
-      </div>
-
     </div>
   </section>
 
-  <!-- Inbox Section -->
+  <!-- Inbox -->
   <section class="inbox-section">
     <div class="container">
       <div class="inbox-box">
@@ -107,7 +86,30 @@
     </div>
   </section>
 
-  <!-- Email Modal -->
+  <!-- Features - Bottom Cards -->
+  <section class="features-section">
+    <div class="container">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🚀</div>
+          <h3>Instant</h3>
+          <p>Create emails in seconds. No signup required.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Private</h3>
+          <p>Your emails are temporary and auto-deleted.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🆓</div>
+          <h3>Free</h3>
+          <p>Completely free. No hidden costs or limits.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modal -->
   <div class="modal" id="email-modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -117,9 +119,9 @@
       <div class="modal-meta">
         <div class="sender-info">
           <div class="sender-avatar" id="modal-avatar">A</div>
-          <div>
-            <div class="sender-name" id="modal-from">sender@example.com</div>
-            <div class="sender-time" id="modal-time">Time</div>
+          <div class="sender-details">
+            <div class="sender-name-full" id="modal-from">sender</div>
+            <div class="sender-time" id="modal-time">time</div>
           </div>
         </div>
       </div>
