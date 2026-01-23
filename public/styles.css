@@ -22,7 +22,7 @@ body {
 /* Header */
 .header {
   background: #1a1a2e;
-  padding: 18px 0;
+  padding: 22px 0;
   text-align: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -30,41 +30,56 @@ body {
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .logo-icon {
-  font-size: 28px;
+  font-size: 32px;
 }
 
 .logo-text {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: 2px;
+  color: #fff;
+}
+
+.logo-mail {
+  color: #00d09c;
 }
 
 /* Main Section */
 .main-section {
   background: #1a1a2e;
-  padding: 35px 0 40px;
+  padding: 50px 0 50px;
   text-align: center;
 }
 
-.main-section h1 {
-  font-size: 22px;
+/* Email Container - Dotted Border Box */
+.email-container {
+  border: 2px dashed #3a3a5c;
+  border-radius: 16px;
+  padding: 38px 32px;
+  margin-bottom: 38px;
+  background: rgba(37, 37, 64, 0.3);
+}
+
+.email-container h1 {
+  font-size: 21px;
   font-weight: 600;
-  margin-bottom: 22px;
+  margin-bottom: 28px;
+  letter-spacing: 0.5px;
 }
 
 /* Email Box */
 .email-box {
   display: flex;
   align-items: center;
-  max-width: 480px;
-  margin: 0 auto 18px;
+  max-width: 500px;
+  margin: 0 auto;
   background: #252540;
-  border-radius: 10px;
-  padding: 6px;
+  border-radius: 50px;
+  padding: 6px 6px 6px 22px;
   border: 1px solid #3a3a5c;
 }
 
@@ -74,8 +89,8 @@ body {
   border: none;
   color: #fff;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  padding: 12px 15px;
+  font-size: 15px;
+  padding: 13px 0;
   outline: none;
   min-width: 0;
 }
@@ -88,15 +103,20 @@ body {
   background: #00d09c;
   border: none;
   color: #fff;
-  padding: 11px 13px;
+  width: 50px;
+  height: 50px;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 50%;
   transition: all 0.2s;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .copy-btn:hover {
   background: #00b386;
+  transform: scale(1.05);
 }
 
 .copy-btn:active {
@@ -105,29 +125,29 @@ body {
 
 .tagline {
   color: #777;
-  font-size: 13px;
-  margin-bottom: 25px;
+  font-size: 14px;
+  margin-bottom: 38px;
 }
 
 /* Action Buttons */
 .action-buttons {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 30px;
+  margin-bottom: 45px;
 }
 
 .action-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 11px 20px;
+  gap: 8px;
+  padding: 13px 24px;
   background: #2a2a45;
   border: 1px solid #3a3a5c;
   border-radius: 25px;
   color: #fff;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -135,97 +155,129 @@ body {
 
 .action-btn:hover {
   background: #3a3a5c;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
-/* Quote Section - Below buttons */
-.quote-section {
-  padding: 20px 0 10px;
-  text-align: center;
+/* Quote Box - Green Highlighted */
+.quote-box {
+  background: rgba(0, 208, 156, 0.12);
+  border: 1px solid rgba(0, 208, 156, 0.25);
+  border-radius: 12px;
+  padding: 20px 28px;
+  margin-bottom: 55px;
+  position: relative;
 }
 
 .quote-text {
-  color: #888;
-  font-size: 14px;
+  color: #00d09c;
+  font-size: 15px;
   font-style: italic;
-  margin-bottom: 5px;
+  margin-bottom: 0;
 }
 
 .quote-author {
-  color: #666;
-  font-size: 12px;
+  position: absolute;
+  right: 28px;
+  bottom: 20px;
+  color: rgba(0, 208, 156, 0.7);
+  font-size: 13px;
 }
 
-/* Inbox Section - Same dark blue */
+/* Inbox Section */
 .inbox-section {
   background: #1a1a2e;
-  padding: 0 0 50px;
+  padding: 0 0 65px;
 }
 
-.inbox-box {
+.inbox-wrapper {
   background: #fff;
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.45);
 }
 
+/* Inbox Header - Taller */
 .inbox-header {
   display: grid;
-  grid-template-columns: minmax(100px, 1fr) minmax(150px, 2fr) 80px;
+  grid-template-columns: minmax(100px, 1fr) minmax(150px, 2fr) 90px;
   background: #1a1a2e;
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 1.5px;
-  padding: 14px 20px;
+  letter-spacing: 2px;
+  padding: 24px 28px;
 }
 
 .inbox-body {
-  min-height: 200px;
+  min-height: 300px;
   background: #fff;
 }
 
+/* Empty Inbox with Email Icon Animation */
 .empty-inbox {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 50px 20px;
+  padding: 70px 20px;
 }
 
-.loader {
-  width: 35px;
-  height: 35px;
-  border: 3px solid #eee;
-  border-top-color: #00d09c;
-  border-radius: 50%;
-  margin-bottom: 18px;
-  animation: spin 0.8s linear infinite;
+.loading-container {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 25px;
 }
 
-@keyframes spin {
+.loading-arrows {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  animation: rotate 2s linear infinite;
+}
+
+.arrows-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.loading-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
   to {
     transform: rotate(360deg);
   }
 }
 
 .empty-title {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .empty-subtitle {
-  font-size: 13px;
+  font-size: 15px;
   color: #00d09c;
 }
 
 /* Email Row */
 .email-row {
   display: grid;
-  grid-template-columns: minmax(100px, 1fr) minmax(150px, 2fr) 80px;
-  padding: 14px 20px;
+  grid-template-columns: minmax(100px, 1fr) minmax(150px, 2fr) 90px;
+  padding: 18px 28px;
   border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
   transition: background 0.15s;
@@ -248,22 +300,22 @@ body {
 .email-sender {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   color: #333;
-  font-size: 13px;
+  font-size: 14px;
   min-width: 0;
 }
 
 .sender-dot {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, #00d09c 0%, #00b386 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -276,11 +328,11 @@ body {
 
 .email-subject {
   color: #555;
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 10px;
+  padding: 0 12px;
 }
 
 .email-view {
@@ -291,9 +343,9 @@ body {
   background: #00d09c;
   color: #fff;
   border: none;
-  padding: 7px 16px;
+  padding: 9px 20px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -302,47 +354,47 @@ body {
   background: #00b386;
 }
 
-/* Features Section - SAME dark blue theme */
+/* Features Section */
 .features-section {
   background: #1a1a2e;
-  padding: 40px 0 60px;
+  padding: 55px 0 80px;
 }
 
 .features-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 24px;
 }
 
 .feature-card {
   background: #252540;
   border: 1px solid #3a3a5c;
-  border-radius: 14px;
-  padding: 30px 20px;
+  border-radius: 18px;
+  padding: 35px 24px;
   text-align: center;
   transition: transform 0.2s, border-color 0.2s;
 }
 
 .feature-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-5px);
   border-color: #00d09c;
 }
 
 .feature-card .feature-icon {
-  font-size: 38px;
-  margin-bottom: 15px;
+  font-size: 42px;
+  margin-bottom: 18px;
   display: block;
 }
 
 .feature-card h3 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #fff;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .feature-card p {
-  font-size: 13px;
+  font-size: 14px;
   color: #888;
   line-height: 1.5;
 }
@@ -369,9 +421,9 @@ body {
 
 .modal-content {
   background: #fff;
-  border-radius: 14px;
+  border-radius: 18px;
   width: 100%;
-  max-width: 650px;
+  max-width: 680px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
@@ -382,13 +434,13 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 18px 20px;
+  padding: 22px 25px;
   border-bottom: 1px solid #eee;
   background: #fafafa;
 }
 
 .modal-header h3 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #1a1a2e;
   flex: 1;
@@ -402,8 +454,8 @@ body {
   font-size: 18px;
   color: #666;
   cursor: pointer;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -416,7 +468,7 @@ body {
 }
 
 .modal-meta {
-  padding: 14px 20px;
+  padding: 18px 25px;
   background: #fff;
   border-bottom: 1px solid #eee;
 }
@@ -424,12 +476,12 @@ body {
 .sender-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .sender-avatar {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   background: linear-gradient(135deg, #00d09c, #00b386);
   border-radius: 50%;
   display: flex;
@@ -437,7 +489,7 @@ body {
   justify-content: center;
   color: #fff;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .sender-details {
@@ -447,20 +499,20 @@ body {
 .sender-name-full {
   font-weight: 600;
   color: #1a1a2e;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .sender-time {
-  font-size: 12px;
+  font-size: 13px;
   color: #888;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
-  font-size: 14px;
+  padding: 24px;
+  font-size: 15px;
   line-height: 1.7;
   color: #333;
 }
@@ -476,7 +528,7 @@ body {
 }
 
 .modal-attachments {
-  padding: 15px 20px;
+  padding: 18px 25px;
   border-top: 1px solid #eee;
   background: #fafafa;
 }
@@ -486,8 +538,8 @@ body {
 }
 
 .modal-attachments h4 {
-  font-size: 13px;
-  margin-bottom: 10px;
+  font-size: 14px;
+  margin-bottom: 12px;
   color: #555;
 }
 
@@ -495,14 +547,14 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 11px 18px;
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  margin-right: 8px;
-  margin-bottom: 8px;
+  margin-right: 10px;
+  margin-bottom: 10px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .attachment-item:hover {
@@ -513,14 +565,14 @@ body {
 /* Toast */
 .toast {
   position: fixed;
-  bottom: 25px;
+  bottom: 32px;
   left: 50%;
   transform: translateX(-50%) translateY(100px);
   background: #252540;
   color: #fff;
-  padding: 12px 28px;
-  border-radius: 10px;
-  font-size: 14px;
+  padding: 15px 32px;
+  border-radius: 12px;
+  font-size: 15px;
   font-weight: 500;
   transition: transform 0.3s;
   z-index: 1001;
@@ -533,132 +585,170 @@ body {
 /* Mobile */
 @media (max-width: 600px) {
   .header {
-    padding: 15px 0;
+    padding: 18px 0;
   }
 
   .logo-icon {
-    font-size: 24px;
+    font-size: 28px;
   }
 
   .logo-text {
-    font-size: 18px;
+    font-size: 22px;
   }
 
   .main-section {
-    padding: 25px 0 30px;
+    padding: 38px 0 42px;
   }
 
-  .main-section h1 {
+  .email-container {
+    padding: 28px 22px;
+    margin-bottom: 30px;
+  }
+
+  .email-container h1 {
     font-size: 18px;
-    margin-bottom: 18px;
+    margin-bottom: 22px;
   }
 
   .email-box {
-    margin: 0 10px 15px;
-    max-width: none;
+    padding: 5px 5px 5px 16px;
   }
 
   .email-input {
-    font-size: 12px;
-    padding: 10px 12px;
+    font-size: 13px;
+    padding: 11px 0;
   }
 
   .copy-btn {
-    padding: 10px 12px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .copy-btn svg {
+    width: 19px;
+    height: 19px;
   }
 
   .tagline {
-    font-size: 12px;
-    margin-bottom: 20px;
+    font-size: 13px;
+    margin-bottom: 28px;
   }
 
   .action-buttons {
-    gap: 8px;
-    padding: 0 10px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 35px;
   }
 
   .action-btn {
-    padding: 9px 14px;
-    font-size: 12px;
+    padding: 11px 18px;
+    font-size: 13px;
   }
 
-  .quote-section {
-    padding: 15px 10px;
+  .quote-box {
+    padding: 16px 22px 32px;
+    margin-bottom: 45px;
   }
 
   .quote-text {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .quote-author {
-    font-size: 11px;
+    font-size: 12px;
+    right: 22px;
+    bottom: 14px;
   }
 
   .inbox-section {
-    padding: 0 10px 40px;
+    padding: 0 10px 55px;
+  }
+
+  .inbox-wrapper {
+    border-radius: 14px;
   }
 
   .inbox-header {
-    grid-template-columns: 1fr 1fr 60px;
-    padding: 12px 15px;
-    font-size: 10px;
-  }
-
-  .email-row {
-    grid-template-columns: 1fr 1fr 60px;
-    padding: 12px 15px;
-  }
-
-  .sender-dot {
-    width: 28px;
-    height: 28px;
+    grid-template-columns: 1fr 1.2fr 70px;
+    padding: 18px 20px;
     font-size: 11px;
   }
 
-  .sender-name {
-    font-size: 12px;
+  .inbox-body {
+    min-height: 250px;
   }
 
+  .email-row {
+    grid-template-columns: 1fr 1.2fr 70px;
+    padding: 16px 20px;
+  }
+
+  .sender-dot {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .sender-name,
   .email-subject {
-    font-size: 12px;
-    padding: 0 5px;
+    font-size: 13px;
   }
 
   .view-btn {
-    padding: 6px 12px;
-    font-size: 10px;
+    padding: 8px 16px;
+    font-size: 11px;
+  }
+
+  .loading-container {
+    width: 65px;
+    height: 65px;
+  }
+
+  .loading-icon {
+    font-size: 26px;
+  }
+
+  .empty-inbox {
+    padding: 55px 20px;
+  }
+
+  .empty-title {
+    font-size: 16px;
+  }
+
+  .empty-subtitle {
+    font-size: 14px;
   }
 
   .features-section {
-    padding: 30px 0 50px;
+    padding: 45px 0 65px;
   }
 
   .features-grid {
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: 18px;
     padding: 0 10px;
   }
 
   .feature-card {
-    padding: 20px;
+    padding: 24px 22px;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 18px;
     text-align: left;
   }
 
   .feature-card .feature-icon {
-    font-size: 30px;
+    font-size: 34px;
     margin-bottom: 0;
   }
 
   .feature-card h3 {
-    margin-bottom: 3px;
+    margin-bottom: 5px;
+    font-size: 16px;
   }
 
   .feature-card p {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .modal {
@@ -669,38 +759,47 @@ body {
 
   .modal-content {
     max-height: calc(100vh - 40px);
+    border-radius: 14px;
   }
 
   .modal-header {
-    padding: 15px;
+    padding: 18px 20px;
   }
 
   .modal-header h3 {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .modal-body {
-    padding: 15px;
-    font-size: 13px;
+    padding: 20px;
+    font-size: 14px;
   }
 
   .toast {
-    padding: 10px 22px;
-    font-size: 13px;
-    bottom: 20px;
+    padding: 13px 28px;
+    font-size: 14px;
+    bottom: 28px;
   }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 400px) {
   .action-btn span:last-child {
     display: none;
   }
 
   .action-btn {
-    padding: 10px 12px;
+    padding: 12px 14px;
   }
 
   .sender-dot {
     display: none;
+  }
+
+  .inbox-header {
+    grid-template-columns: 1fr 1fr 60px;
+  }
+
+  .email-row {
+    grid-template-columns: 1fr 1fr 60px;
   }
 }

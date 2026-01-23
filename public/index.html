@@ -20,7 +20,7 @@
   <header class="header">
     <div class="logo">
       <span class="logo-icon">📬</span>
-      <span class="logo-text">TEMPMAIL</span>
+      <span class="logo-text">TEMP<span class="logo-mail">MAIL</span></span>
     </div>
   </header>
 
@@ -28,16 +28,18 @@
   <section class="main-section">
     <div class="container">
 
-      <h1>Your Temporary Email Address</h1>
-
-      <div class="email-box">
-        <input type="text" id="email-display" class="email-input" readonly placeholder="Generating...">
-        <button class="copy-btn" onclick="copyEmail()" title="Copy">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path
-              d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-          </svg>
-        </button>
+      <!-- Email Box with dotted border -->
+      <div class="email-container">
+        <h1>Your Temporary Email Address</h1>
+        <div class="email-box">
+          <input type="text" id="email-display" class="email-input" readonly placeholder="Generating...">
+          <button class="copy-btn" onclick="copyEmail()" title="Copy">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <p class="tagline">Forget spam. Keep your real inbox clean and secure.</p>
@@ -57,10 +59,10 @@
         </button>
       </div>
 
-      <!-- Quote below buttons -->
-      <div class="quote-section">
+      <!-- Quote in green box -->
+      <div class="quote-box">
         <p class="quote-text">"In the digital age, privacy is not a luxury—it's a necessity."</p>
-        <p class="quote-author">- Unknown</p>
+        <span class="quote-author">- Unknown</span>
       </div>
 
     </div>
@@ -69,7 +71,7 @@
   <!-- Inbox -->
   <section class="inbox-section">
     <div class="container">
-      <div class="inbox-box">
+      <div class="inbox-wrapper">
         <div class="inbox-header">
           <div class="col-sender">SENDER</div>
           <div class="col-subject">SUBJECT</div>
@@ -77,7 +79,16 @@
         </div>
         <div class="inbox-body" id="inbox-body">
           <div class="empty-inbox">
-            <div class="loader"></div>
+            <div class="loading-container">
+              <div class="loading-arrows">
+                <svg viewBox="0 0 100 100" class="arrows-svg">
+                  <path
+                    d="M50 10 L60 25 L55 25 L55 20 A30 30 0 0 1 80 50 L75 50 A25 25 0 0 0 55 25 L55 20 L45 20 L45 25 A25 25 0 0 0 25 50 L20 50 A30 30 0 0 1 45 20 L45 25 L40 25 Z"
+                    fill="#ddd" />
+                </svg>
+              </div>
+              <div class="loading-icon">✉️</div>
+            </div>
             <p class="empty-title">Your inbox is empty</p>
             <p class="empty-subtitle">Waiting for incoming emails</p>
           </div>
@@ -86,7 +97,7 @@
     </div>
   </section>
 
-  <!-- Features - Same dark blue theme -->
+  <!-- Features -->
   <section class="features-section">
     <div class="container">
       <div class="features-grid">
