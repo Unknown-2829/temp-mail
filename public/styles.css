@@ -1,4 +1,21 @@
-/* TempMail - Full Dark Blue Theme */
+/* Coffee Link */
+.coffee-link {
+  color: #FFDD00 !important;
+  text-decoration: none;
+  font-weight: bold;
+  border: 1px solid #FFDD00;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: background 0.2s, color 0.2s;
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 13px;
+}
+
+.coffee-link:hover {
+  background: #FFDD00;
+  color: #000 !important;
+}
 
 * {
   margin: 0;
@@ -51,10 +68,6 @@ body {
 
 /* About Button - Corner position */
 .about-btn {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
   background: #252540;
   border: 1px solid #3a3a5c;
   color: #fff;
@@ -69,6 +82,47 @@ body {
 .about-btn:hover {
   background: #3a3a5c;
   border-color: #00d09c;
+}
+
+.header-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.premium-btn {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #000;
+  font-weight: bold;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: transform 0.2s;
+  animation: pulse 2s infinite;
+}
+
+.premium-btn:hover {
+  transform: scale(1.05);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+  }
 }
 
 /* Main Section */
@@ -130,6 +184,53 @@ body {
 
 .primary-actions {
   margin-left: 15px;
+}
+
+/* QR Button */
+.qr-btn {
+  background-color: #3f4152;
+  border: 1px solid #3f4152;
+  color: #fff;
+  cursor: pointer;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.qr-btn:hover {
+  background-color: #4e5166;
+  border-color: #4e5166;
+}
+
+.qr-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.qr-code-container {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.qr-code-container.hidden {
+  display: none;
+}
+
+#qrcode img {
+  margin: 0 auto;
+  display: block;
 }
 
 .secondary-actions {

@@ -8,9 +8,43 @@ let currentViewIndex = -1;
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
 
+// UI Actions
+function toggleQR() {
+  const container = document.getElementById('qr-code-container');
+  const qrDiv = document.getElementById('qrcode');
+
+  if (container.classList.contains('hidden')) {
+    container.classList.remove('hidden');
+    qrDiv.innerHTML = ''; // Clear previous
+    if (currentEmail) {
+      new QRCode(qrDiv, {
+        text: currentEmail,
+        width: 128,
+        height: 128
+      });
+    }
+  } else {
+    container.classList.add('hidden');
+  }
+}
+
+function openPremium() {
+  // Phase 2: Open Premium Modal
+  alert('💎 Premium Plans:\n\n- Pro ($4.99/mo): Custom Names, 30 Days\n- Lifetime ($49.99): Permanent, Forwarding\n\nPayment via Crypto (BTC/ETH/USDT) coming soon!');
+}
+
+
+
+
 async function init() {
+  // Request Notification Permission
+  if ("Notification" in window && Notification.permission !== "granted") {
+    Notification.requestPermission();
+  }
+
   const saved = localStorage.getItem('tempEmail');
   const savedTime = localStorage.getItem('emailCreatedAt');
+
 
   if (saved && savedTime && (Date.now() - parseInt(savedTime)) < 3600000) {
     currentEmail = saved;
@@ -97,7 +131,17 @@ async function refreshEmails() {
     emailsList = data.emails || [];
 
     if (emailsList.length > oldCount && oldCount > 0) {
-      showToast(`📧 ${emailsList.length - oldCount} new!`);
+      const newCount = emailsList.length - oldCount;
+      showToast(`📧 ${newCount} new!`);
+
+      // Update Title and Send Notification
+      document.title = `(${newCount}) New Email! - TempMail`;
+      if (Notification.permission === "granted") {
+        new Notification("New Email Received 📬", {
+          body: `You have ${newCount} new message(s)`,
+          icon: '/favicon.ico'
+        });
+      }
     }
 
     renderInbox();
@@ -247,6 +291,7 @@ function viewEmail(index) {
 
   currentViewIndex = index;
   email.read = true;
+  document.title = 'TempMail - Free Disposable Email'; // Reset title
   renderInbox();
 
   const sender = parseSender(email.from, email);
