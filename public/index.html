@@ -12,7 +12,8 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- QRCode.js -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7521446029181314"
     crossorigin="anonymous"></script>
 </head>
@@ -26,7 +27,7 @@
       <span class="logo-text">TEMP<span class="logo-mail">MAIL</span></span>
     </div>
     <div class="header-actions">
-      <button class="premium-btn" onclick="openPremium()">Get Premium</button>
+      <button class="premium-btn" onclick="openPremium()">⭐ Premium</button>
       <button class="about-btn" onclick="openAbout()">About</button>
     </div>
   </header>
@@ -54,18 +55,13 @@
               </svg>
               <span>Copy</span>
             </button>
-            <button class="qr-btn" onclick="toggleQR()" title="Show QR Code">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button class="qr-btn" onclick="showQR()" title="Show QR Code">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path
-                  d="M3 3h6v6H3V3zm2 2v2h2V5H5zm8-2h6v6h-6V3zm2 2v2h2V5h-2zM3 15h6v6H3v-6zm2 2v2h2v-2H5zm8 6h6v-6h-6v6zm2-2v-2h2v2h-2zm-4-2H9v-2h2v2zm2 2h-2v-2h2v2zm2-2h-2v-2h2v2zm2 2h-2v-2h2v2z"
-                  fill="currentColor" />
+                  d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8-2v8h8V3h-8zm6 6h-4V5h4v4zM3 21h8v-8H3v8zm2-6h4v4H5v-4zm13 2h-2v2h2v2h-2v-2h-2v2h-2v-2h2v-2h-2v-2h2v2h2v-2h2v2zm0 2v2h2v-2h-2zm0-4h2v2h-2v-2z" />
               </svg>
             </button>
           </div>
-        </div>
-
-        <div id="qr-code-container" class="qr-code-container hidden">
-          <div id="qrcode"></div>
         </div>
 
         <div class="secondary-actions">
@@ -145,12 +141,142 @@
         <span class="footer-tagline">— Your privacy, our priority</span>
       </div>
       <div class="footer-links">
+        <a href="https://buymeacoffee.com/unknown2829" target="_blank" class="footer-btn coffee">☕ Buy me a Coffee</a>
         <a href="https://t.me/unknownlll2829" target="_blank" class="footer-btn primary">📩 Contact Developer</a>
-        <a href="https://buymeacoffee.com/yourusername" target="_blank" class="coffee-link">☕ Buy me a Coffee</a>
       </div>
       <p class="footer-copy">© 2026 TempMail. All rights reserved.</p>
     </div>
   </footer>
+
+  <!-- QR Code Modal -->
+  <div class="qr-modal" id="qr-modal">
+    <div class="qr-content">
+      <div class="qr-header">
+        <h2>Scan QR Code</h2>
+        <button class="qr-close" onclick="closeQR()">✕</button>
+      </div>
+      <div class="qr-body">
+        <div id="qr-code-container"></div>
+        <p class="qr-email" id="qr-email-display"></p>
+        <p class="qr-hint">Scan to copy email on your phone</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Premium Modal -->
+  <div class="premium-modal" id="premium-modal">
+    <div class="premium-content">
+      <div class="premium-header">
+        <h2>⭐ TempMail Premium</h2>
+        <button class="premium-close" onclick="closePremium()">✕</button>
+      </div>
+      <div class="premium-body">
+        <p class="premium-desc">Unlock powerful features for privacy power-users.</p>
+
+        <div class="premium-features">
+          <div class="premium-feature">
+            <span class="pf-icon">🎯</span>
+            <div>
+              <strong>Custom Usernames</strong>
+              <p>Choose your own email handle (e.g., batman@domain.com)</p>
+            </div>
+          </div>
+          <div class="premium-feature">
+            <span class="pf-icon">💾</span>
+            <div>
+              <strong>8 Permanent Emails</strong>
+              <p>Save emails that never expire. Keep them forever.</p>
+            </div>
+          </div>
+          <div class="premium-feature">
+            <span class="pf-icon">📨</span>
+            <div>
+              <strong>Email Forwarding</strong>
+              <p>Forward incoming emails to your real inbox.</p>
+            </div>
+          </div>
+          <div class="premium-feature">
+            <span class="pf-icon">🚫</span>
+            <div>
+              <strong>No Ads</strong>
+              <p>Clean, distraction-free experience.</p>
+            </div>
+          </div>
+          <div class="premium-feature">
+            <span class="pf-icon">🔌</span>
+            <div>
+              <strong>Developer API</strong>
+              <p>Generate emails programmatically. 1000/day.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="premium-pricing">
+          <div class="price-card">
+            <h3>Monthly</h3>
+            <div class="price">$3<span>/mo</span></div>
+          </div>
+          <div class="price-card featured">
+            <span class="best-value">Best Value</span>
+            <h3>Yearly</h3>
+            <div class="price">$20<span>/yr</span></div>
+            <p class="savings">Save 45%</p>
+          </div>
+        </div>
+
+        <div class="premium-crypto">
+          <p class="crypto-title">💎 Pay with Crypto</p>
+          <div class="crypto-addresses">
+            <div class="crypto-addr">
+              <span class="crypto-label">BTC:</span>
+              <code id="btc-addr">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</code>
+              <button onclick="copyCrypto('btc-addr')" class="copy-small">Copy</button>
+            </div>
+            <div class="crypto-addr">
+              <span class="crypto-label">ETH/USDT:</span>
+              <code id="eth-addr">0x71C7656EC7ab88b098defB751B7401B5f6d8976F</code>
+              <button onclick="copyCrypto('eth-addr')" class="copy-small">Copy</button>
+            </div>
+            <div class="crypto-addr">
+              <span class="crypto-label">SOL:</span>
+              <code id="sol-addr">HN7cABqLq46Es1jh92dQQisAq662SmxELLTPRdnQdYvS</code>
+              <button onclick="copyCrypto('sol-addr')" class="copy-small">Copy</button>
+            </div>
+          </div>
+          <p class="crypto-note">After payment, send TX hash to <a href="https://t.me/unknownlll2829"
+              target="_blank">@unknownlll2829</a> for activation.</p>
+        </div>
+
+        <div class="premium-login">
+          <p>Already Premium?</p>
+          <button class="login-btn" onclick="openAuth()">🔐 Sign In</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div class="auth-modal" id="auth-modal">
+    <div class="auth-content">
+      <div class="auth-header">
+        <h2>🔐 Sign In</h2>
+        <button class="auth-close" onclick="closeAuth()">✕</button>
+      </div>
+      <div class="auth-body">
+        <p>Enter your email to receive a verification code.</p>
+        <div class="auth-form">
+          <input type="email" id="auth-email" placeholder="your@email.com" class="auth-input">
+          <button class="auth-send-btn" onclick="sendOTP()" id="send-otp-btn">Send Code</button>
+        </div>
+        <div class="otp-section hidden" id="otp-section">
+          <p>Enter the 6-digit code sent to your email:</p>
+          <input type="text" id="otp-input" maxlength="6" placeholder="000000" class="otp-input">
+          <button class="auth-verify-btn" onclick="verifyOTP()">Verify & Login</button>
+        </div>
+        <p class="auth-error hidden" id="auth-error"></p>
+      </div>
+    </div>
+  </div>
 
   <!-- About Modal -->
   <div class="about-modal" id="about-modal">

@@ -4,47 +4,18 @@ let currentEmail = '';
 let emailsList = [];
 let autoRefreshInterval = null;
 let currentViewIndex = -1;
+let previousEmailCount = 0;
+const originalTitle = document.title;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
 
-// UI Actions
-function toggleQR() {
-  const container = document.getElementById('qr-code-container');
-  const qrDiv = document.getElementById('qrcode');
-
-  if (container.classList.contains('hidden')) {
-    container.classList.remove('hidden');
-    qrDiv.innerHTML = ''; // Clear previous
-    if (currentEmail) {
-      new QRCode(qrDiv, {
-        text: currentEmail,
-        width: 128,
-        height: 128
-      });
-    }
-  } else {
-    container.classList.add('hidden');
-  }
-}
-
-function openPremium() {
-  // Phase 2: Open Premium Modal
-  alert('💎 Premium Plans:\n\n- Pro ($4.99/mo): Custom Names, 30 Days\n- Lifetime ($49.99): Permanent, Forwarding\n\nPayment via Crypto (BTC/ETH/USDT) coming soon!');
-}
-
-
-
-
 async function init() {
-  // Request Notification Permission
-  if ("Notification" in window && Notification.permission !== "granted") {
-    Notification.requestPermission();
-  }
+  // Request notification permission
+  requestNotificationPermission();
 
   const saved = localStorage.getItem('tempEmail');
   const savedTime = localStorage.getItem('emailCreatedAt');
-
 
   if (saved && savedTime && (Date.now() - parseInt(savedTime)) < 3600000) {
     currentEmail = saved;
@@ -55,6 +26,32 @@ async function init() {
     localStorage.removeItem('tempEmail');
     localStorage.removeItem('emailCreatedAt');
     await generateEmail();
+  }
+}
+
+// Notification Permission
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+// Show browser notification
+function showNotification(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, {
+      body: body,
+      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📬</text></svg>'
+    });
+  }
+}
+
+// Update tab title with email count
+function updateTabTitle(newCount) {
+  if (newCount > 0) {
+    document.title = `(${newCount}) ${originalTitle}`;
+  } else {
+    document.title = originalTitle;
   }
 }
 
@@ -90,6 +87,7 @@ async function generateEmail() {
 async function regenerateEmail() {
   stopAutoRefresh();
   emailsList = [];
+  previousEmailCount = 0;
   renderInbox();
   localStorage.removeItem('tempEmail');
   localStorage.removeItem('emailCreatedAt');
@@ -100,10 +98,12 @@ function deleteEmail() {
   stopAutoRefresh();
   currentEmail = '';
   emailsList = [];
+  previousEmailCount = 0;
   localStorage.removeItem('tempEmail');
   localStorage.removeItem('emailCreatedAt');
   document.getElementById('email-display').value = '';
   renderInbox();
+  updateTabTitle(0);
   showToast('🗑️ Deleted');
   setTimeout(generateEmail, 500);
 }
@@ -129,20 +129,18 @@ async function refreshEmails() {
 
     const oldCount = emailsList.length;
     emailsList = data.emails || [];
+    const newCount = emailsList.length;
 
-    if (emailsList.length > oldCount && oldCount > 0) {
-      const newCount = emailsList.length - oldCount;
-      showToast(`📧 ${newCount} new!`);
-
-      // Update Title and Send Notification
-      document.title = `(${newCount}) New Email! - TempMail`;
-      if (Notification.permission === "granted") {
-        new Notification("New Email Received 📬", {
-          body: `You have ${newCount} new message(s)`,
-          icon: '/favicon.ico'
-        });
-      }
+    // New email notifications
+    if (newCount > oldCount && oldCount > 0) {
+      const diff = newCount - oldCount;
+      showToast(`📧 ${diff} new!`);
+      showNotification('New Email!', `You have ${diff} new email(s)`);
     }
+
+    // Update tab title with unread count
+    const unreadCount = emailsList.filter(e => !e.read).length;
+    updateTabTitle(unreadCount);
 
     renderInbox();
   } catch (e) {
@@ -209,7 +207,7 @@ function parseSender(from, emailObj) {
     emailAddr = match[2].trim();
   } else {
     // Just email
-    match = from.match(/<?([^@<\s]+@[^>\s]+)>?/);
+    match = from.match(/<?([\^@<\s]+@[^>\s]+)>?/);
     if (match) emailAddr = match[1];
   }
 
@@ -291,7 +289,11 @@ function viewEmail(index) {
 
   currentViewIndex = index;
   email.read = true;
-  document.title = 'TempMail - Free Disposable Email'; // Reset title
+
+  // Update tab title after marking as read
+  const unreadCount = emailsList.filter(e => !e.read).length;
+  updateTabTitle(unreadCount);
+
   renderInbox();
 
   const sender = parseSender(email.from, email);
@@ -364,6 +366,8 @@ function closeModal() {
 function deleteCurrentEmail() {
   if (currentViewIndex >= 0) {
     emailsList.splice(currentViewIndex, 1);
+    const unreadCount = emailsList.filter(e => !e.read).length;
+    updateTabTitle(unreadCount);
     renderInbox();
     closeModal();
     showToast('🗑️ Email deleted');
@@ -451,7 +455,150 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// About Modal
+// ========== QR Code Functions ==========
+function showQR() {
+  if (!currentEmail) {
+    showToast('❌ No email to show');
+    return;
+  }
+
+  const container = document.getElementById('qr-code-container');
+  container.innerHTML = '';
+
+  // Generate QR code using the library
+  QRCode.toCanvas(currentEmail, { width: 180, margin: 0 }, (err, canvas) => {
+    if (err) {
+      showToast('❌ QR Error');
+      return;
+    }
+    container.appendChild(canvas);
+  });
+
+  document.getElementById('qr-email-display').textContent = currentEmail;
+  document.getElementById('qr-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeQR() {
+  document.getElementById('qr-modal').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+// ========== Premium Modal Functions ==========
+function openPremium() {
+  document.getElementById('premium-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePremium() {
+  document.getElementById('premium-modal').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function copyCrypto(id) {
+  const code = document.getElementById(id);
+  if (!code) return;
+  navigator.clipboard.writeText(code.textContent).then(() => {
+    showToast('📋 Address copied!');
+  }).catch(() => {
+    showToast('❌ Copy failed');
+  });
+}
+
+// ========== Auth Modal Functions ==========
+function openAuth() {
+  closePremium();
+  document.getElementById('auth-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAuth() {
+  document.getElementById('auth-modal').classList.remove('show');
+  document.body.style.overflow = '';
+  // Reset form
+  document.getElementById('auth-email').value = '';
+  document.getElementById('otp-input').value = '';
+  document.getElementById('otp-section').classList.add('hidden');
+  document.getElementById('auth-error').classList.add('hidden');
+}
+
+async function sendOTP() {
+  const emailInput = document.getElementById('auth-email');
+  const sendBtn = document.getElementById('send-otp-btn');
+  const email = emailInput.value.trim();
+
+  if (!email || !email.includes('@')) {
+    showAuthError('Please enter a valid email');
+    return;
+  }
+
+  sendBtn.disabled = true;
+  sendBtn.textContent = 'Sending...';
+
+  try {
+    const response = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      document.getElementById('otp-section').classList.remove('hidden');
+      showToast('📧 Code sent!');
+    } else {
+      showAuthError(data.error || 'Failed to send code');
+    }
+  } catch (e) {
+    showAuthError('Network error. Try again.');
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send Code';
+  }
+}
+
+async function verifyOTP() {
+  const email = document.getElementById('auth-email').value.trim();
+  const otp = document.getElementById('otp-input').value.trim();
+
+  if (!otp || otp.length !== 6) {
+    showAuthError('Please enter the 6-digit code');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('isPremium', data.isPremium ? 'true' : 'false');
+      closeAuth();
+      showToast('✅ Logged in!');
+      // Refresh page to apply premium status
+      location.reload();
+    } else {
+      showAuthError(data.error || 'Invalid code');
+    }
+  } catch (e) {
+    showAuthError('Network error. Try again.');
+  }
+}
+
+function showAuthError(msg) {
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = msg;
+  errEl.classList.remove('hidden');
+}
+
+// ========== About Modal ==========
 function openAbout() {
   document.getElementById('about-modal').classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -462,11 +609,14 @@ function closeAbout() {
   document.body.style.overflow = '';
 }
 
-// Event listeners
+// ========== Event Listeners ==========
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeModal();
     closeAbout();
+    closeQR();
+    closePremium();
+    closeAuth();
   }
 });
 
@@ -476,4 +626,16 @@ document.getElementById('email-modal')?.addEventListener('click', e => {
 
 document.getElementById('about-modal')?.addEventListener('click', e => {
   if (e.target.id === 'about-modal') closeAbout();
+});
+
+document.getElementById('qr-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'qr-modal') closeQR();
+});
+
+document.getElementById('premium-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'premium-modal') closePremium();
+});
+
+document.getElementById('auth-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'auth-modal') closeAuth();
 });

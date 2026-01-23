@@ -63,6 +63,50 @@ export default {
             console.log("   Subject:", parsedEmail.subject);
             console.log("   Has HTML:", !!parsedEmail.htmlBody);
             console.log("   Attachments:", parsedEmail.attachments.length);
+
+            // Check for forwarding rule (Premium feature)
+            const forwardingKey = `forward:${recipientEmail}`;
+            const forwardingRule = await env.TEMP_EMAILS.get(forwardingKey, { type: 'json' });
+
+            if (forwardingRule && forwardingRule.to && env.SENDGRID_API_KEY) {
+                console.log("📨 Forwarding to:", forwardingRule.to);
+
+                try {
+                    const forwardResponse = await fetch('https://api.sendgrid.com/v3/mail/send', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${env.SENDGRID_API_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            personalizations: [{ to: [{ email: forwardingRule.to }] }],
+                            from: { email: 'forward@unknownlll2829.qzz.io', name: 'TempMail Forward' },
+                            subject: `[FWD] ${parsedEmail.subject}`,
+                            content: [{
+                                type: 'text/html',
+                                value: `
+                                    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:20px;">
+                                        <p style="margin:0;color:#666;font-size:12px;">
+                                            Forwarded from: <strong>${recipientEmail}</strong><br>
+                                            Original sender: <strong>${message.from}</strong>
+                                        </p>
+                                    </div>
+                                    ${parsedEmail.htmlBody || `<pre>${parsedEmail.textBody}</pre>`}
+                                `
+                            }]
+                        })
+                    });
+
+                    if (forwardResponse.ok) {
+                        console.log("✅ Email forwarded successfully");
+                    } else {
+                        console.log("⚠️ Forward failed:", await forwardResponse.text());
+                    }
+                } catch (fwdError) {
+                    console.log("⚠️ Forward error:", fwdError.message);
+                }
+            }
+
             console.log("=========================================");
 
         } catch (error) {
