@@ -29,36 +29,37 @@
   <section class="main-section">
     <div class="container">
 
-      <!-- Email Box with dotted border -->
+      <!-- Email Box with dashed border -->
       <div class="email-container">
         <h1>Your Temporary Email Address</h1>
-        <div class="email-box">
-          <input type="text" id="email-display" class="email-input" readonly placeholder="Generating...">
-          <button class="copy-btn" onclick="copyEmail()" title="Copy">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-              <path
-                d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-            </svg>
+
+        <!-- Wrapper for Desktop side-by-side / Mobile stacked -->
+        <div class="email-main-row">
+          <div class="email-wrapper">
+            <input type="text" id="email-display" class="email-input" readonly placeholder="Loading...">
+          </div>
+
+          <div class="primary-actions">
+            <button class="big-copy-btn" onclick="copyEmail()">
+              <span>❐</span> Copy
+            </button>
+          </div>
+        </div>
+
+        <div class="secondary-actions">
+          <button class="action-btn-small" onclick="refreshEmails()" title="Refresh">
+            <span>🔄</span> Refresh
+          </button>
+          <button class="action-btn-small" onclick="regenerateEmail()" title="Regenerate">
+            <span>✨</span> New
+          </button>
+          <button class="action-btn-small" onclick="deleteEmail()" title="Delete">
+            <span>🗑️</span> Delete
           </button>
         </div>
       </div>
 
       <p class="tagline">Forget spam. Keep your real inbox clean and secure.</p>
-
-      <div class="action-buttons">
-        <button class="action-btn" onclick="copyEmail()">
-          <span>📋</span> Copy
-        </button>
-        <button class="action-btn" onclick="refreshEmails()">
-          <span>🔄</span> Refresh
-        </button>
-        <button class="action-btn" onclick="regenerateEmail()">
-          <span>✨</span> Regenerate
-        </button>
-        <button class="action-btn" onclick="deleteEmail()">
-          <span>🗑️</span> Delete
-        </button>
-      </div>
 
     </div>
   </section>
