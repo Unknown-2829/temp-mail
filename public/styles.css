@@ -49,12 +49,8 @@ body {
   color: #00d09c;
 }
 
-/* About Button - Corner position */
+/* About Button - Now in flex container */
 .about-btn {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
   background: #252540;
   border: 1px solid #3a3a5c;
   color: #fff;
