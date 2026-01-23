@@ -80,15 +80,16 @@
         <div class="inbox-body" id="inbox-body">
           <div class="empty-inbox">
             <div class="loading-animation">
-              <svg class="envelope-loader" viewBox="0 0 80 80">
-                <!-- Circular arrow -->
-                <path class="arrow-path" d="M40 8 A32 32 0 1 1 8 40" fill="none" stroke="#ddd" stroke-width="3"
+              <svg class="loading-arrows" viewBox="0 0 80 80">
+                <!-- Two circular arrows -->
+                <path d="M40 8 A32 32 0 0 1 72 40" fill="none" stroke="#d0d0d0" stroke-width="3"
                   stroke-linecap="round" />
-                <polygon class="arrow-head" points="40,2 48,14 40,10 32,14" fill="#ddd" />
-                <!-- Envelope -->
-                <rect x="24" y="30" width="32" height="24" rx="2" fill="#e8e0f0" stroke="#c4b8d8" stroke-width="1" />
-                <path d="M24 32 L40 44 L56 32" fill="none" stroke="#a090c0" stroke-width="1.5" />
+                <polygon points="72,34 72,46 64,40" fill="#d0d0d0" />
+                <path d="M40 72 A32 32 0 0 1 8 40" fill="none" stroke="#d0d0d0" stroke-width="3"
+                  stroke-linecap="round" />
+                <polygon points="8,34 8,46 16,40" fill="#d0d0d0" />
               </svg>
+              <div class="loading-icon">✉️</div>
             </div>
             <p class="empty-title">Your inbox is empty</p>
             <p class="empty-subtitle">Waiting for incoming emails</p>
