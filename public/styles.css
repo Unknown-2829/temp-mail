@@ -74,7 +74,7 @@ body {
 /* Main Section */
 .main-section {
   background: #1a1a2e;
-  padding: 50px 0 40px;
+  padding: 50px 0 20px;
   text-align: center;
 }
 
@@ -209,7 +209,7 @@ body {
 /* Inbox Section */
 .inbox-section {
   background: #1a1a2e;
-  padding: 40px 0;
+  padding: 20px 0 40px;
   min-height: 400px;
 }
 
