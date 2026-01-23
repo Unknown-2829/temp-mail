@@ -103,7 +103,8 @@ body {
 
 .email-wrapper {
   flex: 1;
-  max-width: 400px;
+  max-width: 100%;
+  /* Allow full width usage */
   margin-bottom: 0;
 }
 
@@ -115,10 +116,13 @@ body {
   color: #00d09c;
   /* Green text */
   font-family: 'JetBrains Mono', monospace;
-  font-size: 18px;
+  font-size: 15px;
+  /* Reduced for better fit */
   width: 100%;
   text-align: center;
   outline: none;
+  letter-spacing: -0.5px;
+  /* Slightly tighter */
 }
 
 .primary-actions {
