@@ -466,36 +466,64 @@ function toggleQR() {
 
   const dropdown = document.getElementById('qr-dropdown');
 
+  if (!dropdown) {
+    showToast('❌ QR element not found');
+    return;
+  }
+
   if (qrVisible) {
     dropdown.classList.add('hidden');
     qrVisible = false;
     return;
   }
 
-  // Generate QR code
-  const canvas = document.getElementById('qr-canvas');
-  QRCode.toCanvas(canvas, currentEmail, {
-    width: 180,
-    margin: 1,
-    color: {
-      dark: '#1a1a2e',
-      light: '#ffffff'
+  try {
+    // Generate QR code using qrcode-generator
+    const qr = qrcode(0, 'M');
+    qr.addData(currentEmail);
+    qr.make();
+
+    // Create image and display
+    const canvas = document.getElementById('qr-canvas');
+    const imgTag = qr.createImgTag(5, 0);
+
+    // Parse the img tag to get the data URL
+    const dataUrl = imgTag.match(/src="([^"]+)"/)?.[1];
+
+    if (dataUrl && canvas) {
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = function () {
+        canvas.width = 180;
+        canvas.height = 180;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 180, 180);
+        ctx.drawImage(img, 0, 0, 180, 180);
+        dropdown.classList.remove('hidden');
+        qrVisible = true;
+      };
+      img.src = dataUrl;
+    } else {
+      // Fallback: show QR as HTML
+      const container = dropdown;
+      container.innerHTML = qr.createImgTag(4, 8);
+      container.classList.remove('hidden');
+      qrVisible = true;
     }
-  }, (err) => {
-    if (err) {
-      showToast('❌ QR Error');
-      return;
-    }
-    dropdown.classList.remove('hidden');
-    qrVisible = true;
-  });
+  } catch (err) {
+    console.error('QR Error:', err);
+    showToast('❌ QR Error: ' + err.message);
+  }
 }
 
 // Close QR dropdown when clicking outside
 document.addEventListener('click', (e) => {
-  if (qrVisible && !e.target.closest('.qr-wrapper')) {
-    document.getElementById('qr-dropdown').classList.add('hidden');
-    qrVisible = false;
+  if (qrVisible && !e.target.closest('.qr-wrapper') && !e.target.closest('.mobile-action-btn')) {
+    const dropdown = document.getElementById('qr-dropdown');
+    if (dropdown) {
+      dropdown.classList.add('hidden');
+      qrVisible = false;
+    }
   }
 });
 
