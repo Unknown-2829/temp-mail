@@ -113,13 +113,17 @@ function renderInbox() {
     container.innerHTML = `
       <div class="empty-inbox">
         <div class="loading-animation">
-          <svg class="loading-arrows" viewBox="0 0 100 100">
-            <path d="M20 50 A30 30 0 0 1 80 50" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" />
-            <path d="M76 46 L80 50 L76 54" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M80 50 A30 30 0 0 1 20 50" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" transform="rotate(180 50 50)"/>
-            <path d="M24 46 L20 50 L24 54" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 50 50)"/>
+          <svg class="loading-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <g class="arrows-ring">
+               <path d="M50 10 A 40 40 0 0 1 85 30 L 90 25 L 90 40 L 75 40 L 80 35 A 35 35 0 0 0 50 15 Z" />
+               <path d="M50 90 A 40 40 0 0 1 15 70 L 10 75 L 10 60 L 25 60 L 20 65 A 35 35 0 0 0 50 85 Z" />
+            </g>
+            <g class="envelope-icon" transform="translate(28, 35) scale(0.45)">
+                <path d="M10,80 L90,80 L90,40 L50,65 L10,40 Z" fill="#D1D4DE"/>
+                <path d="M10,30 L50,55 L90,30 L50,5 Z" fill="#9FA3B5"/>
+                <rect x="10" y="30" width="80" height="50" rx="5" fill-opacity="0.2"/> 
+            </g>
           </svg>
-          <div class="loading-icon">✉️</div>
         </div>
         <p class="empty-title">Your inbox is empty</p>
         <p class="empty-subtitle">Waiting for incoming emails</p>

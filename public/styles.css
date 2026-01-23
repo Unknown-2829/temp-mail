@@ -280,28 +280,42 @@ body {
   margin-bottom: 25px;
 }
 
-.loading-arrows {
-  position: absolute;
-  top: 0;
-  left: 0;
+.loading-svg {
   width: 100%;
   height: 100%;
-  animation: rotate 2s linear infinite;
+  display: block;
 }
 
-.loading-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 38px;
-  z-index: 2;
+/* Static Envelope */
+.envelope-icon {
+  fill: #C6C9D6;
+  /* Static center */
 }
 
-@keyframes rotate {
+/* Animated Arrows */
+.arrows-ring {
+  fill: #E3E5EB;
+  transform-origin: center;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Hide old styles */
+.loading-arrows {
+  display: none;
+}
+
+.loading-icon {
+  display: none;
 }
 
 .empty-title {
