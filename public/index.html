@@ -60,12 +60,6 @@
         </button>
       </div>
 
-      <!-- Quote -->
-      <div class="quote-box">
-        <p class="quote-text">"In the digital age, privacy is not a luxury—it's a necessity."</p>
-        <p class="quote-author">- Unknown</p>
-      </div>
-
     </div>
   </section>
 
@@ -82,12 +76,14 @@
           <div class="empty-inbox">
             <div class="loading-animation">
               <svg class="loading-arrows" viewBox="0 0 80 80">
-                <path d="M40 8 A32 32 0 0 1 72 40" fill="none" stroke="#d0d0d0" stroke-width="3"
+                <!-- Top right curve with arrow pointing down-right -->
+                <path d="M54 18 A26 26 0 0 1 66 40" fill="none" stroke="#c8c8c8" stroke-width="2"
                   stroke-linecap="round" />
-                <polygon points="72,34 72,46 64,40" fill="#d0d0d0" />
-                <path d="M40 72 A32 32 0 0 1 8 40" fill="none" stroke="#d0d0d0" stroke-width="3"
+                <polygon points="66,36 70,42 62,42" fill="#c8c8c8" />
+                <!-- Bottom left curve with arrow pointing up-left -->
+                <path d="M26 62 A26 26 0 0 1 14 40" fill="none" stroke="#c8c8c8" stroke-width="2"
                   stroke-linecap="round" />
-                <polygon points="8,34 8,46 16,40" fill="#d0d0d0" />
+                <polygon points="14,44 10,38 18,38" fill="#c8c8c8" />
               </svg>
               <div class="loading-icon">✉️</div>
             </div>
@@ -99,12 +95,26 @@
     </div>
   </section>
 
+  <!-- Quote Section (After Inbox) -->
+  <section class="quote-section">
+    <div class="container">
+      <div class="quote-box">
+        <p class="quote-text">"In the digital age, privacy is not a luxury—it's a necessity."</p>
+        <p class="quote-author">- Unknown</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Footer -->
   <footer class="footer">
     <div class="container">
-      <p class="footer-quote">"Your privacy is our priority."</p>
+      <div class="footer-brand">
+        <span class="footer-icon">📬</span>
+        <span class="footer-name">TempMail</span>
+        <span class="footer-tagline">— Your privacy, our priority</span>
+      </div>
       <div class="footer-links">
-        <a href="https://t.me/unknownlll2829" target="_blank" class="footer-btn">📩 Contact Developer</a>
+        <a href="https://t.me/unknownlll2829" target="_blank" class="footer-btn primary">📩 Contact Developer</a>
       </div>
       <p class="footer-copy">© 2026 TempMail. All rights reserved.</p>
     </div>

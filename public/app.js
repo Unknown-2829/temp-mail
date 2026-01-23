@@ -114,10 +114,10 @@ function renderInbox() {
       <div class="empty-inbox">
         <div class="loading-animation">
           <svg class="loading-arrows" viewBox="0 0 80 80">
-            <path d="M40 8 A32 32 0 0 1 72 40" fill="none" stroke="#d0d0d0" stroke-width="3" stroke-linecap="round"/>
-            <polygon points="72,34 72,46 64,40" fill="#d0d0d0"/>
-            <path d="M40 72 A32 32 0 0 1 8 40" fill="none" stroke="#d0d0d0" stroke-width="3" stroke-linecap="round"/>
-            <polygon points="8,34 8,46 16,40" fill="#d0d0d0"/>
+            <path d="M54 18 A26 26 0 0 1 66 40" fill="none" stroke="#c8c8c8" stroke-width="2" stroke-linecap="round"/>
+            <polygon points="66,36 70,42 62,42" fill="#c8c8c8"/>
+            <path d="M26 62 A26 26 0 0 1 14 40" fill="none" stroke="#c8c8c8" stroke-width="2" stroke-linecap="round"/>
+            <polygon points="14,44 10,38 18,38" fill="#c8c8c8"/>
           </svg>
           <div class="loading-icon">✉️</div>
         </div>
