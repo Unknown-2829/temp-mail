@@ -288,13 +288,13 @@ body {
 
 /* Static Envelope */
 .envelope-icon {
-  fill: #C6C9D6;
+  fill: #7a7d8f;
   /* Static center */
 }
 
 /* Animated Arrows */
 .arrows-ring {
-  fill: #E3E5EB;
+  fill: #9ea1b0;
   transform-origin: center;
   animation: spin 2s linear infinite;
 }
