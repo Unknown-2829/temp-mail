@@ -102,9 +102,10 @@ body {
 }
 
 .email-wrapper {
-  flex: 1;
-  max-width: 100%;
-  /* Allow full width usage */
+  flex: 0 1 auto;
+  width: 100%;
+  max-width: 480px;
+  /* constrained width */
   margin-bottom: 0;
 }
 
