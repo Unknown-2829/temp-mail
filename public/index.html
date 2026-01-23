@@ -22,6 +22,7 @@
       <span class="logo-icon">📬</span>
       <span class="logo-text">TEMP<span class="logo-mail">MAIL</span></span>
     </div>
+    <button class="about-btn" onclick="openAbout()">About</button>
   </header>
 
   <!-- Main -->
@@ -59,7 +60,7 @@
         </button>
       </div>
 
-      <!-- Quote - Unknown on new line -->
+      <!-- Quote -->
       <div class="quote-box">
         <p class="quote-text">"In the digital age, privacy is not a luxury—it's a necessity."</p>
         <p class="quote-author">- Unknown</p>
@@ -81,7 +82,6 @@
           <div class="empty-inbox">
             <div class="loading-animation">
               <svg class="loading-arrows" viewBox="0 0 80 80">
-                <!-- Two circular arrows -->
                 <path d="M40 8 A32 32 0 0 1 72 40" fill="none" stroke="#d0d0d0" stroke-width="3"
                   stroke-linecap="round" />
                 <polygon points="72,34 72,46 64,40" fill="#d0d0d0" />
@@ -99,28 +99,60 @@
     </div>
   </section>
 
-  <!-- Features -->
-  <section class="features-section">
+  <!-- Footer -->
+  <footer class="footer">
     <div class="container">
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🚀</div>
-          <h3>Instant</h3>
-          <p>Create emails in seconds. No signup required.</p>
+      <p class="footer-quote">"Your privacy is our priority."</p>
+      <div class="footer-links">
+        <a href="https://t.me/unknownlll2829" target="_blank" class="footer-btn">📩 Contact Developer</a>
+      </div>
+      <p class="footer-copy">© 2026 TempMail. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- About Modal -->
+  <div class="about-modal" id="about-modal">
+    <div class="about-content">
+      <div class="about-header">
+        <h2>About TempMail</h2>
+        <button class="about-close" onclick="closeAbout()">✕</button>
+      </div>
+      <div class="about-body">
+        <p class="about-desc">TempMail provides free, anonymous temporary email addresses to protect your privacy
+          online.</p>
+
+        <h3>Features</h3>
+        <div class="features-list">
+          <div class="feature-item">
+            <span class="feature-ico">🚀</span>
+            <div>
+              <strong>Instant</strong>
+              <p>Create emails in seconds. No signup required.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="feature-ico">🔒</span>
+            <div>
+              <strong>Private</strong>
+              <p>Your emails are temporary and auto-deleted.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="feature-ico">🆓</span>
+            <div>
+              <strong>Free</strong>
+              <p>Completely free. No hidden costs or limits.</p>
+            </div>
+          </div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">🔒</div>
-          <h3>Private</h3>
-          <p>Your emails are temporary and auto-deleted.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🆓</div>
-          <h3>Free</h3>
-          <p>Completely free. No hidden costs or limits.</p>
+
+        <div class="about-actions">
+          <a href="https://t.me/unknownlll2829" target="_blank" class="about-link-btn">💬 Feedback</a>
+          <a href="https://t.me/unknownlll2829" target="_blank" class="about-link-btn">📩 Contact</a>
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
   <!-- Email Modal -->
   <div class="modal" id="email-modal">

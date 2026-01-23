@@ -402,5 +402,29 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-document.getElementById('email-modal')?.addEventListener('click', e => { if (e.target.id === 'email-modal') closeModal(); });
+// About Modal
+function openAbout() {
+  document.getElementById('about-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAbout() {
+  document.getElementById('about-modal').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+// Event listeners
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModal();
+    closeAbout();
+  }
+});
+
+document.getElementById('email-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'email-modal') closeModal();
+});
+
+document.getElementById('about-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'about-modal') closeAbout();
+});
