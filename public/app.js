@@ -9,8 +9,8 @@ let currentViewIndex = -1;
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  const saved = sessionStorage.getItem('tempEmail');
-  const savedTime = sessionStorage.getItem('emailCreatedAt');
+  const saved = localStorage.getItem('tempEmail');
+  const savedTime = localStorage.getItem('emailCreatedAt');
 
   if (saved && savedTime && (Date.now() - parseInt(savedTime)) < 3600000) {
     currentEmail = saved;
@@ -18,17 +18,18 @@ async function init() {
     startAutoRefresh();
     refreshEmails();
   } else {
+    localStorage.removeItem('tempEmail');
+    localStorage.removeItem('emailCreatedAt');
     await generateEmail();
   }
 }
 
-// Generate Email
 async function generateEmail() {
   const input = document.getElementById('email-display');
-  input.value = 'Generating...';
+  input.value = 'Loading...';
   input.style.opacity = '0.6';
 
-  await new Promise(r => setTimeout(r, 1500));
+  await new Promise(r => setTimeout(r, 1200));
 
   try {
     const response = await fetch('/api/generate', { method: 'POST' });
@@ -40,8 +41,8 @@ async function generateEmail() {
     input.value = currentEmail;
     input.style.opacity = '1';
 
-    sessionStorage.setItem('tempEmail', currentEmail);
-    sessionStorage.setItem('emailCreatedAt', Date.now().toString());
+    localStorage.setItem('tempEmail', currentEmail);
+    localStorage.setItem('emailCreatedAt', Date.now().toString());
 
     startAutoRefresh();
     showToast('✨ Email ready!');
@@ -56,6 +57,8 @@ async function regenerateEmail() {
   stopAutoRefresh();
   emailsList = [];
   renderInbox();
+  localStorage.removeItem('tempEmail');
+  localStorage.removeItem('emailCreatedAt');
   await generateEmail();
 }
 
@@ -63,7 +66,8 @@ function deleteEmail() {
   stopAutoRefresh();
   currentEmail = '';
   emailsList = [];
-  sessionStorage.clear();
+  localStorage.removeItem('tempEmail');
+  localStorage.removeItem('emailCreatedAt');
   document.getElementById('email-display').value = '';
   renderInbox();
   showToast('🗑️ Deleted');
@@ -82,7 +86,6 @@ function copyEmail() {
   });
 }
 
-// Refresh
 async function refreshEmails() {
   if (!currentEmail) return;
 
@@ -103,20 +106,19 @@ async function refreshEmails() {
   }
 }
 
-// Render Inbox - With sender name + email
 function renderInbox() {
   const container = document.getElementById('inbox-body');
 
   if (emailsList.length === 0) {
     container.innerHTML = `
       <div class="empty-inbox">
-        <div class="loading-container">
-          <div class="loading-arrows">
-            <svg viewBox="0 0 100 100" class="arrows-svg">
-              <path d="M50 10 L60 25 L55 25 L55 20 A30 30 0 0 1 80 50 L75 50 A25 25 0 0 0 55 25 L55 20 L45 20 L45 25 A25 25 0 0 0 25 50 L20 50 A30 30 0 0 1 45 20 L45 25 L40 25 Z" fill="#ddd"/>
-            </svg>
-          </div>
-          <div class="loading-icon">✉️</div>
+        <div class="loading-animation">
+          <svg class="envelope-loader" viewBox="0 0 80 80">
+            <path class="arrow-path" d="M40 8 A32 32 0 1 1 8 40" fill="none" stroke="#ddd" stroke-width="3" stroke-linecap="round"/>
+            <polygon class="arrow-head" points="40,2 48,14 40,10 32,14" fill="#ddd"/>
+            <rect x="24" y="30" width="32" height="24" rx="2" fill="#e8e0f0" stroke="#c4b8d8" stroke-width="1"/>
+            <path d="M24 32 L40 44 L56 32" fill="none" stroke="#a090c0" stroke-width="1.5"/>
+          </svg>
         </div>
         <p class="empty-title">Your inbox is empty</p>
         <p class="empty-subtitle">Waiting for incoming emails</p>
@@ -126,7 +128,7 @@ function renderInbox() {
   }
 
   container.innerHTML = emailsList.map((email, i) => {
-    const sender = parseSender(email.from);
+    const sender = parseSender(email.from, email);
     const subject = email.subject || '(No Subject)';
 
     return `
@@ -144,29 +146,96 @@ function renderInbox() {
   }).join('');
 }
 
-// Parse Sender
-function parseSender(from) {
+// Parse Sender - with content-based detection for services like Netflix
+function parseSender(from, emailObj) {
   if (!from) return { name: 'Unknown', email: '' };
+
+  let emailAddr = from;
+  let name = '';
 
   // Try "Name <email>" format
   let match = from.match(/^"?([^"<]+)"?\s*<([^>]+)>/);
   if (match) {
-    return { name: match[1].trim(), email: match[2].trim() };
+    name = match[1].trim();
+    emailAddr = match[2].trim();
+  } else {
+    // Just email
+    match = from.match(/<?([^@<\s]+@[^>\s]+)>?/);
+    if (match) emailAddr = match[1];
   }
 
-  // Just email
-  match = from.match(/<?([^@<\s]+)@([^>\s]+)>?/);
-  if (match) {
-    let name = match[1];
-    name = name.replace(/[._-]/g, ' ');
-    name = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    return { name, email: `${match[1]}@${match[2]}` };
+  // If name is empty or looks like UUID, detect from content
+  if (!name || looksLikeUUID(name) || looksLikeUUID(emailAddr.split('@')[0])) {
+    name = detectSenderFromContent(emailObj) || extractFromDomain(emailAddr);
   }
 
-  return { name: from, email: from };
+  return { name, email: emailAddr };
 }
 
-// View Email
+function looksLikeUUID(str) {
+  if (!str) return false;
+  const cleaned = str.replace(/[-_\s]/g, '');
+  if (/^[0-9a-f]{16,}$/i.test(cleaned)) return true;
+  if (str.length > 20 && /^[0-9a-zA-Z-_]+$/.test(str)) return true;
+  return false;
+}
+
+// Detect sender name from email content
+function detectSenderFromContent(email) {
+  if (!email) return null;
+
+  const content = ((email.subject || '') + (email.body || '') + (email.htmlBody || '')).toLowerCase();
+
+  const services = [
+    { k: ['netflix'], n: 'Netflix' },
+    { k: ['amazon', 'aws'], n: 'Amazon' },
+    { k: ['google', 'gmail'], n: 'Google' },
+    { k: ['facebook', 'meta'], n: 'Facebook' },
+    { k: ['twitter'], n: 'Twitter' },
+    { k: ['instagram'], n: 'Instagram' },
+    { k: ['linkedin'], n: 'LinkedIn' },
+    { k: ['spotify'], n: 'Spotify' },
+    { k: ['paypal'], n: 'PayPal' },
+    { k: ['microsoft', 'outlook'], n: 'Microsoft' },
+    { k: ['apple', 'icloud'], n: 'Apple' },
+    { k: ['uber'], n: 'Uber' },
+    { k: ['discord'], n: 'Discord' },
+    { k: ['github'], n: 'GitHub' },
+    { k: ['whatsapp'], n: 'WhatsApp' },
+    { k: ['telegram'], n: 'Telegram' },
+    { k: ['steam'], n: 'Steam' },
+    { k: ['adobe'], n: 'Adobe' },
+    { k: ['zoom'], n: 'Zoom' },
+  ];
+
+  for (const s of services) {
+    for (const k of s.k) {
+      if (content.includes(k)) return s.n;
+    }
+  }
+  return null;
+}
+
+function extractFromDomain(email) {
+  const domain = email.split('@')[1];
+  if (!domain) return 'Unknown';
+
+  // Skip common email service subdomains
+  const skip = ['amazonses', 'sendgrid', 'mailchimp', 'mailgun', 'us-west', 'us-east', 'eu-west', 'ap-south'];
+  const parts = domain.split('.');
+
+  for (const s of skip) {
+    if (domain.includes(s)) return 'Notification';
+  }
+
+  let name = parts[0];
+  if (['mail', 'email', 'noreply', 'notify', 'info', 'account'].includes(name) && parts[1]) {
+    name = parts[1];
+  }
+
+  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+}
+
 function viewEmail(index) {
   const email = emailsList[index];
   if (!email) return;
@@ -175,7 +244,7 @@ function viewEmail(index) {
   email.read = true;
   renderInbox();
 
-  const sender = parseSender(email.from);
+  const sender = parseSender(email.from, email);
 
   document.getElementById('modal-avatar').textContent = sender.name.charAt(0).toUpperCase();
   document.getElementById('modal-sender-name').textContent = sender.name;
@@ -183,22 +252,24 @@ function viewEmail(index) {
   document.getElementById('modal-date').textContent = formatDate(email.timestamp);
   document.getElementById('modal-subject').textContent = email.subject || '(No Subject)';
 
-  // Body - Full HTML preserved
   const body = document.getElementById('modal-body');
 
   if (email.htmlBody) {
-    body.innerHTML = sanitizeHtml(email.htmlBody);
+    // Clean HTML - remove broken UTF-8 characters
+    let html = sanitizeHtml(email.htmlBody);
+    html = cleanBrokenChars(html);
+    body.innerHTML = html;
     body.querySelectorAll('a').forEach(a => {
       a.setAttribute('target', '_blank');
       a.setAttribute('rel', 'noopener');
     });
   } else if (email.body) {
-    body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;">${linkify(escapeHtml(email.body))}</div>`;
+    let text = cleanBrokenChars(email.body);
+    body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;">${linkify(escapeHtml(text))}</div>`;
   } else {
     body.innerHTML = '<p style="color:#888;">No content</p>';
   }
 
-  // Attachments
   const attachSection = document.getElementById('modal-attachments');
   const attachList = document.getElementById('attachments-list');
 
@@ -219,6 +290,21 @@ function viewEmail(index) {
   document.body.style.overflow = 'hidden';
 }
 
+// Clean broken UTF-8 characters (Â, Ã, etc.)
+function cleanBrokenChars(text) {
+  if (!text) return '';
+  return text
+    .replace(/Â\s*/g, '')
+    .replace(/Ã¢/g, 'â')
+    .replace(/Ã©/g, 'é')
+    .replace(/â€™/g, "'")
+    .replace(/â€"/g, "-")
+    .replace(/â€œ/g, '"')
+    .replace(/â€/g, '"')
+    .replace(/\u00A0/g, ' ')
+    .replace(/[\u0080-\u009F]/g, '');
+}
+
 function closeModal() {
   document.getElementById('email-modal').classList.remove('show');
   document.body.style.overflow = '';
@@ -237,19 +323,14 @@ function deleteCurrentEmail() {
 function viewSource() {
   if (currentViewIndex >= 0) {
     const email = emailsList[currentViewIndex];
-    const source = email.rawSource || email.htmlBody || email.body || 'No source available';
-    const body = document.getElementById('modal-body');
-    body.innerHTML = `<pre style="background:#f5f5f5;padding:15px;border-radius:8px;overflow-x:auto;font-size:12px;">${escapeHtml(source)}</pre>`;
+    const source = email.rawSource || email.htmlBody || email.body || 'No source';
+    document.getElementById('modal-body').innerHTML = `<pre style="background:#f5f5f5;padding:15px;border-radius:8px;overflow-x:auto;font-size:12px;">${escapeHtml(source)}</pre>`;
   }
 }
 
-// Download
 function downloadAttachment(ei, ai) {
   const att = emailsList[ei]?.attachments?.[ai];
-  if (!att?.data) {
-    showToast('❌ Not available');
-    return;
-  }
+  if (!att?.data) { showToast('❌ Not available'); return; }
 
   try {
     const bytes = atob(att.data);
@@ -264,25 +345,18 @@ function downloadAttachment(ei, ai) {
     a.click();
     URL.revokeObjectURL(url);
     showToast('📥 Downloading...');
-  } catch (e) {
-    showToast('❌ Failed');
-  }
+  } catch (e) { showToast('❌ Failed'); }
 }
 
-// Auto Refresh
 function startAutoRefresh() {
   stopAutoRefresh();
   autoRefreshInterval = setInterval(refreshEmails, 5000);
 }
 
 function stopAutoRefresh() {
-  if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval);
-    autoRefreshInterval = null;
-  }
+  if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
 }
 
-// Helpers
 function escapeHtml(text) {
   if (!text) return '';
   const d = document.createElement('div');
@@ -305,28 +379,19 @@ function linkify(text) {
 function formatDate(ts) {
   if (!ts) return '';
   const d = new Date(ts);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const mins = String(d.getMinutes()).padStart(2, '0');
-  const secs = String(d.getSeconds()).padStart(2, '0');
-  return `${day}-${month}-${year} ${hours}:${mins}:${secs}`;
+  return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 }
 
 function formatSize(bytes) {
   if (!bytes) return '0 B';
-  const k = 1024;
-  const s = ['B', 'KB', 'MB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const k = 1024, s = ['B', 'KB', 'MB'], i = Math.floor(Math.log(bytes) / Math.log(k));
   return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + s[i];
 }
 
 function getFileIcon(name) {
   if (!name) return '📎';
   const ext = name.split('.').pop().toLowerCase();
-  const icons = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', zip: '📦', mp3: '🎵', mp4: '🎬', txt: '📃' };
-  return icons[ext] || '📎';
+  return { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', zip: '📦', mp3: '🎵', mp4: '🎬', txt: '📃' }[ext] || '📎';
 }
 
 function showToast(msg) {
@@ -336,11 +401,5 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// Events
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-});
-
-document.getElementById('email-modal')?.addEventListener('click', e => {
-  if (e.target.id === 'email-modal') closeModal();
-});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('email-modal')?.addEventListener('click', e => { if (e.target.id === 'email-modal') closeModal(); });
