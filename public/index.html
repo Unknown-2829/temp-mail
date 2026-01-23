@@ -120,23 +120,45 @@
     </div>
   </section>
 
-  <!-- Modal -->
+  <!-- Email Modal - Enhanced -->
   <div class="modal" id="email-modal">
     <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="modal-subject">Subject</h3>
-        <button class="modal-close" onclick="closeModal()">✕</button>
+      <!-- Dark Header -->
+      <div class="modal-top-header">
+        <button class="back-btn" onclick="closeModal()">
+          <span>‹</span> BACK TO LIST
+        </button>
+        <div class="modal-actions">
+          <button class="action-link" onclick="deleteCurrentEmail()">Delete</button>
+          <button class="action-link" onclick="viewSource()">Source</button>
+        </div>
       </div>
-      <div class="modal-meta">
-        <div class="sender-info">
-          <div class="sender-avatar" id="modal-avatar">A</div>
+
+      <!-- Sender Info -->
+      <div class="modal-sender-section">
+        <div class="sender-info-row">
+          <div class="sender-avatar" id="modal-avatar">N</div>
           <div class="sender-details">
-            <div class="sender-name-full" id="modal-from">sender</div>
-            <div class="sender-time" id="modal-time">time</div>
+            <div class="sender-name-full" id="modal-sender-name">Netflix</div>
+            <div class="sender-email" id="modal-sender-email">info@account.netflix.com</div>
+          </div>
+          <div class="email-date">
+            <div class="date-label">Date:</div>
+            <div class="date-value" id="modal-date">23-01-2026 09:30:18</div>
           </div>
         </div>
       </div>
+
+      <!-- Subject -->
+      <div class="modal-subject-section">
+        <span class="subject-label">Subject:</span>
+        <span class="subject-value" id="modal-subject">You're almost there!</span>
+      </div>
+
+      <!-- Body -->
       <div class="modal-body" id="modal-body"></div>
+
+      <!-- Attachments -->
       <div class="modal-attachments hidden" id="modal-attachments">
         <h4>📎 Attachments</h4>
         <div id="attachments-list"></div>

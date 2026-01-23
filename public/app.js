@@ -3,26 +3,12 @@
 let currentEmail = '';
 let emailsList = [];
 let autoRefreshInterval = null;
-
-// Short powerful quotes
-const quotes = [
-  "Privacy is power.",
-  "Your data. Your rules.",
-  "Stay anonymous. Stay safe.",
-  "Zero spam. Zero tracking.",
-  "Protect your real inbox.",
-  "Temporary email. Permanent privacy.",
-  "No signup. No traces.",
-  "Anonymous by design."
-];
+let currentViewIndex = -1;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  rotateQuotes();
-  setInterval(rotateQuotes, 8000);
-
   const saved = sessionStorage.getItem('tempEmail');
   const savedTime = sessionStorage.getItem('emailCreatedAt');
 
@@ -34,12 +20,6 @@ async function init() {
   } else {
     await generateEmail();
   }
-}
-
-function rotateQuotes() {
-  const quote = quotes[Math.floor(Math.random() * quotes.length)];
-  const el = document.getElementById('quote-text');
-  if (el) el.textContent = `"${quote}"`;
 }
 
 // Generate Email
@@ -123,14 +103,21 @@ async function refreshEmails() {
   }
 }
 
-// Render Inbox
+// Render Inbox - With sender name + email
 function renderInbox() {
   const container = document.getElementById('inbox-body');
 
   if (emailsList.length === 0) {
     container.innerHTML = `
       <div class="empty-inbox">
-        <div class="loader"></div>
+        <div class="loading-container">
+          <div class="loading-arrows">
+            <svg viewBox="0 0 100 100" class="arrows-svg">
+              <path d="M50 10 L60 25 L55 25 L55 20 A30 30 0 0 1 80 50 L75 50 A25 25 0 0 0 55 25 L55 20 L45 20 L45 25 A25 25 0 0 0 25 50 L20 50 A30 30 0 0 1 45 20 L45 25 L40 25 Z" fill="#ddd"/>
+            </svg>
+          </div>
+          <div class="loading-icon">✉️</div>
+        </div>
         <p class="empty-title">Your inbox is empty</p>
         <p class="empty-subtitle">Waiting for incoming emails</p>
       </div>
@@ -141,24 +128,23 @@ function renderInbox() {
   container.innerHTML = emailsList.map((email, i) => {
     const sender = parseSender(email.from);
     const subject = email.subject || '(No Subject)';
-    const initial = sender.name.charAt(0).toUpperCase();
 
     return `
       <div class="email-row ${email.read ? '' : 'unread'}" onclick="viewEmail(${i})">
         <div class="email-sender">
-          <div class="sender-dot">${initial}</div>
           <span class="sender-name">${escapeHtml(sender.name)}</span>
+          <span class="sender-email-small">${escapeHtml(sender.email)}</span>
         </div>
         <div class="email-subject">${escapeHtml(subject)}</div>
         <div class="email-view">
-          <button class="view-btn">View</button>
+          <span class="view-arrow">›</span>
         </div>
       </div>
     `;
   }).join('');
 }
 
-// Parse Sender - Better identification
+// Parse Sender
 function parseSender(from) {
   if (!from) return { name: 'Unknown', email: '' };
 
@@ -172,7 +158,6 @@ function parseSender(from) {
   match = from.match(/<?([^@<\s]+)@([^>\s]+)>?/);
   if (match) {
     let name = match[1];
-    // Capitalize and clean
     name = name.replace(/[._-]/g, ' ');
     name = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     return { name, email: `${match[1]}@${match[2]}` };
@@ -186,25 +171,17 @@ function viewEmail(index) {
   const email = emailsList[index];
   if (!email) return;
 
+  currentViewIndex = index;
   email.read = true;
   renderInbox();
 
   const sender = parseSender(email.from);
 
-  document.getElementById('modal-subject').textContent = email.subject || '(No Subject)';
   document.getElementById('modal-avatar').textContent = sender.name.charAt(0).toUpperCase();
-  document.getElementById('modal-time').textContent = formatDateTime(email.timestamp);
-
-  // Update sender info
-  const senderInfo = document.querySelector('.sender-info');
-  senderInfo.innerHTML = `
-    <div class="sender-avatar">${sender.name.charAt(0).toUpperCase()}</div>
-    <div class="sender-details">
-      <div class="sender-name-full">${escapeHtml(sender.name)}</div>
-      <div class="sender-email-full">${escapeHtml(sender.email || email.from)}</div>
-      <div class="sender-time">${formatDateTime(email.timestamp)}</div>
-    </div>
-  `;
+  document.getElementById('modal-sender-name').textContent = sender.name;
+  document.getElementById('modal-sender-email').textContent = sender.email;
+  document.getElementById('modal-date').textContent = formatDate(email.timestamp);
+  document.getElementById('modal-subject').textContent = email.subject || '(No Subject)';
 
   // Body - Full HTML preserved
   const body = document.getElementById('modal-body');
@@ -245,6 +222,25 @@ function viewEmail(index) {
 function closeModal() {
   document.getElementById('email-modal').classList.remove('show');
   document.body.style.overflow = '';
+  currentViewIndex = -1;
+}
+
+function deleteCurrentEmail() {
+  if (currentViewIndex >= 0) {
+    emailsList.splice(currentViewIndex, 1);
+    renderInbox();
+    closeModal();
+    showToast('🗑️ Email deleted');
+  }
+}
+
+function viewSource() {
+  if (currentViewIndex >= 0) {
+    const email = emailsList[currentViewIndex];
+    const source = email.rawSource || email.htmlBody || email.body || 'No source available';
+    const body = document.getElementById('modal-body');
+    body.innerHTML = `<pre style="background:#f5f5f5;padding:15px;border-radius:8px;overflow-x:auto;font-size:12px;">${escapeHtml(source)}</pre>`;
+  }
 }
 
 // Download
@@ -306,16 +302,16 @@ function linkify(text) {
   return text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#00d09c;">$1</a>');
 }
 
-function formatDateTime(ts) {
+function formatDate(ts) {
   if (!ts) return '';
   const d = new Date(ts);
-  const now = new Date();
-  const diff = now - d;
-
-  if (diff < 60000) return 'Just now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  const secs = String(d.getSeconds()).padStart(2, '0');
+  return `${day}-${month}-${year} ${hours}:${mins}:${secs}`;
 }
 
 function formatSize(bytes) {
