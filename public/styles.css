@@ -1022,6 +1022,31 @@ body {
     background: #00b386;
   }
 
+  /* Mobile QR wrapper */
+  .qr-wrapper-mobile {
+    position: relative;
+  }
+
+  .qr-dropdown-mobile {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    z-index: 200;
+    animation: dropdownFade 0.2s ease;
+  }
+
+  .qr-dropdown-mobile img {
+    display: block;
+    width: 180px;
+    height: 180px;
+    border-radius: 8px;
+  }
+
   /* Email input full width on mobile */
   .email-input-container {
     max-width: 100%;

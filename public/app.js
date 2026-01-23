@@ -458,13 +458,20 @@ function showToast(msg) {
 // ========== QR Code Functions ==========
 let qrVisible = false;
 
+function isMobile() {
+  return window.innerWidth <= 600;
+}
+
 function toggleQR() {
   if (!currentEmail) {
     showToast('❌ No email to show');
     return;
   }
 
-  const dropdown = document.getElementById('qr-dropdown');
+  // Get the correct dropdown based on screen size
+  const dropdownId = isMobile() ? 'qr-dropdown-mobile' : 'qr-dropdown';
+  const containerId = isMobile() ? 'qr-container-mobile' : 'qr-canvas';
+  const dropdown = document.getElementById(dropdownId);
 
   if (!dropdown) {
     showToast('❌ QR element not found');
@@ -473,6 +480,9 @@ function toggleQR() {
 
   if (qrVisible) {
     dropdown.classList.add('hidden');
+    // Also hide the other one
+    document.getElementById('qr-dropdown')?.classList.add('hidden');
+    document.getElementById('qr-dropdown-mobile')?.classList.add('hidden');
     qrVisible = false;
     return;
   }
@@ -483,32 +493,39 @@ function toggleQR() {
     qr.addData(currentEmail);
     qr.make();
 
-    // Create image and display
-    const canvas = document.getElementById('qr-canvas');
-    const imgTag = qr.createImgTag(5, 0);
-
-    // Parse the img tag to get the data URL
-    const dataUrl = imgTag.match(/src="([^"]+)"/)?.[1];
-
-    if (dataUrl && canvas) {
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      img.onload = function () {
-        canvas.width = 180;
-        canvas.height = 180;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 180, 180);
-        ctx.drawImage(img, 0, 0, 180, 180);
+    if (isMobile()) {
+      // Mobile: use container with HTML img
+      const container = document.getElementById(containerId);
+      if (container) {
+        container.innerHTML = qr.createImgTag(5, 8);
         dropdown.classList.remove('hidden');
         qrVisible = true;
-      };
-      img.src = dataUrl;
+      }
     } else {
-      // Fallback: show QR as HTML
-      const container = dropdown;
-      container.innerHTML = qr.createImgTag(4, 8);
-      container.classList.remove('hidden');
-      qrVisible = true;
+      // Desktop: use canvas
+      const canvas = document.getElementById('qr-canvas');
+      const imgTag = qr.createImgTag(5, 0);
+      const dataUrl = imgTag.match(/src="([^"]+)"/)?.[1];
+
+      if (dataUrl && canvas) {
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = function () {
+          canvas.width = 180;
+          canvas.height = 180;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, 180, 180);
+          ctx.drawImage(img, 0, 0, 180, 180);
+          dropdown.classList.remove('hidden');
+          qrVisible = true;
+        };
+        img.src = dataUrl;
+      } else {
+        // Fallback
+        dropdown.innerHTML = qr.createImgTag(4, 8);
+        dropdown.classList.remove('hidden');
+        qrVisible = true;
+      }
     }
   } catch (err) {
     console.error('QR Error:', err);
@@ -518,18 +535,17 @@ function toggleQR() {
 
 // Close QR dropdown when clicking outside
 document.addEventListener('click', (e) => {
-  if (qrVisible && !e.target.closest('.qr-wrapper') && !e.target.closest('.mobile-action-btn')) {
-    const dropdown = document.getElementById('qr-dropdown');
-    if (dropdown) {
-      dropdown.classList.add('hidden');
-      qrVisible = false;
-    }
+  if (qrVisible && !e.target.closest('.qr-wrapper') && !e.target.closest('.qr-wrapper-mobile') && !e.target.closest('.qr-mobile')) {
+    document.getElementById('qr-dropdown')?.classList.add('hidden');
+    document.getElementById('qr-dropdown-mobile')?.classList.add('hidden');
+    qrVisible = false;
   }
 });
 
 function showQR() { toggleQR(); }
 function closeQR() {
   document.getElementById('qr-dropdown')?.classList.add('hidden');
+  document.getElementById('qr-dropdown-mobile')?.classList.add('hidden');
   qrVisible = false;
 }
 
