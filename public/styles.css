@@ -140,7 +140,12 @@ body {
   padding: 6px 6px 6px 24px;
   gap: 8px;
   width: 100%;
-  max-width: 520px;
+  max-width: 420px;
+  transition: box-shadow 0.3s ease;
+}
+
+.email-input-container:hover {
+  box-shadow: 0 0 20px rgba(0, 208, 156, 0.15);
 }
 
 .email-input-container .email-input {
@@ -155,6 +160,12 @@ body {
   min-width: 0;
 }
 
+/* QR Wrapper with Dropdown */
+.qr-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .qr-btn-inline {
   width: 48px;
   height: 48px;
@@ -164,7 +175,7 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   flex-shrink: 0;
   background: #3a3a5c;
   color: #fff;
@@ -172,6 +183,42 @@ body {
 
 .qr-btn-inline:hover {
   background: #4a4a6c;
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0, 208, 156, 0.3);
+}
+
+.qr-btn-inline:active {
+  transform: scale(0.95);
+}
+
+/* QR Dropdown Popup */
+.qr-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  animation: dropdownFade 0.2s ease;
+}
+
+.qr-dropdown canvas {
+  display: block;
+  border-radius: 8px;
+}
+
+@keyframes dropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .secondary-actions {
@@ -1035,17 +1082,36 @@ body {
   background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
   border: none;
   color: #1a1a2e;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+  animation: premiumPulse 2s ease-in-out infinite;
+}
+
+@keyframes premiumPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.5);
+  }
 }
 
 .premium-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 6px 25px rgba(255, 215, 0, 0.6);
+  animation: none;
+}
+
+.premium-btn:active {
+  transform: translateY(-1px) scale(1.02);
 }
 
 /* QR Button */

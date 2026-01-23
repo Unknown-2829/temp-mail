@@ -456,32 +456,53 @@ function showToast(msg) {
 }
 
 // ========== QR Code Functions ==========
-function showQR() {
+let qrVisible = false;
+
+function toggleQR() {
   if (!currentEmail) {
     showToast('❌ No email to show');
     return;
   }
 
-  const container = document.getElementById('qr-code-container');
-  container.innerHTML = '';
+  const dropdown = document.getElementById('qr-dropdown');
 
-  // Generate QR code using the library
-  QRCode.toCanvas(currentEmail, { width: 180, margin: 0 }, (err, canvas) => {
+  if (qrVisible) {
+    dropdown.classList.add('hidden');
+    qrVisible = false;
+    return;
+  }
+
+  // Generate QR code
+  const canvas = document.getElementById('qr-canvas');
+  QRCode.toCanvas(canvas, currentEmail, {
+    width: 180,
+    margin: 1,
+    color: {
+      dark: '#1a1a2e',
+      light: '#ffffff'
+    }
+  }, (err) => {
     if (err) {
       showToast('❌ QR Error');
       return;
     }
-    container.appendChild(canvas);
+    dropdown.classList.remove('hidden');
+    qrVisible = true;
   });
-
-  document.getElementById('qr-email-display').textContent = currentEmail;
-  document.getElementById('qr-modal').classList.add('show');
-  document.body.style.overflow = 'hidden';
 }
 
+// Close QR dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (qrVisible && !e.target.closest('.qr-wrapper')) {
+    document.getElementById('qr-dropdown').classList.add('hidden');
+    qrVisible = false;
+  }
+});
+
+function showQR() { toggleQR(); }
 function closeQR() {
-  document.getElementById('qr-modal').classList.remove('show');
-  document.body.style.overflow = '';
+  document.getElementById('qr-dropdown')?.classList.add('hidden');
+  qrVisible = false;
 }
 
 // ========== Premium Modal Functions ==========
