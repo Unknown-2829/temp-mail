@@ -113,7 +113,9 @@ body {
   background: #252540;
   border: none;
   border-radius: 50px;
-  padding: 18px 24px;
+  /* matched to copy button */
+  padding: 13px 24px;
+  /* Reduced vertical padding */
   color: #00d09c;
   /* Green text */
   font-family: 'JetBrains Mono', monospace;
@@ -141,7 +143,10 @@ body {
   background: #00d09c;
   color: #fff;
   border: none;
-  padding: 18px 25px;
+  padding: 0 25px;
+  /* Use flex alignment instead of vertical padding */
+  height: 46px;
+  /* Explicit reduced height */
   border-radius: 50px;
   font-size: 16px;
   font-weight: 600;
