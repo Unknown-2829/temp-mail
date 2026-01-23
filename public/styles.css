@@ -1025,8 +1025,14 @@ body {
   /* Email input full width on mobile */
   .email-input-container {
     max-width: 100%;
-    padding: 14px 18px;
+    padding: 14px 16px;
     border-radius: 12px;
+  }
+
+  .email-input-container .email-input {
+    font-size: 12px;
+    word-break: break-all;
+    text-align: center;
   }
 
   /* Mobile Layout Changes */
