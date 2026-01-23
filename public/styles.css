@@ -228,7 +228,8 @@ body {
 .inbox-header {
   display: flex;
   position: relative;
-  background: #1a1a2e;
+  background: #202020;
+  /* Neutral dark gray */
   color: #fff;
   font-size: 13px;
   font-weight: 600;
