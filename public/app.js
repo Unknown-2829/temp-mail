@@ -488,13 +488,13 @@ function toggleQR() {
   }
 
   try {
-    // Generate QR code using qrcode-generator
-    const qr = qrcode(0, 'M');
+    // Generate dense QR code - type 10 for more modules, L error correction
+    const qr = qrcode(10, 'L');
     qr.addData(currentEmail);
     qr.make();
 
-    // Get the image data
-    const imgTag = qr.createImgTag(5, 0);
+    // Smaller cell size (2) for denser appearance
+    const imgTag = qr.createImgTag(2, 0);
     const dataUrl = imgTag.match(/src="([^"]+)"/)?.[1];
 
     if (dataUrl) {
