@@ -468,19 +468,19 @@ function toggleQR() {
     return;
   }
 
-  // Get the correct dropdown based on screen size
+  // Get the correct dropdown and canvas based on screen size
   const dropdownId = isMobile() ? 'qr-dropdown-mobile' : 'qr-dropdown';
-  const containerId = isMobile() ? 'qr-container-mobile' : 'qr-canvas';
+  const canvasId = isMobile() ? 'qr-canvas-mobile' : 'qr-canvas';
   const dropdown = document.getElementById(dropdownId);
+  const canvas = document.getElementById(canvasId);
 
-  if (!dropdown) {
+  if (!dropdown || !canvas) {
     showToast('❌ QR element not found');
     return;
   }
 
   if (qrVisible) {
     dropdown.classList.add('hidden');
-    // Also hide the other one
     document.getElementById('qr-dropdown')?.classList.add('hidden');
     document.getElementById('qr-dropdown-mobile')?.classList.add('hidden');
     qrVisible = false;
@@ -493,39 +493,27 @@ function toggleQR() {
     qr.addData(currentEmail);
     qr.make();
 
-    if (isMobile()) {
-      // Mobile: use container with HTML img
-      const container = document.getElementById(containerId);
-      if (container) {
-        container.innerHTML = qr.createImgTag(5, 8);
-        dropdown.classList.remove('hidden');
-        qrVisible = true;
-      }
-    } else {
-      // Desktop: use canvas
-      const canvas = document.getElementById('qr-canvas');
-      const imgTag = qr.createImgTag(5, 0);
-      const dataUrl = imgTag.match(/src="([^"]+)"/)?.[1];
+    // Get the image data
+    const imgTag = qr.createImgTag(5, 0);
+    const dataUrl = imgTag.match(/src="([^"]+)"/)?.[1];
 
-      if (dataUrl && canvas) {
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-        img.onload = function () {
-          canvas.width = 180;
-          canvas.height = 180;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, 180, 180);
-          ctx.drawImage(img, 0, 0, 180, 180);
-          dropdown.classList.remove('hidden');
-          qrVisible = true;
-        };
-        img.src = dataUrl;
-      } else {
-        // Fallback
-        dropdown.innerHTML = qr.createImgTag(4, 8);
+    if (dataUrl) {
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = function () {
+        // Clean standard QR - fill white, draw QR
+        const size = 200;
+        canvas.width = size;
+        canvas.height = size;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
         dropdown.classList.remove('hidden');
         qrVisible = true;
-      }
+      };
+      img.src = dataUrl;
+    } else {
+      showToast('❌ QR generation failed');
     }
   } catch (err) {
     console.error('QR Error:', err);

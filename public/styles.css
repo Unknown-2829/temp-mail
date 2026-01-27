@@ -194,30 +194,44 @@ body {
 /* QR Dropdown Popup */
 .qr-dropdown {
   position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
+  top: calc(100% + 16px);
+  left: 50%;
+  transform: translateX(-50%);
   background: #fff;
-  border-radius: 12px;
-  padding: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
   z-index: 100;
   animation: dropdownFade 0.2s ease;
 }
 
+/* Arrow pointing up to button */
+.qr-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 12px solid #fff;
+}
+
 .qr-dropdown canvas {
   display: block;
-  border-radius: 8px;
+  border-radius: 10px;
+  border: 3px solid #1a1a2e;
 }
 
 @keyframes dropdownFade {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateX(-50%) translateY(-10px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
   }
 }
 
@@ -1029,22 +1043,45 @@ body {
 
   .qr-dropdown-mobile {
     position: absolute;
-    bottom: calc(100% + 12px);
+    top: calc(100% + 16px);
     left: 50%;
     transform: translateX(-50%);
     background: #fff;
     border-radius: 16px;
     padding: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
     z-index: 200;
-    animation: dropdownFade 0.2s ease;
+    animation: dropdownFadeMobile 0.2s ease;
   }
 
-  .qr-dropdown-mobile img {
+  /* Arrow pointing up to button */
+  .qr-dropdown-mobile::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-bottom: 12px solid #fff;
+  }
+
+  @keyframes dropdownFadeMobile {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .qr-dropdown-mobile canvas {
     display: block;
-    width: 180px;
-    height: 180px;
-    border-radius: 8px;
+    border-radius: 10px;
+    border: 3px solid #1a1a2e;
   }
 
   /* Email input full width on mobile */
