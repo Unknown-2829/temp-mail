@@ -1167,10 +1167,28 @@ body {
   .email-row {
     grid-template-columns: 1fr 1fr 30px;
     padding: 15px;
+    align-items: center;
   }
 
   .sender-email-small {
-    display: none;
+    display: block;
+    font-size: 11px;
+    color: #00b386;
+  }
+
+  .email-sender {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sender-name {
+    font-size: 13px;
+  }
+
+  .email-subject {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
   }
 
   .modal-content {
