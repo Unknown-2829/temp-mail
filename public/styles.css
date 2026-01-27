@@ -1157,38 +1157,66 @@ body {
     gap: 5px;
   }
 
-  /* Inbox Mobile */
+  /* Inbox Mobile - Stacked Layout */
   .inbox-header {
-    grid-template-columns: 1fr 1fr 30px;
-    font-size: 11px;
-    padding: 15px;
+    display: block;
+    font-size: 12px;
+    padding: 15px 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .inbox-header .col-subject,
+  .inbox-header .col-view {
+    display: none;
+  }
+
+  .inbox-header .col-sender::after {
+    content: 'INBOX';
+  }
+
+  .inbox-header .col-sender {
+    font-size: 0;
   }
 
   .email-row {
-    grid-template-columns: 1fr 1fr 30px;
-    padding: 15px;
-    align-items: center;
+    display: block;
+    padding: 15px 20px;
+    border-left: 3px solid transparent;
   }
 
-  .sender-email-small {
-    display: block;
-    font-size: 11px;
-    color: #00b386;
+  .email-row.unread {
+    border-left: 3px solid #00d09c;
   }
 
   .email-sender {
     display: flex;
     flex-direction: column;
+    margin-bottom: 4px;
   }
 
   .sender-name {
-    font-size: 13px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #222;
+  }
+
+  .sender-email-small {
+    display: block;
+    font-size: 12px;
+    color: #00b386;
+    margin-top: 2px;
   }
 
   .email-subject {
-    font-size: 12px;
-    display: flex;
-    align-items: center;
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+    display: block;
+  }
+
+  .email-view {
+    display: none;
   }
 
   .modal-content {
