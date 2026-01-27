@@ -88,9 +88,16 @@ async function regenerateEmail() {
   stopAutoRefresh();
   emailsList = [];
   previousEmailCount = 0;
-  renderInbox();
+
+  // Clear persistence
   localStorage.removeItem('tempEmail');
   localStorage.removeItem('emailCreatedAt');
+  localStorage.removeItem('deletedIds');
+  localStorage.removeItem('readIds');
+  deletedIds = [];
+  readIds = [];
+
+  renderInbox();
   await generateEmail();
 }
 
@@ -99,8 +106,15 @@ function deleteEmail() {
   currentEmail = '';
   emailsList = [];
   previousEmailCount = 0;
+
+  // Clear persistence
   localStorage.removeItem('tempEmail');
   localStorage.removeItem('emailCreatedAt');
+  localStorage.removeItem('deletedIds');
+  localStorage.removeItem('readIds');
+  deletedIds = [];
+  readIds = [];
+
   document.getElementById('email-display').value = '';
   renderInbox();
   updateTabTitle(0);
@@ -120,6 +134,10 @@ function copyEmail() {
   });
 }
 
+// Persistent state
+let deletedIds = JSON.parse(localStorage.getItem('deletedIds') || '[]');
+let readIds = JSON.parse(localStorage.getItem('readIds') || '[]');
+
 async function refreshEmails() {
   if (!currentEmail) return;
 
@@ -127,11 +145,23 @@ async function refreshEmails() {
     const response = await fetch(`/api/emails?address=${encodeURIComponent(currentEmail)}`);
     const data = await response.json();
 
+    const rawEmails = data.emails || [];
+
+    // Filter out deleted emails
+    const validEmails = rawEmails.filter(e => !deletedIds.includes(e.id || e.timestamp)); // Fallback to timestamp if no ID
+
+    // Apply read status
+    validEmails.forEach(e => {
+      if (readIds.includes(e.id || e.timestamp)) {
+        e.read = true;
+      }
+    });
+
     const oldCount = emailsList.length;
-    emailsList = data.emails || [];
+    emailsList = validEmails;
     const newCount = emailsList.length;
 
-    // New email notifications
+    // New email notifications (only if we have more valid emails than before)
     if (newCount > oldCount && oldCount > 0) {
       const diff = newCount - oldCount;
       showToast(`📧 ${diff} new!`);
@@ -382,12 +412,20 @@ function extractFromDomain(email) {
   return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
 
+
 function viewEmail(index) {
   const email = emailsList[index];
   if (!email) return;
 
   currentViewIndex = index;
   email.read = true;
+
+  // Persist read status
+  const id = email.id || email.timestamp;
+  if (!readIds.includes(id)) {
+    readIds.push(id);
+    localStorage.setItem('readIds', JSON.stringify(readIds));
+  }
 
   // Update tab title after marking as read
   const unreadCount = emailsList.filter(e => !e.read).length;
@@ -464,12 +502,22 @@ function closeModal() {
 
 function deleteCurrentEmail() {
   if (currentViewIndex >= 0) {
-    emailsList.splice(currentViewIndex, 1);
-    const unreadCount = emailsList.filter(e => !e.read).length;
-    updateTabTitle(unreadCount);
-    renderInbox();
-    closeModal();
-    showToast('🗑️ Email deleted');
+    const email = emailsList[currentViewIndex];
+    if (email) {
+      // Persist deletion
+      const id = email.id || email.timestamp;
+      if (!deletedIds.includes(id)) {
+        deletedIds.push(id);
+        localStorage.setItem('deletedIds', JSON.stringify(deletedIds));
+      }
+
+      emailsList.splice(currentViewIndex, 1);
+      const unreadCount = emailsList.filter(e => !e.read).length;
+      updateTabTitle(unreadCount);
+      renderInbox();
+      closeModal();
+      showToast('🗑️ Email deleted');
+    }
   }
 }
 
