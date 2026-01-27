@@ -490,7 +490,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 0 12px;
-  text-align: left;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .email-view {
