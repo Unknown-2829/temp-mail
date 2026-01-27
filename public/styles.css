@@ -1174,6 +1174,7 @@ body {
 
   .inbox-header .col-sender::after {
     content: 'INBOX';
+    font-size: 12px;
   }
 
   .inbox-header .col-sender {
