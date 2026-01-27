@@ -193,7 +193,7 @@ function renderInbox() {
   }).join('');
 }
 
-// Parse Sender - with content-based detection for services like Netflix
+// Parse Sender - PRIORITY: 1. Domain, 2. Explicit name, 3. Content detection
 function parseSender(from, emailObj) {
   if (!from) return { name: 'Unknown', email: '' };
 
@@ -211,12 +211,25 @@ function parseSender(from, emailObj) {
     if (match) emailAddr = match[1];
   }
 
-  // If name is empty or looks like UUID, detect from content
-  if (!name || looksLikeUUID(name) || looksLikeUUID(emailAddr.split('@')[0])) {
-    name = detectSenderFromContent(emailObj) || extractFromDomain(emailAddr);
+  // PRIORITY 1: Check domain for known services
+  const domainName = detectFromDomain(emailAddr);
+  if (domainName) {
+    return { name: domainName, email: emailAddr };
   }
 
-  return { name, email: emailAddr };
+  // PRIORITY 2: If name looks valid (not UUID/random), use it
+  if (name && !looksLikeUUID(name) && name.length > 2) {
+    return { name, email: emailAddr };
+  }
+
+  // PRIORITY 3: Content detection as last resort (only subject, not body links)
+  const contentName = detectFromSubject(emailObj);
+  if (contentName) {
+    return { name: contentName, email: emailAddr };
+  }
+
+  // Fallback: extract from domain
+  return { name: extractFromDomain(emailAddr), email: emailAddr };
 }
 
 function looksLikeUUID(str) {
@@ -227,38 +240,117 @@ function looksLikeUUID(str) {
   return false;
 }
 
-// Detect sender name from email content
-function detectSenderFromContent(email) {
-  if (!email) return null;
+// Known services - check domain first (most reliable)
+const KNOWN_SERVICES = {
+  // Hosting/Dev
+  'render.com': 'Render',
+  'vercel.com': 'Vercel',
+  'netlify.com': 'Netlify',
+  'heroku.com': 'Heroku',
+  'github.com': 'GitHub',
+  'gitlab.com': 'GitLab',
+  'bitbucket.org': 'Bitbucket',
+  'cloudflare.com': 'Cloudflare',
+  'digitalocean.com': 'DigitalOcean',
+  'railway.app': 'Railway',
 
-  const content = ((email.subject || '') + (email.body || '') + (email.htmlBody || '')).toLowerCase();
+  // Social
+  'facebook.com': 'Facebook',
+  'fb.com': 'Facebook',
+  'instagram.com': 'Instagram',
+  'twitter.com': 'Twitter',
+  'x.com': 'X',
+  'linkedin.com': 'LinkedIn',
+  'tiktok.com': 'TikTok',
+  'pinterest.com': 'Pinterest',
+  'reddit.com': 'Reddit',
+  'discord.com': 'Discord',
+  'discordapp.com': 'Discord',
+  'telegram.org': 'Telegram',
+  'whatsapp.com': 'WhatsApp',
 
-  const services = [
-    { k: ['netflix'], n: 'Netflix' },
-    { k: ['amazon', 'aws'], n: 'Amazon' },
-    { k: ['google', 'gmail'], n: 'Google' },
-    { k: ['facebook', 'meta'], n: 'Facebook' },
-    { k: ['twitter'], n: 'Twitter' },
-    { k: ['instagram'], n: 'Instagram' },
-    { k: ['linkedin'], n: 'LinkedIn' },
-    { k: ['spotify'], n: 'Spotify' },
-    { k: ['paypal'], n: 'PayPal' },
-    { k: ['microsoft', 'outlook'], n: 'Microsoft' },
-    { k: ['apple', 'icloud'], n: 'Apple' },
-    { k: ['uber'], n: 'Uber' },
-    { k: ['discord'], n: 'Discord' },
-    { k: ['github'], n: 'GitHub' },
-    { k: ['whatsapp'], n: 'WhatsApp' },
-    { k: ['telegram'], n: 'Telegram' },
-    { k: ['steam'], n: 'Steam' },
-    { k: ['adobe'], n: 'Adobe' },
-    { k: ['zoom'], n: 'Zoom' },
+  // Tech
+  'google.com': 'Google',
+  'microsoft.com': 'Microsoft',
+  'apple.com': 'Apple',
+  'amazon.com': 'Amazon',
+  'netflix.com': 'Netflix',
+  'spotify.com': 'Spotify',
+  'adobe.com': 'Adobe',
+  'zoom.us': 'Zoom',
+  'dropbox.com': 'Dropbox',
+  'slack.com': 'Slack',
+  'notion.so': 'Notion',
+  'figma.com': 'Figma',
+  'canva.com': 'Canva',
+
+  // Finance
+  'paypal.com': 'PayPal',
+  'stripe.com': 'Stripe',
+  'razorpay.com': 'Razorpay',
+
+  // Gaming
+  'steam': 'Steam',
+  'epicgames.com': 'Epic Games',
+  'roblox.com': 'Roblox',
+
+  // Shopping
+  'ebay.com': 'eBay',
+  'flipkart.com': 'Flipkart',
+  'myntra.com': 'Myntra',
+
+  // Services
+  'uber.com': 'Uber',
+  'lyft.com': 'Lyft',
+  'airbnb.com': 'Airbnb',
+  'booking.com': 'Booking.com',
+  'zomato.com': 'Zomato',
+  'swiggy.com': 'Swiggy',
+};
+
+function detectFromDomain(emailAddr) {
+  if (!emailAddr) return null;
+  const domain = emailAddr.split('@')[1]?.toLowerCase();
+  if (!domain) return null;
+
+  // Check exact match or subdomain match
+  for (const [key, name] of Object.entries(KNOWN_SERVICES)) {
+    if (domain === key || domain.endsWith('.' + key)) {
+      return name;
+    }
+  }
+
+  // Check if domain contains service name
+  for (const [key, name] of Object.entries(KNOWN_SERVICES)) {
+    const serviceName = key.split('.')[0];
+    if (domain.includes(serviceName)) {
+      return name;
+    }
+  }
+
+  return null;
+}
+
+// Only check subject for service names (not body - avoids tracking links)
+function detectFromSubject(email) {
+  if (!email?.subject) return null;
+  const subject = email.subject.toLowerCase();
+
+  const subjectServices = [
+    { k: 'netflix', n: 'Netflix' },
+    { k: 'amazon', n: 'Amazon' },
+    { k: 'google', n: 'Google' },
+    { k: 'facebook', n: 'Facebook' },
+    { k: 'instagram', n: 'Instagram' },
+    { k: 'twitter', n: 'Twitter' },
+    { k: 'discord', n: 'Discord' },
+    { k: 'github', n: 'GitHub' },
+    { k: 'render', n: 'Render' },
+    { k: 'vercel', n: 'Vercel' },
   ];
 
-  for (const s of services) {
-    for (const k of s.k) {
-      if (content.includes(k)) return s.n;
-    }
+  for (const s of subjectServices) {
+    if (subject.includes(s.k)) return s.n;
   }
   return null;
 }
@@ -268,15 +360,22 @@ function extractFromDomain(email) {
   if (!domain) return 'Unknown';
 
   // Skip common email service subdomains
-  const skip = ['amazonses', 'sendgrid', 'mailchimp', 'mailgun', 'us-west', 'us-east', 'eu-west', 'ap-south'];
+  const skip = ['amazonses', 'sendgrid', 'mailchimp', 'mailgun', 'bounces', 'postmaster'];
   const parts = domain.split('.');
 
   for (const s of skip) {
-    if (domain.includes(s)) return 'Notification';
+    if (domain.includes(s)) {
+      // Try to get actual service name from next part
+      const idx = parts.findIndex(p => p.includes(s));
+      if (idx >= 0 && parts[idx + 1]) {
+        return parts[idx + 1].charAt(0).toUpperCase() + parts[idx + 1].slice(1);
+      }
+      return 'Notification';
+    }
   }
 
   let name = parts[0];
-  if (['mail', 'email', 'noreply', 'notify', 'info', 'account'].includes(name) && parts[1]) {
+  if (['mail', 'email', 'noreply', 'notify', 'info', 'account', 'pm', 'bounces'].includes(name) && parts[1]) {
     name = parts[1];
   }
 
