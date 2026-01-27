@@ -1,13 +1,12 @@
 /**
  * QR Code Generation API
  * Uses QRServer.com API - industry standard, fast, reliable
- * Returns redirect to QR image or base64 data
+ * Returns base64 encoded QR image
  */
 
 export async function onRequestGet(context) {
     const url = new URL(context.request.url);
     const email = url.searchParams.get('email');
-    const format = url.searchParams.get('format') || 'redirect'; // 'redirect' or 'base64'
 
     if (!email) {
         return new Response(
@@ -23,15 +22,20 @@ export async function onRequestGet(context) {
         // QR Server API - free, fast, reliable
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(email)}&margin=10`;
 
-        if (format === 'redirect') {
-            // Direct redirect to QR image
-            return Response.redirect(qrUrl, 302);
+        // Fetch QR image and convert to base64
+        const qrResponse = await fetch(qrUrl);
+
+        if (!qrResponse.ok) {
+            throw new Error('QR Server failed');
         }
 
-        // Fetch and return as base64
-        const qrResponse = await fetch(qrUrl);
         const qrBuffer = await qrResponse.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(qrBuffer)));
+        const bytes = new Uint8Array(qrBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
 
         return new Response(
             JSON.stringify({
