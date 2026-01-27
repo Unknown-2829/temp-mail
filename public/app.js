@@ -462,7 +462,7 @@ function isMobile() {
   return window.innerWidth <= 600;
 }
 
-function toggleQR() {
+async function toggleQR() {
   if (!currentEmail) {
     showToast('❌ No email to show');
     return;
@@ -488,33 +488,29 @@ function toggleQR() {
   }
 
   try {
-    // Generate dense QR code - type 10 for more modules, L error correction
-    const qr = qrcode(10, 'L');
-    qr.addData(currentEmail);
-    qr.make();
+    // Call backend QR API for optimized generation
+    const response = await fetch(`/api/qr?email=${encodeURIComponent(currentEmail)}`);
+    const data = await response.json();
 
-    // Smaller cell size (2) for denser appearance
-    const imgTag = qr.createImgTag(2, 0);
-    const dataUrl = imgTag.match(/src="([^"]+)"/)?.[1];
-
-    if (dataUrl) {
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      img.onload = function () {
-        // Clean standard QR - fill white, draw QR
-        const size = 200;
-        canvas.width = size;
-        canvas.height = size;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, size, size);
-        ctx.drawImage(img, 0, 0, size, size);
-        dropdown.classList.remove('hidden');
-        qrVisible = true;
-      };
-      img.src = dataUrl;
-    } else {
-      showToast('❌ QR generation failed');
+    if (!response.ok || !data.qr) {
+      throw new Error(data.error || 'QR generation failed');
     }
+
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = function () {
+      // Size based on device
+      const size = isMobile() ? 160 : 200;
+      canvas.width = size;
+      canvas.height = size;
+      ctx.drawImage(img, 0, 0, size, size);
+      dropdown.classList.remove('hidden');
+      qrVisible = true;
+    };
+    img.onerror = function () {
+      showToast('❌ Failed to load QR');
+    };
+    img.src = data.qr;
   } catch (err) {
     console.error('QR Error:', err);
     showToast('❌ QR Error: ' + err.message);
