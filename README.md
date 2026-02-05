@@ -34,8 +34,6 @@ temp-email/
 This repository is deployed on GitHub Pages as a **view-only demo**. The fully functional site is available at
 **https://unknownlll2829.qzz.io/** and should be used for real temp-mail functionality.
 
-> **Reminder:** Keep this disclaimer visible in all future updates to this README.
-
 ### What works on GitHub Pages
 - ✅ Static UI, layout, and styling
 - ✅ Buttons, modals, and basic client-side interactions
