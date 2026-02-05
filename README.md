@@ -29,6 +29,28 @@ temp-email/
 └── README.md
 ```
 
+## ⚠️ Demo Deployment Notice (GitHub Pages)
+
+This repository is deployed on GitHub Pages as a **view-only demo**. The fully functional site is available at
+**https://unknownlll2829.qzz.io/** and should be used for real temp-mail functionality.
+
+> **Reminder:** Keep this disclaimer visible in all future updates to this README.
+
+### What works on GitHub Pages
+- ✅ Static UI, layout, and styling
+- ✅ Buttons, modals, and basic client-side interactions
+
+### What does NOT work on GitHub Pages
+- ❌ Temp email generation and inbox fetching (`/api/*` endpoints require Cloudflare Pages Functions)
+- ❌ QR code generation endpoint (`/api/qr`)
+- ❌ Authentication (OTP send/verify)
+- ❌ Email worker-backed storage (Cloudflare KV)
+
+### GitHub Pages Deployment Instructions
+1. Push changes to the `main` branch.
+2. In your GitHub repository settings, set **Pages → Source** to **GitHub Actions**.
+3. The workflow at `.github/workflows/deploy.yml` will build and deploy the static site automatically.
+
 ## Deployment
 
 ### 1. Push to GitHub
