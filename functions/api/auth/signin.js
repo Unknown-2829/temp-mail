@@ -14,8 +14,8 @@ export async function onRequestPost(context) {
             return jsonResponse({ error: 'Username and password required' }, 400);
         }
 
-        const userKey = username.toLowerCase();
-        const user = await env.USERS.get(userKey, { type: 'json' });
+        const userKey = `user:${username.toLowerCase()}`;
+        const user = await env.EMAILS.get(userKey, { type: 'json' });
 
         if (!user) {
             return jsonResponse({ error: 'Invalid username or password' }, 401);
@@ -33,7 +33,7 @@ export async function onRequestPost(context) {
             // Premium expired — update user
             user.isPremium = false;
             user.premiumExpiry = null;
-            await env.USERS.put(userKey, JSON.stringify(user));
+            await env.EMAILS.put(userKey, JSON.stringify(user));
             isPremium = false;
         }
 
@@ -44,11 +44,11 @@ export async function onRequestPost(context) {
             createdAt: Date.now(),
             expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000)
         };
-        await env.SESSIONS.put(token, JSON.stringify(sessionData), {
+        await env.EMAILS.put(`session:${token}`, JSON.stringify(sessionData), {
             expirationTtl: 7 * 24 * 60 * 60
         });
 
-        return jsonResponse({ success: true, token, username: userKey, isPremium });
+        return jsonResponse({ success: true, token, username: username.toLowerCase(), isPremium });
 
     } catch (error) {
         console.error('Signin error:', error);

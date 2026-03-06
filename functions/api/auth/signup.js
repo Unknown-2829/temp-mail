@@ -23,10 +23,10 @@ export async function onRequestPost(context) {
             return jsonResponse({ error: 'Password must be at least 8 characters' }, 400);
         }
 
-        const userKey = username.toLowerCase();
+        const userKey = `user:${username.toLowerCase()}`;
 
         // Check if username already taken
-        const existing = await env.USERS.get(userKey);
+        const existing = await env.EMAILS.get(userKey);
         if (existing) {
             return jsonResponse({ error: 'Username already taken' }, 400);
         }
@@ -49,7 +49,7 @@ export async function onRequestPost(context) {
             apiKey: null
         };
 
-        await env.USERS.put(userKey, JSON.stringify(user));
+        await env.EMAILS.put(userKey, JSON.stringify(user));
 
         // Create session
         const token = generateToken();
@@ -58,11 +58,11 @@ export async function onRequestPost(context) {
             createdAt: Date.now(),
             expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000)
         };
-        await env.SESSIONS.put(token, JSON.stringify(sessionData), {
+        await env.EMAILS.put(`session:${token}`, JSON.stringify(sessionData), {
             expirationTtl: 7 * 24 * 60 * 60
         });
 
-        return jsonResponse({ success: true, token, username: userKey, isPremium: false });
+        return jsonResponse({ success: true, token, username: username.toLowerCase(), isPremium: false });
 
     } catch (error) {
         console.error('Signup error:', error);

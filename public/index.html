@@ -211,45 +211,26 @@
 
         <!-- Dynamic feature grid -->
         <div class="pf-features-grid">
-          <div class="pf-feat">
+          <div class="pf-feat glass-panel">
             <span class="pf-icon">🎯</span>
             <div class="pf-feat-text"><strong>Custom Usernames</strong><br>Choose your handle</div>
           </div>
-          <div class="pf-feat">
+          <div class="pf-feat glass-panel">
             <span class="pf-icon">💾</span>
             <div class="pf-feat-text"><strong>8 Permanent Emails</strong><br>Never expire</div>
           </div>
-          <div class="pf-feat">
+          <div class="pf-feat glass-panel">
             <span class="pf-icon">📨</span>
             <div class="pf-feat-text"><strong>Email Forwarding</strong><br>To real inbox</div>
           </div>
-          <div class="pf-feat">
+          <div class="pf-feat glass-panel">
             <span class="pf-icon">🔌</span>
             <div class="pf-feat-text"><strong>Developer API</strong><br>1000 requests/day</div>
           </div>
         </div>
 
-        <!-- Pricing Cards -->
-        <div class="pf-pricing-options">
-          <button class="pf-price-card" id="pf-plan-monthly" onclick="selectPremiumPlan('monthly')">
-            <div class="pf-card-head">Monthly</div>
-            <div class="pf-card-price">$3<span>/mo</span></div>
-          </button>
-
-          <button class="pf-price-card featured active" id="pf-plan-yearly" onclick="selectPremiumPlan('yearly')">
-            <div class="pf-badge">Best Value</div>
-            <div class="pf-card-head">Yearly</div>
-            <div class="pf-card-price">$20<span>/yr</span></div>
-            <div class="pf-card-save">Save 45%</div>
-          </button>
-        </div>
-
-        <div class="pf-continue-wrapper">
-          <button class="pf-continue-btn" onclick="continueFromPlan()">Continue →</button>
-        </div>
-
-        <!-- Comparison Table -->
-        <div class="plan-compare">
+        <!-- Comparison Table (Moved UP) -->
+        <div class="plan-compare glass-panel">
           <div class="compare-row header-row">
             <div class="col-feature">Features</div>
             <div class="col-free">Basic</div>
@@ -258,32 +239,54 @@
           <div class="compare-row">
             <div class="col-feature">Generate Temporaries</div>
             <div class="col-free">1 Hour Only</div>
-            <div class="col-premium">Unlimited</div>
+            <div class="col-premium"><span class="check-icon">✓</span> Unlimited</div>
           </div>
           <div class="compare-row">
             <div class="col-feature">Permanent Addresses</div>
             <div class="col-free">❌</div>
-            <div class="col-premium">Up to 8</div>
+            <div class="col-premium"><span class="check-icon">✓</span> Up to 8</div>
           </div>
           <div class="compare-row">
             <div class="col-feature">Email Forwarding</div>
             <div class="col-free">❌</div>
-            <div class="col-premium">Yes</div>
+            <div class="col-premium"><span class="check-icon">✓</span> Yes</div>
           </div>
           <div class="compare-row">
             <div class="col-feature">Custom Usernames</div>
             <div class="col-free">❌</div>
-            <div class="col-premium">Yes</div>
+            <div class="col-premium"><span class="check-icon">✓</span> Yes</div>
           </div>
           <div class="compare-row">
             <div class="col-feature">API Access</div>
             <div class="col-free">❌</div>
-            <div class="col-premium">1,000 req/day</div>
+            <div class="col-premium"><span class="check-icon">✓</span> 1,000 req/day</div>
           </div>
           <div class="compare-row">
             <div class="col-feature">Email Support</div>
             <div class="col-free">❌</div>
-            <div class="col-premium">Priority</div>
+            <div class="col-premium"><span class="check-icon">✓</span> Priority</div>
+          </div>
+        </div>
+
+        <div class="pf-pricing-section">
+          <!-- Pricing Cards -->
+          <div class="pf-pricing-options">
+            <button class="pf-price-card glass-panel" id="pf-plan-monthly" onclick="selectPremiumPlan('monthly')">
+              <div class="pf-card-head">Monthly</div>
+              <div class="pf-card-price">$3<span>/mo</span></div>
+            </button>
+
+            <button class="pf-price-card featured active glass-panel" id="pf-plan-yearly"
+              onclick="selectPremiumPlan('yearly')">
+              <div class="pf-badge glow-badge">Best Value</div>
+              <div class="pf-card-head">Yearly</div>
+              <div class="pf-card-price">$20<span>/yr</span></div>
+              <div class="pf-card-save">Save 45%</div>
+            </button>
+          </div>
+
+          <div class="pf-continue-wrapper">
+            <button class="pf-continue-btn glass-btn liquid-hover" onclick="continueFromPlan()">Continue →</button>
           </div>
         </div>
       </div>
