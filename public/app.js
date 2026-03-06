@@ -653,6 +653,12 @@ function selectPremiumPlan(plan) {
   pfState.plan = plan;
   pfState.price = plan === 'yearly' ? 20 : 3;
 
+  // Add active class
+  document.querySelectorAll('.pf-price-card').forEach(c => c.classList.remove('active'));
+  document.getElementById(`pf-plan-${plan}`).classList.add('active');
+}
+
+function continueFromPlan() {
   if (localStorage.getItem('authToken')) {
     goToPremiumStep(3); // Logged in, go to payment
   } else {
@@ -711,7 +717,7 @@ async function pfSignUp() {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, email: email || undefined })
+      body: JSON.stringify({ username, password, email: email || "" })
     });
     const data = await res.json();
     if (res.ok) {
@@ -859,7 +865,7 @@ async function signUp() {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, email: email || undefined })
+      body: JSON.stringify({ username, password, email: email || "" })
     });
     const data = await res.json();
     if (res.ok) {

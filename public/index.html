@@ -231,17 +231,60 @@
 
         <!-- Pricing Cards -->
         <div class="pf-pricing-options">
-          <button class="pf-price-card" onclick="selectPremiumPlan('monthly')">
+          <button class="pf-price-card" id="pf-plan-monthly" onclick="selectPremiumPlan('monthly')">
             <div class="pf-card-head">Monthly</div>
             <div class="pf-card-price">$3<span>/mo</span></div>
           </button>
 
-          <button class="pf-price-card featured" onclick="selectPremiumPlan('yearly')">
+          <button class="pf-price-card featured active" id="pf-plan-yearly" onclick="selectPremiumPlan('yearly')">
             <div class="pf-badge">Best Value</div>
             <div class="pf-card-head">Yearly</div>
             <div class="pf-card-price">$20<span>/yr</span></div>
             <div class="pf-card-save">Save 45%</div>
           </button>
+        </div>
+
+        <div class="pf-continue-wrapper">
+          <button class="pf-continue-btn" onclick="continueFromPlan()">Continue →</button>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="plan-compare">
+          <div class="compare-row header-row">
+            <div class="col-feature">Features</div>
+            <div class="col-free">Basic</div>
+            <div class="col-premium gold">Premium</div>
+          </div>
+          <div class="compare-row">
+            <div class="col-feature">Generate Temporaries</div>
+            <div class="col-free">1 Hour Only</div>
+            <div class="col-premium">Unlimited</div>
+          </div>
+          <div class="compare-row">
+            <div class="col-feature">Permanent Addresses</div>
+            <div class="col-free">❌</div>
+            <div class="col-premium">Up to 8</div>
+          </div>
+          <div class="compare-row">
+            <div class="col-feature">Email Forwarding</div>
+            <div class="col-free">❌</div>
+            <div class="col-premium">Yes</div>
+          </div>
+          <div class="compare-row">
+            <div class="col-feature">Custom Usernames</div>
+            <div class="col-free">❌</div>
+            <div class="col-premium">Yes</div>
+          </div>
+          <div class="compare-row">
+            <div class="col-feature">API Access</div>
+            <div class="col-free">❌</div>
+            <div class="col-premium">1,000 req/day</div>
+          </div>
+          <div class="compare-row">
+            <div class="col-feature">Email Support</div>
+            <div class="col-free">❌</div>
+            <div class="col-premium">Priority</div>
+          </div>
         </div>
       </div>
 

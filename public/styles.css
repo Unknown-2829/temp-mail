@@ -1684,6 +1684,98 @@ body {
   box-shadow: 0 10px 20px rgba(255, 215, 0, 0.2);
 }
 
+.pf-price-card.active {
+  border-color: #00d09c;
+  box-shadow: 0 0 0 2px rgba(0, 208, 156, 0.3);
+}
+
+.pf-price-card.featured.active {
+  border-color: #ffd700;
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.4), 0 10px 20px rgba(255, 215, 0, 0.2);
+}
+
+/* Step 1: Continue Button */
+.pf-continue-wrapper {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.pf-continue-btn {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #111;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 14px 40px;
+  border-radius: 30px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+}
+
+.pf-continue-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+}
+
+/* Step 1: Comparison Table */
+.plan-compare {
+  margin-top: 30px;
+  border-top: 1px solid #3a3a5c;
+  padding-top: 20px;
+}
+
+.compare-row {
+  display: flex;
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  align-items: center;
+}
+
+.compare-row:last-child {
+  border-bottom: none;
+}
+
+.header-row {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  border-bottom: 1px solid #3a3a5c;
+  padding-bottom: 14px;
+  margin-bottom: 4px;
+}
+
+.col-feature {
+  flex: 2;
+  color: #aaa;
+}
+
+.col-free {
+  flex: 1;
+  text-align: center;
+  color: #888;
+}
+
+.col-premium {
+  flex: 1;
+  text-align: center;
+  color: #00d09c;
+  font-weight: 600;
+}
+
+.header-row .col-feature {
+  color: #fff;
+}
+
+.header-row .col-free {
+  color: #fff;
+}
+
+.header-row .col-premium.gold {
+  color: #ffd700;
+}
+
 .pf-badge {
   position: absolute;
   top: -12px;
