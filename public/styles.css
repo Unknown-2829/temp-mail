@@ -1,4 +1,4 @@
-/* TempMail - Full Dark Blue Theme */
+/* Phantom Mail - Full Dark Blue Theme */
 
 * {
   margin: 0;
@@ -19,7 +19,7 @@ body {
   padding: 0 15px;
 }
 
-/* Header - Logo centered, About in corner */
+/* Header */
 .header {
   background: #1a1a2e;
   padding: 20px 20px;
@@ -49,7 +49,7 @@ body {
   color: #00d09c;
 }
 
-/* About Button - Now in flex container */
+/* About Button */
 .about-btn {
   background: #252540;
   border: 1px solid #3a3a5c;
@@ -59,12 +59,16 @@ body {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
 }
 
 .about-btn:hover {
   background: #3a3a5c;
   border-color: #00d09c;
+}
+
+.about-btn:active {
+  transform: scale(0.96);
 }
 
 /* Main Section */
@@ -101,7 +105,6 @@ body {
   flex: 0 1 auto;
   width: 100%;
   max-width: 480px;
-  /* constrained width */
   margin-bottom: 0;
 }
 
@@ -109,19 +112,14 @@ body {
   background: #252540;
   border: none;
   border-radius: 50px;
-  /* matched to copy button */
   padding: 16px 24px;
-  /* Reduced vertical padding (thicker now) */
   color: #00d09c;
-  /* Green text */
   font-family: 'JetBrains Mono', monospace;
   font-size: 15px;
-  /* Reduced for better fit */
   width: 100%;
   text-align: left;
   outline: none;
   letter-spacing: -0.5px;
-  /* Slightly tighter */
 }
 
 .primary-actions {
@@ -175,20 +173,21 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
   flex-shrink: 0;
   background: #3a3a5c;
   color: #fff;
+  will-change: transform;
 }
 
 .qr-btn-inline:hover {
   background: #4a4a6c;
-  transform: scale(1.05);
+  transform: scale(1.08);
   box-shadow: 0 0 15px rgba(0, 208, 156, 0.3);
 }
 
 .qr-btn-inline:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 /* QR Dropdown Popup */
@@ -202,7 +201,7 @@ body {
   padding: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
   z-index: 100;
-  animation: dropdownFade 0.2s ease;
+  animation: dropdownFade 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Arrow pointing up to button */
@@ -225,12 +224,12 @@ body {
 @keyframes dropdownFade {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-10px);
+    transform: translateX(-50%) translateY(-12px) scale(0.92);
   }
 
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
@@ -251,9 +250,7 @@ body {
   color: #fff;
   border: none;
   padding: 0 25px;
-  /* Use flex alignment instead of vertical padding */
   height: 52px;
-  /* Explicit reduced height (thicker now) */
   border-radius: 50px;
   font-size: 16px;
   font-weight: 600;
@@ -261,13 +258,24 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
   white-space: nowrap;
+  will-change: transform;
 }
 
 .big-copy-btn:hover {
   background: #00b386;
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 208, 156, 0.35);
+}
+
+.big-copy-btn:active {
+  transform: scale(0.96) translateY(0);
+  box-shadow: none;
+}
+
+.big-copy-btn.copied {
+  background: #00b386;
 }
 
 .action-btn-small {
@@ -282,12 +290,18 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  will-change: transform;
 }
 
 .action-btn-small:hover {
   background: #3a3a5c;
   border-color: #00d09c;
+  transform: translateY(-1px);
+}
+
+.action-btn-small:active {
+  transform: scale(0.95) translateY(0);
 }
 
 .tagline {
@@ -342,7 +356,6 @@ body {
   display: flex;
   position: relative;
   background: #202020;
-  /* Neutral dark gray */
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -396,7 +409,6 @@ body {
 /* Static Envelope */
 .envelope-icon {
   fill: #C6C9D6;
-  /* Static center */
 }
 
 /* Animated Arrows */
@@ -404,6 +416,7 @@ body {
   fill: #E3E5EB;
   transform-origin: center;
   animation: spin 2s linear infinite;
+  will-change: transform;
 }
 
 @keyframes spin {
@@ -413,6 +426,48 @@ body {
 
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Skeleton shimmer for loading state */
+.skeleton-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 2fr) 60px;
+  padding: 18px 28px;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: center;
+  gap: 12px;
+}
+
+.skeleton-cell {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-cell.short {
+  width: 60%;
+}
+
+.skeleton-cell.long {
+  width: 85%;
+}
+
+.skeleton-cell.tiny {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
   }
 }
 
@@ -445,7 +500,7 @@ body {
   border-bottom: 1px solid #f0f0f0;
   align-items: center;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.18s ease, transform 0.18s ease;
   color: #333;
 }
 
@@ -454,7 +509,12 @@ body {
 }
 
 .email-row:hover {
-  background: #f9f9f9;
+  background: #f5fff9;
+  transform: translateX(3px);
+}
+
+.email-row:active {
+  background: #ecfdf5;
 }
 
 .email-row.unread {
@@ -501,10 +561,13 @@ body {
 .view-arrow {
   color: #ccc;
   font-size: 20px;
+  transition: color 0.2s, transform 0.2s;
+  display: inline-block;
 }
 
 .email-row:hover .view-arrow {
   color: #00d09c;
+  transform: translateX(3px);
 }
 
 /* Features Section */
@@ -525,12 +588,13 @@ body {
   border-radius: 18px;
   padding: 35px 24px;
   text-align: center;
-  transition: transform 0.2s, border-color 0.2s;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .feature-card:hover {
   transform: translateY(-5px);
   border-color: #00d09c;
+  box-shadow: 0 12px 30px rgba(0, 208, 156, 0.15);
 }
 
 .feature-card .feature-icon {
@@ -552,26 +616,86 @@ body {
   line-height: 1.5;
 }
 
-/* Modal */
-.modal {
-  display: none;
+/* ========== Modals (Smooth Animate-in) ========== */
+/* Base overlay — always rendered as flex, toggled via opacity + pointer-events */
+.modal,
+.about-modal,
+.qr-modal,
+.premium-modal,
+.auth-modal {
+  display: flex;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
   z-index: 1000;
   align-items: flex-start;
   justify-content: center;
   padding: 20px;
   overflow-y: auto;
+  /* hidden state */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+  will-change: opacity;
 }
 
-.modal.show {
-  display: flex;
+.modal {
+  background: rgba(0, 0, 0, 0.80);
 }
 
+.about-modal {
+  background: rgba(0, 0, 0, 0.85);
+  align-items: center;
+}
+
+.qr-modal {
+  background: rgba(0, 0, 0, 0.85);
+  align-items: center;
+}
+
+.premium-modal {
+  background: rgba(0, 0, 0, 0.90);
+}
+
+.auth-modal {
+  background: rgba(0, 0, 0, 0.90);
+  align-items: center;
+}
+
+/* visible state */
+.modal.show,
+.about-modal.show,
+.qr-modal.show,
+.premium-modal.show,
+.auth-modal.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Inner card animation */
+.modal-content,
+.about-content,
+.qr-content,
+.premium-content,
+.auth-content {
+  transform: scale(0.93) translateY(10px);
+  transition: transform 0.25s cubic-bezier(0.34, 1.36, 0.64, 1), opacity 0.22s ease;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.modal.show .modal-content,
+.about-modal.show .about-content,
+.qr-modal.show .qr-content,
+.premium-modal.show .premium-content,
+.auth-modal.show .auth-content {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+/* Modal Specific Styles */
 .modal-content {
   background: #fff;
   border-radius: 16px;
@@ -600,6 +724,12 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: color 0.2s, transform 0.15s;
+}
+
+.back-btn:hover {
+  color: #00d09c;
+  transform: translateX(-2px);
 }
 
 .back-btn span {
@@ -614,6 +744,7 @@ body {
   font-size: 14px;
   cursor: pointer;
   margin-left: 15px;
+  transition: color 0.2s;
 }
 
 .action-link:hover {
@@ -725,33 +856,44 @@ body {
   cursor: pointer;
   margin-right: 10px;
   margin-bottom: 10px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.attachment-item:hover {
+  border-color: #00d09c;
+  box-shadow: 0 2px 8px rgba(0, 208, 156, 0.2);
 }
 
 .hidden {
   display: none !important;
 }
 
+/* Toast */
 .toast {
   position: fixed;
   bottom: 40px;
   left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: #333;
+  transform: translateX(-50%) translateY(20px) scale(0.9);
+  background: #222;
   color: #fff;
-  padding: 12px 30px;
+  padding: 11px 28px;
   border-radius: 30px;
   font-size: 15px;
+  font-weight: 500;
   opacity: 0;
-  transition: all 0.3s;
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 2000;
+  pointer-events: none;
+  white-space: nowrap;
+  will-change: transform, opacity;
 }
 
 .toast.show {
-  transform: translateX(-50%) translateY(0);
+  transform: translateX(-50%) translateY(0) scale(1);
   opacity: 1;
 }
 
-/* Footer - Compact */
+/* Footer */
 .footer {
   background: #151525;
   padding: 22px 0;
@@ -794,7 +936,11 @@ body {
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.footer-btn:hover {
+  transform: translateY(-2px);
 }
 
 .footer-btn.primary {
@@ -812,25 +958,6 @@ body {
 }
 
 /* About Modal */
-.about-modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 1001;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-.about-modal.show {
-  display: flex;
-}
-
 .about-content {
   background: #1a1a2e;
   border-radius: 16px;
@@ -863,6 +990,7 @@ body {
   border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
+  transition: background 0.2s, color 0.2s;
 }
 
 .about-close:hover {
@@ -938,12 +1066,13 @@ body {
   text-decoration: none;
   font-size: 13px;
   text-align: center;
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
 }
 
 .about-link-btn:hover {
   background: #3a3a5c;
   border-color: #00d09c;
+  transform: translateY(-1px);
 }
 
 /* Mobile Responsive */
@@ -987,17 +1116,15 @@ body {
     border-radius: 22px;
   }
 
-  /* Hide About on mobile */
   .about-btn {
     display: none;
   }
 
-  /* Hide desktop buttons on mobile */
   .desktop-only {
     display: none !important;
   }
 
-  /* Show mobile actions */
+  /* Mobile actions */
   .mobile-actions {
     display: flex;
     justify-content: center;
@@ -1014,8 +1141,13 @@ body {
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.2s, transform 0.15s;
     border: none;
+    will-change: transform;
+  }
+
+  .mobile-action-btn:active {
+    transform: scale(0.94);
   }
 
   .mobile-action-btn.qr-mobile {
@@ -1051,10 +1183,9 @@ body {
     padding: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
     z-index: 200;
-    animation: dropdownFadeMobile 0.2s ease;
+    animation: dropdownFade 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  /* Arrow pointing up to button */
   .qr-dropdown-mobile::before {
     content: '';
     position: absolute;
@@ -1066,18 +1197,6 @@ body {
     border-bottom: 12px solid #fff;
   }
 
-  @keyframes dropdownFadeMobile {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(-10px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-  }
-
   .qr-dropdown-mobile canvas {
     display: block;
     border-radius: 8px;
@@ -1085,7 +1204,7 @@ body {
     max-height: 160px;
   }
 
-  /* Email input full width on mobile */
+  /* Email input full width */
   .email-input-container {
     max-width: 100%;
     padding: 16px 18px;
@@ -1099,12 +1218,10 @@ body {
     width: 100%;
   }
 
-  /* Mobile Layout Changes */
   .email-container {
     padding: 25px 20px;
     border-radius: 20px;
     background: #1a1a2e;
-    /* Solid background on mobile */
     border: 1px solid #3a3a5c;
   }
 
@@ -1170,6 +1287,15 @@ body {
     align-items: center;
   }
 
+  .skeleton-row {
+    grid-template-columns: 1fr 1fr 30px;
+    padding: 15px;
+  }
+
+  .email-row:hover {
+    transform: none;
+  }
+
   .sender-email-small {
     display: none;
   }
@@ -1188,10 +1314,6 @@ body {
 
   .footer {
     padding: 30px 15px;
-  }
-
-  .footer-quote {
-    font-size: 13px;
   }
 
   .footer-btn {
@@ -1239,9 +1361,10 @@ body {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
-  animation: premiumPulse 2s ease-in-out infinite;
+  animation: premiumPulse 2.5s ease-in-out infinite;
+  will-change: transform, box-shadow;
 }
 
 @keyframes premiumPulse {
@@ -1252,7 +1375,7 @@ body {
   }
 
   50% {
-    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.5);
+    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.55);
   }
 }
 
@@ -1263,7 +1386,7 @@ body {
 }
 
 .premium-btn:active {
-  transform: translateY(-1px) scale(1.02);
+  transform: scale(0.97);
 }
 
 /* QR Button */
@@ -1277,7 +1400,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s;
   margin-left: 10px;
 }
 
@@ -1286,25 +1409,7 @@ body {
   border-color: #00d09c;
 }
 
-/* QR Modal */
-.qr-modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 1002;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.qr-modal.show {
-  display: flex;
-}
-
+/* QR Inline Content */
 .qr-content {
   background: #1a1a2e;
   border-radius: 16px;
@@ -1335,6 +1440,7 @@ body {
   height: 28px;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.2s, color 0.2s;
 }
 
 .qr-close:hover {
@@ -1373,25 +1479,6 @@ body {
 }
 
 /* Premium Modal */
-.premium-modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 1003;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-.premium-modal.show {
-  display: flex;
-}
-
 .premium-content {
   background: linear-gradient(180deg, #1a1a2e 0%, #151525 100%);
   border-radius: 20px;
@@ -1424,9 +1511,11 @@ body {
   height: 32px;
   border-radius: 8px;
   cursor: pointer;
+  transition: background 0.2s, color 0.2s;
 }
 
 .premium-close:hover {
+  background: #3a3a5c;
   color: #fff;
 }
 
@@ -1491,6 +1580,11 @@ body {
   padding: 20px;
   text-align: center;
   position: relative;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.price-card:hover {
+  transform: translateY(-2px);
 }
 
 .price-card.featured {
@@ -1593,11 +1687,15 @@ body {
   padding: 5px 10px;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, transform 0.15s;
 }
 
 .copy-small:hover {
   background: #00d09c;
+}
+
+.copy-small:active {
+  transform: scale(0.92);
 }
 
 .crypto-note {
@@ -1632,33 +1730,16 @@ body {
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
 }
 
 .login-btn:hover {
   border-color: #00d09c;
   background: #3a3a5c;
+  transform: translateY(-1px);
 }
 
 /* Auth Modal */
-.auth-modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 1004;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.auth-modal.show {
-  display: flex;
-}
-
 .auth-content {
   background: #1a1a2e;
   border-radius: 16px;
@@ -1688,6 +1769,12 @@ body {
   height: 28px;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.auth-close:hover {
+  background: #3a3a5c;
+  color: #fff;
 }
 
 .auth-body {
@@ -1715,6 +1802,7 @@ body {
   color: #fff;
   font-size: 14px;
   outline: none;
+  transition: border-color 0.2s;
 }
 
 .auth-input:focus {
@@ -1731,6 +1819,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.2s;
 }
 
 .auth-send-btn:hover {
@@ -1767,6 +1856,7 @@ body {
   letter-spacing: 8px;
   outline: none;
   margin-bottom: 14px;
+  transition: border-color 0.2s;
 }
 
 .otp-input:focus {
@@ -1783,10 +1873,16 @@ body {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
 }
 
 .auth-verify-btn:hover {
   background: #00b386;
+  transform: translateY(-1px);
+}
+
+.auth-verify-btn:active {
+  transform: scale(0.97);
 }
 
 .auth-error {

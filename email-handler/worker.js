@@ -80,7 +80,7 @@ export default {
                         },
                         body: JSON.stringify({
                             personalizations: [{ to: [{ email: forwardingRule.to }] }],
-                            from: { email: 'forward@unknownlll2829.qzz.io', name: 'TempMail Forward' },
+                            from: { email: 'forward@unknownlll2829.qzz.io', name: 'Phantom Mail Forward' },
                             subject: `[FWD] ${parsedEmail.subject}`,
                             content: [{
                                 type: 'text/html',

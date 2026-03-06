@@ -1,4 +1,4 @@
-# Temp Mail - Disposable Email Service
+# Phantom Mail - Disposable Email Service
 
 A temporary email service built for Cloudflare Pages with Email Workers.
 

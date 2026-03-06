@@ -27,7 +27,7 @@ export async function onRequestGet(context) {
 
         return new Response(
             JSON.stringify({ emails }),
-            { headers: { 'Content-Type': 'application/json' } }
+            { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } }
         );
     } catch (error) {
         return new Response(

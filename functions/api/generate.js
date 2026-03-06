@@ -62,7 +62,7 @@ export async function onRequestPost(context) {
         // Generate unique human-like email with retry logic
         let email;
         let attempts = 0;
-        const maxAttempts = 10;
+        const maxAttempts = 5;
 
         do {
             email = generateHumanEmail();
@@ -94,7 +94,8 @@ export async function onRequestPost(context) {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
+                    'Access-Control-Allow-Origin': '*',
+                    'Cache-Control': 'no-store'
                 }
             }
         );

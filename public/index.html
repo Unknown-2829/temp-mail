@@ -4,16 +4,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TempMail - Free Disposable Email</title>
-  <meta name="description" content="Free temporary disposable email. Receive emails instantly.">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Phantom Mail - Free Disposable Email</title>
+  <meta name="description" content="Free temporary disposable email. Receive emails instantly. No signup required.">
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📬</text></svg>">
+  <!-- Resource Hints for faster connections -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://api.qrserver.com">
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <!-- QRCode Generator Library -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7521446029181314"
     crossorigin="anonymous"></script>
 </head>
@@ -24,7 +27,7 @@
   <header class="header">
     <div class="logo">
       <span class="logo-icon">📬</span>
-      <span class="logo-text">TEMP<span class="logo-mail">MAIL</span></span>
+      <span class="logo-text">PHANTOM<span class="logo-mail">MAIL</span></span>
     </div>
     <div class="header-actions">
       <button class="premium-btn" onclick="openPremium()">Premium</button>
@@ -161,14 +164,15 @@
     <div class="container">
       <div class="footer-brand">
         <span class="footer-icon">📬</span>
-        <span class="footer-name">TempMail</span>
-        <span class="footer-tagline">— Your privacy, our priority</span>
+        <span class="footer-name">PhantomMail</span>
+        <span class="footer-tagline">— Invisible. Anonymous. Free.</span>
       </div>
       <div class="footer-links">
         <a href="https://t.me/unknownlll2829" target="_blank" class="footer-btn primary">📩 Contact Developer</a>
-        <a href="https://buymeacoffee.com/unknownlll2829" target="_blank" class="footer-btn coffee">☕ Buy me a Coffee</a>
+        <a href="https://buymeacoffee.com/unknownlll2829" target="_blank" class="footer-btn coffee">☕ Buy me a
+          Coffee</a>
       </div>
-      <p class="footer-copy">© 2026 TempMail. All rights reserved.</p>
+      <p class="footer-copy">© 2026 Phantom Mail. All rights reserved.</p>
     </div>
   </footer>
 
@@ -191,7 +195,7 @@
   <div class="premium-modal" id="premium-modal">
     <div class="premium-content">
       <div class="premium-header">
-        <h2>⭐ TempMail Premium</h2>
+        <h2>⭐ Phantom Mail Premium</h2>
         <button class="premium-close" onclick="closePremium()">✕</button>
       </div>
       <div class="premium-body">
@@ -306,12 +310,12 @@
   <div class="about-modal" id="about-modal">
     <div class="about-content">
       <div class="about-header">
-        <h2>About TempMail</h2>
+        <h2>About Phantom Mail</h2>
         <button class="about-close" onclick="closeAbout()">✕</button>
       </div>
       <div class="about-body">
-        <p class="about-desc">TempMail provides free, anonymous temporary email addresses to protect your privacy
-          online.</p>
+        <p class="about-desc">Phantom Mail provides free, anonymous temporary email addresses to protect your privacy
+          online. Ghost through the internet — no traces, no spam.</p>
 
         <h3>Features</h3>
         <div class="features-list">

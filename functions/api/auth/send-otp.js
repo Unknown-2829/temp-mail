@@ -30,13 +30,13 @@ export async function onRequestPost(context) {
             },
             body: JSON.stringify({
                 personalizations: [{ to: [{ email }] }],
-                from: { email: 'noreply@unknownlll2829.qzz.io', name: 'TempMail' },
-                subject: 'Your TempMail Verification Code',
+                from: { email: 'noreply@unknownlll2829.qzz.io', name: 'Phantom Mail' },
+                subject: 'Your Phantom Mail Verification Code',
                 content: [{
                     type: 'text/html',
                     value: `
             <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #00d09c;">TempMail Verification</h2>
+              <h2 style="color: #00d09c;">Phantom Mail Verification</h2>
               <p>Your verification code is:</p>
               <div style="background: #1a1a2e; color: #00d09c; font-size: 32px; font-weight: bold; padding: 20px; text-align: center; border-radius: 8px; letter-spacing: 8px;">
                 ${otp}
