@@ -239,6 +239,38 @@
           </div>
         </div>
 
+        <!-- Free vs Premium Comparison -->
+        <div class="plan-compare">
+          <div class="plan-col free-col">
+            <div class="plan-label">Free</div>
+            <ul class="plan-list">
+              <li class="yes">✅ Temp emails</li>
+              <li class="yes">✅ Unlimited use</li>
+              <li class="yes">✅ Instant — no signup</li>
+              <li class="no">❌ 1-hour expiry</li>
+              <li class="no">❌ Random username</li>
+              <li class="no">❌ No saved emails</li>
+              <li class="no">❌ No forwarding</li>
+              <li class="no">❌ Ads shown</li>
+              <li class="no">❌ No API</li>
+            </ul>
+          </div>
+          <div class="plan-col premium-col">
+            <div class="plan-label gold">⭐ Premium</div>
+            <ul class="plan-list">
+              <li class="yes">✅ Temp emails</li>
+              <li class="yes">✅ Unlimited use</li>
+              <li class="yes">✅ Instant — no signup</li>
+              <li class="yes">⭐ Permanent emails (never expire)</li>
+              <li class="yes">⭐ Custom username handle</li>
+              <li class="yes">⭐ 8 saved addresses</li>
+              <li class="yes">⭐ Email forwarding</li>
+              <li class="yes">⭐ Ad-free</li>
+              <li class="yes">⭐ Developer API (1000/day)</li>
+            </ul>
+          </div>
+        </div>
+
         <div class="premium-pricing">
           <div class="price-card">
             <h3>Monthly</h3>
@@ -275,32 +307,53 @@
               target="_blank">@unknownlll2829</a> for activation.</p>
         </div>
 
-        <div class="premium-login">
-          <p>Already Premium?</p>
-          <button class="login-btn" onclick="openAuth()">🔐 Sign In</button>
+        <!-- Signed-in state -->
+        <div class="premium-login" id="auth-status-section">
+          <p id="auth-status-text">Have an account?</p>
+          <button class="login-btn" id="auth-action-btn" onclick="openAuth()">🔐 Sign In / Sign Up</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Auth Modal -->
+  <!-- Auth Modal (Signup / Signin) -->
   <div class="auth-modal" id="auth-modal">
     <div class="auth-content">
       <div class="auth-header">
-        <h2>🔐 Sign In</h2>
+        <h2 id="auth-modal-title">👻 Sign In</h2>
         <button class="auth-close" onclick="closeAuth()">✕</button>
       </div>
       <div class="auth-body">
-        <p>Enter your email to receive a verification code.</p>
-        <div class="auth-form">
-          <input type="email" id="auth-email" placeholder="your@email.com" class="auth-input">
-          <button class="auth-send-btn" onclick="sendOTP()" id="send-otp-btn">Send Code</button>
+
+        <!-- Tab switcher -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-signin" onclick="switchAuthTab('signin')">Sign In</button>
+          <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create Account</button>
         </div>
-        <div class="otp-section hidden" id="otp-section">
-          <p>Enter the 6-digit code sent to your email:</p>
-          <input type="text" id="otp-input" maxlength="6" placeholder="000000" class="otp-input">
-          <button class="auth-verify-btn" onclick="verifyOTP()">Verify & Login</button>
+
+        <!-- Sign In -->
+        <div id="signin-section">
+          <input type="text" id="signin-username" placeholder="Username" class="auth-input" autocomplete="username">
+          <input type="password" id="signin-password" placeholder="Password" class="auth-input"
+            autocomplete="current-password">
+          <button class="auth-verify-btn" onclick="signIn()">Sign In</button>
         </div>
+
+        <!-- Sign Up -->
+        <div id="signup-section" class="hidden">
+          <input type="text" id="signup-username" placeholder="Username (3-20 chars, a-z 0-9 _)" class="auth-input"
+            autocomplete="username">
+          <input type="password" id="signup-password" placeholder="Password (min 8 chars)" class="auth-input"
+            autocomplete="new-password">
+          <input type="email" id="signup-email" placeholder="Email (optional — for privacy, leave blank)"
+            class="auth-input" autocomplete="email">
+          <div class="auth-warning">
+            ⚠️ <strong>Important:</strong> Save your username and password securely. We have <strong>no recovery
+              option</strong> — if you lose them, your account cannot be restored.
+          </div>
+          <button class="auth-verify-btn" onclick="signUp()">Create Account</button>
+        </div>
+
         <p class="auth-error hidden" id="auth-error"></p>
       </div>
     </div>
@@ -334,10 +387,10 @@
             </div>
           </div>
           <div class="feature-item">
-            <span class="feature-ico">🆓</span>
+            <span class="feature-ico">🛡️</span>
             <div>
-              <strong>Free</strong>
-              <p>Completely free. No hidden costs or limits.</p>
+              <strong>Basic Plan</strong>
+              <p>Unlimited free use. No limits, no signup required for temp emails.</p>
             </div>
           </div>
         </div>

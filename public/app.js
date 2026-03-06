@@ -635,78 +635,114 @@ function copyCrypto(id) {
     .catch(() => showToast('❌ Copy failed'));
 }
 
+// ===== Auth State =====
+function initAuthState() {
+  const username = localStorage.getItem('username');
+  const isPremium = localStorage.getItem('isPremium') === 'true';
+  const section = document.getElementById('auth-status-section');
+  const statusText = document.getElementById('auth-status-text');
+  const actionBtn = document.getElementById('auth-action-btn');
+  if (!section) return;
+
+  if (username) {
+    statusText.textContent = isPremium
+      ? `⭐ @${username} — Premium Active`
+      : `👤 @${username} — Free Plan`;
+    actionBtn.textContent = 'Sign Out';
+    actionBtn.onclick = signOut;
+  } else {
+    statusText.textContent = 'Have an account?';
+    actionBtn.textContent = '🔐 Sign In / Sign Up';
+    actionBtn.onclick = openAuth;
+  }
+}
+
+function signOut() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('username');
+  localStorage.removeItem('isPremium');
+  closePremium();
+  showToast('👋 Signed out');
+  initAuthState();
+}
+
 // ===== Auth Modal =====
 function openAuth() {
-  closePremium();
   document.getElementById('auth-modal').classList.add('show');
   document.body.style.overflow = 'hidden';
 }
+
 function closeAuth() {
   document.getElementById('auth-modal').classList.remove('show');
   document.body.style.overflow = '';
-  document.getElementById('auth-email').value = '';
-  document.getElementById('otp-input').value = '';
-  document.getElementById('otp-section').classList.add('hidden');
+  document.getElementById('signin-username').value = '';
+  document.getElementById('signin-password').value = '';
+  document.getElementById('signup-username').value = '';
+  document.getElementById('signup-password').value = '';
+  document.getElementById('signup-email').value = '';
   document.getElementById('auth-error').classList.add('hidden');
 }
 
-async function sendOTP() {
-  const emailInput = document.getElementById('auth-email');
-  const sendBtn = document.getElementById('send-otp-btn');
-  const email = emailInput.value.trim();
-
-  if (!email || !email.includes('@')) { showAuthError('Please enter a valid email'); return; }
-
-  sendBtn.disabled = true;
-  sendBtn.textContent = 'Sending...';
-
-  try {
-    const response = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await response.json();
-    if (response.ok) {
-      document.getElementById('otp-section').classList.remove('hidden');
-      showToast('📧 Code sent!');
-    } else {
-      showAuthError(data.error || 'Failed to send code');
-    }
-  } catch (e) {
-    showAuthError('Network error. Try again.');
-  } finally {
-    sendBtn.disabled = false;
-    sendBtn.textContent = 'Send Code';
-  }
+function switchAuthTab(tab) {
+  const isSignin = tab === 'signin';
+  document.getElementById('signin-section').classList.toggle('hidden', !isSignin);
+  document.getElementById('signup-section').classList.toggle('hidden', isSignin);
+  document.getElementById('tab-signin').classList.toggle('active', isSignin);
+  document.getElementById('tab-signup').classList.toggle('active', !isSignin);
+  document.getElementById('auth-modal-title').textContent = isSignin ? '👻 Sign In' : '👻 Create Account';
+  document.getElementById('auth-error').classList.add('hidden');
 }
 
-async function verifyOTP() {
-  const email = document.getElementById('auth-email').value.trim();
-  const otp = document.getElementById('otp-input').value.trim();
-
-  if (!otp || otp.length !== 6) { showAuthError('Please enter the 6-digit code'); return; }
+async function signIn() {
+  const username = document.getElementById('signin-username').value.trim();
+  const password = document.getElementById('signin-password').value;
+  if (!username || !password) { showAuthError('Please enter username and password'); return; }
 
   try {
-    const response = await fetch('/api/auth/verify-otp', {
+    const res = await fetch('/api/auth/signin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp })
+      body: JSON.stringify({ username, password })
     });
-    const data = await response.json();
-    if (response.ok) {
+    const data = await res.json();
+    if (res.ok) {
       localStorage.setItem('authToken', data.token);
-      localStorage.setItem('userEmail', email);
+      localStorage.setItem('username', data.username);
       localStorage.setItem('isPremium', data.isPremium ? 'true' : 'false');
       closeAuth();
-      showToast('✅ Logged in!');
-      location.reload();
+      closePremium();
+      initAuthState();
+      showToast(data.isPremium ? '⭐ Welcome back, Premium!' : '✅ Signed in!');
     } else {
-      showAuthError(data.error || 'Invalid code');
+      showAuthError(data.error || 'Sign in failed');
     }
-  } catch (e) {
-    showAuthError('Network error. Try again.');
-  }
+  } catch (e) { showAuthError('Network error. Try again.'); }
+}
+
+async function signUp() {
+  const username = document.getElementById('signup-username').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const email = document.getElementById('signup-email').value.trim();
+  if (!username || !password) { showAuthError('Username and password are required'); return; }
+
+  try {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, email: email || undefined })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('username', data.username);
+      localStorage.setItem('isPremium', 'false');
+      closeAuth();
+      initAuthState();
+      showToast('🎉 Account created!');
+    } else {
+      showAuthError(data.error || 'Signup failed');
+    }
+  } catch (e) { showAuthError('Network error. Try again.'); }
 }
 
 function showAuthError(msg) {
@@ -737,3 +773,6 @@ document.getElementById('about-modal')?.addEventListener('click', e => { if (e.t
 document.getElementById('qr-modal')?.addEventListener('click', e => { if (e.target.id === 'qr-modal') closeQR(); });
 document.getElementById('premium-modal')?.addEventListener('click', e => { if (e.target.id === 'premium-modal') closePremium(); });
 document.getElementById('auth-modal')?.addEventListener('click', e => { if (e.target.id === 'auth-modal') closeAuth(); });
+
+// Initialize auth state on load
+document.addEventListener('DOMContentLoaded', initAuthState);
