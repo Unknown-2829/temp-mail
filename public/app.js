@@ -617,14 +617,144 @@ function closeQR() {
   qrVisible = false;
 }
 
-// ===== Premium Modal =====
+// ===== Premium Flow Overlay =====
+let pfState = { step: 1, plan: 'yearly', price: 20 };
+
 function openPremium() {
-  document.getElementById('premium-modal').classList.add('show');
+  document.getElementById('premium-flow-overlay').classList.add('show');
   document.body.style.overflow = 'hidden';
+  goToPremiumStep(1);
 }
-function closePremium() {
-  document.getElementById('premium-modal').classList.remove('show');
+
+function closePremiumFlow() {
+  document.getElementById('premium-flow-overlay').classList.remove('show');
   document.body.style.overflow = '';
+}
+
+function goToPremiumStep(step) {
+  pfState.step = step;
+
+  // Hide all, show target
+  [1, 2, 3].forEach(s => {
+    document.getElementById(`pf-step-${s}`)?.classList.toggle('hidden', s !== step);
+    document.getElementById(`pf-dot-${s}`)?.classList.toggle('active', s === step);
+  });
+
+  document.getElementById('pf-back-btn')?.classList.toggle('hidden', step === 1);
+
+  if (step === 3) renderCheckout();
+}
+
+function prevPremiumStep() {
+  if (pfState.step > 1) goToPremiumStep(pfState.step - 1);
+}
+
+function selectPremiumPlan(plan) {
+  pfState.plan = plan;
+  pfState.price = plan === 'yearly' ? 20 : 3;
+
+  if (localStorage.getItem('authToken')) {
+    goToPremiumStep(3); // Logged in, go to payment
+  } else {
+    goToPremiumStep(2); // Needs account
+  }
+}
+
+// PF Auth (Step 2)
+function switchPfAuthTab(tab) {
+  const isSignin = tab === 'signin';
+  document.getElementById('pf-signin-section').classList.toggle('hidden', !isSignin);
+  document.getElementById('pf-signup-section').classList.toggle('hidden', isSignin);
+  document.getElementById('pf-tab-signin').classList.toggle('active', isSignin);
+  document.getElementById('pf-tab-signup').classList.toggle('active', !isSignin);
+  document.getElementById('pf-auth-error').classList.add('hidden');
+}
+
+function showPfError(msg) {
+  const errEl = document.getElementById('pf-auth-error');
+  errEl.textContent = msg;
+  errEl.classList.remove('hidden');
+}
+
+async function pfSignIn() {
+  const username = document.getElementById('pf-signin-username').value.trim();
+  const password = document.getElementById('pf-signin-password').value;
+  if (!username || !password) return showPfError('Credentials required');
+
+  try {
+    const res = await fetch('/api/auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('username', data.username);
+      localStorage.setItem('isPremium', data.isPremium ? 'true' : 'false');
+      initAuthState();
+      showToast('✅ Signed in!');
+      goToPremiumStep(3);
+    } else {
+      showPfError(data.error || 'Sign in failed');
+    }
+  } catch (e) { showPfError('Network error'); }
+}
+
+async function pfSignUp() {
+  const username = document.getElementById('pf-signup-username').value.trim();
+  const password = document.getElementById('pf-signup-password').value;
+  const email = document.getElementById('pf-signup-email').value.trim();
+  if (!username || !password) return showPfError('Username and password required');
+
+  try {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, email: email || undefined })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('username', data.username);
+      localStorage.setItem('isPremium', 'false');
+      initAuthState();
+      showToast('🎉 Account created!');
+      goToPremiumStep(3);
+    } else {
+      showPfError(data.error || 'Signup failed');
+    }
+  } catch (e) { showPfError('Network error'); }
+}
+
+// PF Checkout (Step 3)
+const cryptoAddrs = {
+  btc: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+  eth: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+  sol: 'HN7cABqLq46Es1jh92dQQisAq662SmxELLTPRdnQdYvS'
+};
+const cryptoNets = {
+  btc: 'Bitcoin (BTC)',
+  eth: 'ERC20, BEP20, Polygon, Arbitrum, Optimism',
+  sol: 'Solana (SOL)'
+};
+
+function renderCheckout() {
+  const planName = pfState.plan === 'yearly' ? 'Yearly Premium ($20)' : 'Monthly Premium ($3)';
+  document.getElementById('pf-selected-plan-name').textContent = planName;
+  document.getElementById('pf-pay-amount').textContent = `$${pfState.price}`;
+
+  const telegramUrl = `https://t.me/unknownlll2829?text=Hello, I want to activate ${pfState.plan} Premium for username: ${localStorage.getItem('username')}. Tx hash: `;
+  document.getElementById('pf-telegram-link').href = telegramUrl;
+}
+
+function showCryptoAddress(coin) {
+  document.querySelectorAll('.pf-crypto-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(coin.substring(0, 3)));
+  });
+
+  document.getElementById('pf-crypto-address-target').textContent = cryptoAddrs[coin];
+  document.getElementById('pf-crypto-network-hint').textContent = `Network: ${cryptoNets[coin]}`;
 }
 
 function copyCrypto(id) {
@@ -661,7 +791,7 @@ function signOut() {
   localStorage.removeItem('authToken');
   localStorage.removeItem('username');
   localStorage.removeItem('isPremium');
-  closePremium();
+  closePremiumFlow();
   showToast('👋 Signed out');
   initAuthState();
 }
@@ -710,7 +840,7 @@ async function signIn() {
       localStorage.setItem('username', data.username);
       localStorage.setItem('isPremium', data.isPremium ? 'true' : 'false');
       closeAuth();
-      closePremium();
+      closePremiumFlow();
       initAuthState();
       showToast(data.isPremium ? '⭐ Welcome back, Premium!' : '✅ Signed in!');
     } else {
@@ -764,14 +894,14 @@ function closeAbout() {
 // ===== Global Key/Click Listeners =====
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeModal(); closeAbout(); closeQR(); closePremium(); closeAuth();
+    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth();
   }
 });
 
 document.getElementById('email-modal')?.addEventListener('click', e => { if (e.target.id === 'email-modal') closeModal(); });
 document.getElementById('about-modal')?.addEventListener('click', e => { if (e.target.id === 'about-modal') closeAbout(); });
 document.getElementById('qr-modal')?.addEventListener('click', e => { if (e.target.id === 'qr-modal') closeQR(); });
-document.getElementById('premium-modal')?.addEventListener('click', e => { if (e.target.id === 'premium-modal') closePremium(); });
+document.getElementById('premium-flow-overlay')?.addEventListener('click', e => { if (e.target.id === 'premium-flow-overlay') closePremiumFlow(); });
 document.getElementById('auth-modal')?.addEventListener('click', e => { if (e.target.id === 'auth-modal') closeAuth(); });
 
 // Initialize auth state on load

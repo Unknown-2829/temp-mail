@@ -191,128 +191,126 @@
     </div>
   </div>
 
-  <!-- Premium Modal -->
-  <div class="premium-modal" id="premium-modal">
-    <div class="premium-content">
-      <div class="premium-header">
-        <h2>⭐ Phantom Mail Premium</h2>
-        <button class="premium-close" onclick="closePremium()">✕</button>
+  <!-- Premium Flow Overlay (Full Screen) -->
+  <div class="premium-flow-overlay" id="premium-flow-overlay">
+    <div class="pf-container">
+      <div class="pf-header">
+        <button class="pf-back hidden" id="pf-back-btn" onclick="prevPremiumStep()">← Back</button>
+        <div class="pf-steps">
+          <span class="pf-step-dot active" id="pf-dot-1"></span>
+          <span class="pf-step-dot" id="pf-dot-2"></span>
+          <span class="pf-step-dot" id="pf-dot-3"></span>
+        </div>
+        <button class="pf-close" onclick="closePremiumFlow()">✕</button>
       </div>
-      <div class="premium-body">
-        <p class="premium-desc">Unlock powerful features for privacy power-users.</p>
 
-        <div class="premium-features">
-          <div class="premium-feature">
+      <!-- STEP 1: Plan Selection -->
+      <div class="pf-step" id="pf-step-1">
+        <h2 class="pf-title">Upgrade to Phantom <span class="gold">Premium</span></h2>
+        <p class="pf-subtitle">Unlock powerful privacy features and permanent emails.</p>
+
+        <!-- Dynamic feature grid -->
+        <div class="pf-features-grid">
+          <div class="pf-feat">
             <span class="pf-icon">🎯</span>
-            <div>
-              <strong>Custom Usernames</strong>
-              <p>Choose your own email handle (e.g., batman@domain.com)</p>
-            </div>
+            <div class="pf-feat-text"><strong>Custom Usernames</strong><br>Choose your handle</div>
           </div>
-          <div class="premium-feature">
+          <div class="pf-feat">
             <span class="pf-icon">💾</span>
-            <div>
-              <strong>8 Permanent Emails</strong>
-              <p>Save emails that never expire. Keep them forever.</p>
-            </div>
+            <div class="pf-feat-text"><strong>8 Permanent Emails</strong><br>Never expire</div>
           </div>
-          <div class="premium-feature">
+          <div class="pf-feat">
             <span class="pf-icon">📨</span>
-            <div>
-              <strong>Email Forwarding</strong>
-              <p>Forward incoming emails to your real inbox.</p>
-            </div>
+            <div class="pf-feat-text"><strong>Email Forwarding</strong><br>To real inbox</div>
           </div>
-          <div class="premium-feature">
-            <span class="pf-icon">🚫</span>
-            <div>
-              <strong>No Ads</strong>
-              <p>Clean, distraction-free experience.</p>
-            </div>
-          </div>
-          <div class="premium-feature">
+          <div class="pf-feat">
             <span class="pf-icon">🔌</span>
-            <div>
-              <strong>Developer API</strong>
-              <p>Generate emails programmatically. 1000/day.</p>
-            </div>
+            <div class="pf-feat-text"><strong>Developer API</strong><br>1000 requests/day</div>
           </div>
         </div>
 
-        <!-- Free vs Premium Comparison -->
-        <div class="plan-compare">
-          <div class="plan-col free-col">
-            <div class="plan-label">Free</div>
-            <ul class="plan-list">
-              <li class="yes">✅ Temp emails</li>
-              <li class="yes">✅ Unlimited use</li>
-              <li class="yes">✅ Instant — no signup</li>
-              <li class="no">❌ 1-hour expiry</li>
-              <li class="no">❌ Random username</li>
-              <li class="no">❌ No saved emails</li>
-              <li class="no">❌ No forwarding</li>
-              <li class="no">❌ Ads shown</li>
-              <li class="no">❌ No API</li>
-            </ul>
-          </div>
-          <div class="plan-col premium-col">
-            <div class="plan-label gold">⭐ Premium</div>
-            <ul class="plan-list">
-              <li class="yes">✅ Temp emails</li>
-              <li class="yes">✅ Unlimited use</li>
-              <li class="yes">✅ Instant — no signup</li>
-              <li class="yes">⭐ Permanent emails (never expire)</li>
-              <li class="yes">⭐ Custom username handle</li>
-              <li class="yes">⭐ 8 saved addresses</li>
-              <li class="yes">⭐ Email forwarding</li>
-              <li class="yes">⭐ Ad-free</li>
-              <li class="yes">⭐ Developer API (1000/day)</li>
-            </ul>
-          </div>
-        </div>
+        <!-- Pricing Cards -->
+        <div class="pf-pricing-options">
+          <button class="pf-price-card" onclick="selectPremiumPlan('monthly')">
+            <div class="pf-card-head">Monthly</div>
+            <div class="pf-card-price">$3<span>/mo</span></div>
+          </button>
 
-        <div class="premium-pricing">
-          <div class="price-card">
-            <h3>Monthly</h3>
-            <div class="price">$3<span>/mo</span></div>
-          </div>
-          <div class="price-card featured">
-            <span class="best-value">Best Value</span>
-            <h3>Yearly</h3>
-            <div class="price">$20<span>/yr</span></div>
-            <p class="savings">Save 45%</p>
-          </div>
-        </div>
-
-        <div class="premium-crypto">
-          <p class="crypto-title">💎 Pay with Crypto</p>
-          <div class="crypto-addresses">
-            <div class="crypto-addr">
-              <span class="crypto-label">BTC:</span>
-              <code id="btc-addr">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</code>
-              <button onclick="copyCrypto('btc-addr')" class="copy-small">Copy</button>
-            </div>
-            <div class="crypto-addr">
-              <span class="crypto-label">ETH/USDT:</span>
-              <code id="eth-addr">0x71C7656EC7ab88b098defB751B7401B5f6d8976F</code>
-              <button onclick="copyCrypto('eth-addr')" class="copy-small">Copy</button>
-            </div>
-            <div class="crypto-addr">
-              <span class="crypto-label">SOL:</span>
-              <code id="sol-addr">HN7cABqLq46Es1jh92dQQisAq662SmxELLTPRdnQdYvS</code>
-              <button onclick="copyCrypto('sol-addr')" class="copy-small">Copy</button>
-            </div>
-          </div>
-          <p class="crypto-note">After payment, send TX hash to <a href="https://t.me/unknownlll2829"
-              target="_blank">@unknownlll2829</a> for activation.</p>
-        </div>
-
-        <!-- Signed-in state -->
-        <div class="premium-login" id="auth-status-section">
-          <p id="auth-status-text">Have an account?</p>
-          <button class="login-btn" id="auth-action-btn" onclick="openAuth()">🔐 Sign In / Sign Up</button>
+          <button class="pf-price-card featured" onclick="selectPremiumPlan('yearly')">
+            <div class="pf-badge">Best Value</div>
+            <div class="pf-card-head">Yearly</div>
+            <div class="pf-card-price">$20<span>/yr</span></div>
+            <div class="pf-card-save">Save 45%</div>
+          </button>
         </div>
       </div>
+
+      <!-- STEP 2: Authentication -->
+      <div class="pf-step hidden" id="pf-step-2">
+        <h2 class="pf-title">Create your Account</h2>
+        <p class="pf-subtitle">You need an account to attach your Premium subscription.</p>
+
+        <div class="pf-auth-box">
+          <div class="auth-tabs">
+            <button class="auth-tab" id="pf-tab-signin" onclick="switchPfAuthTab('signin')">Sign In</button>
+            <button class="auth-tab active" id="pf-tab-signup" onclick="switchPfAuthTab('signup')">Create
+              Account</button>
+          </div>
+
+          <!-- Sign Up (Default for flow) -->
+          <div id="pf-signup-section">
+            <input type="text" id="pf-signup-username" placeholder="Username" class="auth-input">
+            <input type="password" id="pf-signup-password" placeholder="Password" class="auth-input">
+            <input type="email" id="pf-signup-email" placeholder="Email (optional)" class="auth-input">
+            <div class="auth-warning">
+              ⚠️ <strong>Save your credentials.</strong> There is no password recovery.
+            </div>
+            <button class="auth-verify-btn" onclick="pfSignUp()">Continue to Payment →</button>
+          </div>
+
+          <!-- Sign In -->
+          <div id="pf-signin-section" class="hidden">
+            <input type="text" id="pf-signin-username" placeholder="Username" class="auth-input">
+            <input type="password" id="pf-signin-password" placeholder="Password" class="auth-input">
+            <button class="auth-verify-btn" onclick="pfSignIn()">Sign In & Continue →</button>
+          </div>
+
+          <p class="auth-error hidden" id="pf-auth-error"></p>
+        </div>
+      </div>
+
+      <!-- STEP 3: Checkout -->
+      <div class="pf-step hidden" id="pf-step-3">
+        <h2 class="pf-title">Complete Payment</h2>
+        <div class="pf-summary-box">
+          <span>Selected Plan:</span>
+          <strong id="pf-selected-plan-name">Yearly Premium ($20)</strong>
+        </div>
+
+        <p class="pf-instruction">1. Send <strong id="pf-pay-amount">$20</strong> to any of these addresses:</p>
+
+        <div class="pf-crypto-tabs">
+          <button class="pf-crypto-btn active" onclick="showCryptoAddress('btc')">Bitcoin</button>
+          <button class="pf-crypto-btn" onclick="showCryptoAddress('eth')">ETH/USDT</button>
+          <button class="pf-crypto-btn" onclick="showCryptoAddress('sol')">Solana</button>
+        </div>
+
+        <div class="pf-crypto-display">
+          <div class="pf-crypto-address-box">
+            <code id="pf-crypto-address-target">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</code>
+            <button class="pf-copy-btn" onclick="copyCrypto('pf-crypto-address-target')">Copy</button>
+          </div>
+          <p class="pf-network-hint" id="pf-crypto-network-hint">Network: Bitcoin (BTC)</p>
+        </div>
+
+        <p class="pf-instruction">2. Copy your transaction hash/ID.</p>
+        <p class="pf-instruction">3. Contact support to activate your account instantly.</p>
+
+        <a href="https://t.me/unknownlll2829" target="_blank" class="pf-telegram-btn" id="pf-telegram-link">
+          I have paid — DM @unknownlll2829
+        </a>
+      </div>
+
     </div>
   </div>
 

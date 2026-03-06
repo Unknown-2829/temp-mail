@@ -655,10 +655,6 @@ body {
   align-items: center;
 }
 
-.premium-modal {
-  background: rgba(0, 0, 0, 0.90);
-}
-
 .auth-modal {
   background: rgba(0, 0, 0, 0.90);
   align-items: center;
@@ -668,7 +664,6 @@ body {
 .modal.show,
 .about-modal.show,
 .qr-modal.show,
-.premium-modal.show,
 .auth-modal.show {
   opacity: 1;
   pointer-events: all;
@@ -678,7 +673,6 @@ body {
 .modal-content,
 .about-content,
 .qr-content,
-.premium-content,
 .auth-content {
   transform: scale(0.93) translateY(10px);
   transition: transform 0.25s cubic-bezier(0.34, 1.36, 0.64, 1), opacity 0.22s ease;
@@ -689,7 +683,6 @@ body {
 .modal.show .modal-content,
 .about-modal.show .about-content,
 .qr-modal.show .qr-content,
-.premium-modal.show .premium-content,
 .auth-modal.show .auth-content {
   transform: scale(1) translateY(0);
   opacity: 1;
@@ -1483,31 +1476,90 @@ body {
 }
 
 /* Premium Modal */
-.premium-content {
-  background: linear-gradient(180deg, #1a1a2e 0%, #151525 100%);
-  border-radius: 20px;
-  width: 100%;
-  max-width: 520px;
-  border: 1px solid #3a3a5c;
-  overflow: hidden;
-  margin: 30px 0;
+/* ===== Premium Flow Overlay ===== */
+.premium-flow-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 10, 18, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
-.premium-header {
+.premium-flow-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pf-container {
+  background: #151525;
+  border: 1px solid #3a3a5c;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 660px;
+  padding: 30px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.05);
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow-y: auto;
+  max-height: 90vh;
+}
+
+.premium-flow-overlay.show .pf-container {
+  transform: translateY(0) scale(1);
+}
+
+.pf-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #3a3a5c;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 140, 0, 0.1) 100%);
+  margin-bottom: 24px;
 }
 
-.premium-header h2 {
-  font-size: 20px;
-  color: #ffd700;
+.pf-back {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
 }
 
-.premium-close {
+.pf-back:hover {
+  background: #252540;
+  color: #fff;
+}
+
+.pf-steps {
+  display: flex;
+  gap: 8px;
+}
+
+.pf-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3a3a5c;
+  transition: background 0.3s, transform 0.3s;
+}
+
+.pf-step-dot.active {
+  background: #ffd700;
+  transform: scale(1.3);
+}
+
+.pf-close {
   background: #252540;
   border: none;
   color: #888;
@@ -1515,232 +1567,328 @@ body {
   height: 32px;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 16px;
   transition: background 0.2s, color 0.2s;
 }
 
-.premium-close:hover {
-  background: #3a3a5c;
+.pf-close:hover {
+  background: #ff6b6b;
   color: #fff;
 }
 
-.premium-body {
-  padding: 24px;
+/* Step Common */
+.pf-step {
+  animation: pfSlideIn 0.3s ease forwards;
 }
 
-.premium-desc {
-  color: #aaa;
-  font-size: 14px;
-  text-align: center;
-  margin-bottom: 24px;
+@keyframes pfSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-.premium-features {
-  margin-bottom: 28px;
-}
-
-.premium-feature {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.premium-feature:last-child {
-  border-bottom: none;
-}
-
-.pf-icon {
-  font-size: 24px;
-  flex-shrink: 0;
-}
-
-.premium-feature strong {
-  color: #fff;
-  font-size: 14px;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.premium-feature p {
-  color: #888;
-  font-size: 12px;
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* Pricing Cards */
-.premium-pricing {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.price-card {
-  flex: 1;
-  background: #252540;
-  border: 1px solid #3a3a5c;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  position: relative;
-  transition: transform 0.2s, border-color 0.2s;
-}
-
-.price-card:hover {
-  transform: translateY(-2px);
-}
-
-.price-card.featured {
-  border-color: #ffd700;
-  background: linear-gradient(180deg, #252540 0%, rgba(255, 215, 0, 0.08) 100%);
-}
-
-.best-value {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #ffd700;
-  color: #1a1a2e;
-  font-size: 10px;
+.pf-title {
+  font-size: 26px;
   font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 20px;
-}
-
-.price-card h3 {
-  color: #aaa;
-  font-size: 13px;
-  font-weight: 500;
+  color: #fff;
+  text-align: center;
   margin-bottom: 8px;
 }
 
-.price {
-  font-size: 32px;
-  font-weight: 700;
-  color: #fff;
+.pf-title .gold {
+  color: #ffd700;
 }
 
-.price span {
+.pf-subtitle {
+  color: #aaa;
   font-size: 14px;
-  font-weight: 400;
-  color: #888;
-}
-
-.savings {
-  color: #00d09c;
-  font-size: 12px;
-  margin-top: 6px;
-}
-
-/* Crypto Section */
-.premium-crypto {
-  background: #252540;
-  border-radius: 12px;
-  padding: 18px;
-  margin-bottom: 20px;
-}
-
-.crypto-title {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 14px;
   text-align: center;
+  margin-bottom: 30px;
 }
 
-.crypto-addresses {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* Step 1: Features */
+.pf-features-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 30px;
 }
 
-.crypto-addr {
+.pf-feat {
+  background: #1a1a2e;
+  border: 1px solid #252540;
+  border-radius: 12px;
+  padding: 16px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 12px;
+  transition: border-color 0.2s, transform 0.2s;
 }
 
-.crypto-label {
-  color: #ffd700;
-  font-size: 12px;
-  font-weight: 600;
-  min-width: 70px;
+.pf-feat:hover {
+  border-color: #3a3a5c;
+  transform: translateY(-2px);
 }
 
-.crypto-addr code {
+.pf-feat-text {
+  font-size: 13px;
+  color: #888;
+  line-height: 1.4;
+}
+
+.pf-feat-text strong {
+  color: #fff;
+  font-size: 15px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Step 1: Pricing Options */
+.pf-pricing-options {
+  display: flex;
+  gap: 16px;
+}
+
+.pf-price-card {
   flex: 1;
-  color: #aaa;
-  font-size: 10px;
   background: #1a1a2e;
-  padding: 6px 10px;
-  border-radius: 6px;
+  border: 2px solid #3a3a5c;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  color: #fff;
+}
+
+.pf-price-card:hover {
+  border-color: #55557a;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.pf-price-card.featured {
+  background: linear-gradient(180deg, #1a1a2e 0%, rgba(255, 215, 0, 0.05) 100%);
+  border-color: #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+}
+
+.pf-price-card.featured:hover {
+  box-shadow: 0 10px 20px rgba(255, 215, 0, 0.2);
+}
+
+.pf-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffd700;
+  color: #111;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.pf-card-head {
+  font-size: 16px;
+  font-weight: 600;
+  color: #aaa;
+  margin-bottom: 12px;
+}
+
+.pf-price-card.featured .pf-card-head {
+  color: #ffd700;
+}
+
+.pf-card-price {
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.pf-card-price span {
+  font-size: 16px;
+  font-weight: 400;
+  color: #666;
+}
+
+.pf-card-save {
+  margin-top: 8px;
+  color: #00d09c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Step 2: Auth */
+.pf-auth-box {
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  border-radius: 16px;
+  padding: 24px;
+  margin: 0 auto;
+  max-width: 440px;
+}
+
+/* Step 3: Checkout */
+.pf-summary-box {
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  font-size: 16px;
+  margin-bottom: 24px;
+}
+
+.pf-summary-box span {
+  color: #aaa;
+  margin-right: 8px;
+}
+
+.pf-summary-box strong {
+  color: #ffd700;
+  font-size: 18px;
+}
+
+.pf-instruction {
+  font-size: 15px;
+  font-weight: 600;
+  color: #eee;
+  margin-bottom: 12px;
+}
+
+.pf-crypto-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.pf-crypto-btn {
+  flex: 1;
+  background: #252540;
+  border: 1px solid #3a3a5c;
+  color: #aaa;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pf-crypto-btn.active {
+  background: #00d09c;
+  border-color: #00d09c;
+  color: #111;
+}
+
+.pf-crypto-display {
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.pf-crypto-address-box {
+  display: flex;
+  gap: 10px;
+  background: #0f0f1a;
+  padding: 12px;
+  border-radius: 8px;
+  align-items: center;
+}
+
+.pf-crypto-address-box code {
+  flex: 1;
+  color: #ffd700;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: 'JetBrains Mono', monospace;
 }
 
-.copy-small {
+.pf-copy-btn {
   background: #3a3a5c;
   border: none;
   color: #fff;
-  font-size: 11px;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition: background 0.2s;
 }
 
-.copy-small:hover {
-  background: #00d09c;
+.pf-copy-btn:hover {
+  background: #55557a;
 }
 
-.copy-small:active {
-  transform: scale(0.92);
-}
-
-.crypto-note {
+.pf-network-hint {
+  font-size: 12px;
   color: #888;
-  font-size: 11px;
+  margin-top: 10px;
   text-align: center;
-  margin-top: 12px;
 }
 
-.crypto-note a {
-  color: #00d09c;
-}
-
-/* Premium Login Section */
-.premium-login {
-  text-align: center;
-  padding-top: 16px;
-  border-top: 1px solid #3a3a5c;
-}
-
-.premium-login p {
-  color: #888;
-  font-size: 13px;
-  margin-bottom: 10px;
-}
-
-.login-btn {
-  background: #252540;
-  border: 1px solid #3a3a5c;
+.pf-telegram-btn {
+  display: block;
+  width: 100%;
+  background: linear-gradient(135deg, #0088cc, #00aaff);
   color: #fff;
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  text-align: center;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  margin-top: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.login-btn:hover {
-  border-color: #00d09c;
-  background: #3a3a5c;
-  transform: translateY(-1px);
+.pf-telegram-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 136, 204, 0.3);
+}
+
+@media (max-width: 600px) {
+  .pf-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pf-pricing-options {
+    flex-direction: column;
+  }
+
+  .pf-container {
+    padding: 20px;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .pf-crypto-address-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pf-crypto-address-box code {
+    text-align: center;
+  }
+
+  .pf-auth-box {
+    padding: 16px;
+  }
 }
 
 /* Auth Modal */
