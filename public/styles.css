@@ -663,7 +663,9 @@ body {
 }
 
 .about-modal {
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   align-items: center;
 }
 
@@ -673,7 +675,9 @@ body {
 }
 
 .auth-modal {
-  background: rgba(0, 0, 0, 0.90);
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   align-items: center;
 }
 
@@ -691,9 +695,7 @@ body {
 
 /* Inner card animation */
 .modal-content,
-.about-content,
-.qr-content,
-.auth-content {
+.qr-content {
   transform: scale(0.93) translateY(10px);
   transition: transform 0.25s cubic-bezier(0.34, 1.36, 0.64, 1), opacity 0.22s ease;
   opacity: 0;
@@ -701,11 +703,15 @@ body {
 }
 
 .modal.show .modal-content,
-.about-modal.show .about-content,
-.qr-modal.show .qr-content,
-.auth-modal.show .auth-content {
+.qr-modal.show .qr-content {
   transform: scale(1) translateY(0);
   opacity: 1;
+}
+
+/* Auth + About use the same slide-up animation as the premium popup */
+.about-modal.show .about-content,
+.auth-modal.show .auth-content {
+  animation: pvSlideUp 0.3s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
 }
 
 /* Modal Specific Styles */
@@ -988,12 +994,13 @@ body {
 
 /* About Modal */
 .about-content {
-  background: #1a1a2e;
-  border-radius: 16px;
+  background: #14142a;
+  border-radius: 20px;
   width: 100%;
   max-width: 500px;
-  border: 1px solid #3a3a5c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
 }
 
 .about-header {
@@ -1001,7 +1008,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #3a3a5c;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .about-header h2 {
@@ -1011,20 +1018,24 @@ body {
 }
 
 .about-close {
-  background: #252540;
-  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #888;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   cursor: pointer;
-  font-size: 16px;
-  transition: background 0.2s, color 0.2s;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .about-close:hover {
-  background: #3a3a5c;
-  color: #fff;
+  background: rgba(255, 107, 107, 0.15);
+  border-color: #ff6b6b;
+  color: #ff6b6b;
 }
 
 .about-body {
@@ -2156,11 +2167,12 @@ body {
 
 /* Auth Modal */
 .auth-content {
-  background: #1a1a2e;
-  border-radius: 16px;
+  background: #14142a;
+  border-radius: 20px;
   width: 100%;
   max-width: 400px;
-  border: 1px solid #3a3a5c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
 }
 
 .auth-header {
@@ -2168,7 +2180,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #3a3a5c;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .auth-header h2 {
@@ -2177,19 +2189,24 @@ body {
 }
 
 .auth-close {
-  background: #252540;
-  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #888;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .auth-close:hover {
-  background: #3a3a5c;
-  color: #fff;
+  background: rgba(255, 107, 107, 0.15);
+  border-color: #ff6b6b;
+  color: #ff6b6b;
 }
 
 .auth-body {
@@ -2496,6 +2513,9 @@ body {
   text-overflow: ellipsis;
   box-shadow: 0 0 12px rgba(0, 208, 156, 0.12), inset 0 0 12px rgba(0, 208, 156, 0.04);
   letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .auth-action-btn:hover {
@@ -3249,19 +3269,6 @@ body {
 .profile-action-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
 .profile-action-btn.danger { border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
 .profile-action-btn.danger:hover { background: rgba(255,107,107,0.1); }
-.profile-btn {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  color: #ccc;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.profile-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
-.profile-btn.hidden { display: none !important; }
 
 /* ===== Permanent Email Input ===== */
 .perm-email-input-wrap {
@@ -3358,7 +3365,6 @@ button,
 .pv-cta,
 .auth-action-btn,
 .profile-action-btn,
-.profile-btn,
 .se-use-btn,
 .se-del-btn,
 .se-rm-btn,
@@ -3378,7 +3384,6 @@ button,
 .pdash-gen-btn:active { transform: scale(0.96); }
 .apikey-copy-btn:active { transform: scale(0.96); }
 .profile-action-btn:active { transform: scale(0.97); }
-.profile-btn:active { transform: scale(0.96); }
 .pv-cta:active { transform: scale(0.98); }
 .premium-btn:active { transform: scale(0.97); animation: none; }
 .auth-action-btn:active { transform: scale(0.96); }

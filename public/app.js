@@ -10,6 +10,9 @@ let currentViewIndex = -1;
 let previousEmailCount = 0;
 const originalTitle = document.title;
 
+// Reusable SVG markup for the Sign-In account icon button
+const SIGN_IN_BTN_HTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><title>Account icon</title><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Sign In';
+
 // Domain used for permanent / custom email addresses
 const PERM_EMAIL_DOMAIN = '@unknownlll2829.qzz.io';
 // Allowed characters for permanent email usernames
@@ -697,9 +700,6 @@ function initAuthState() {
     // Show/hide premium dashboard
     updatePremiumDashboard(username, isPremium);
 
-    const profileBtn = document.getElementById('profile-btn');
-    if (profileBtn) profileBtn.classList.remove('hidden');
-
     // Refresh premium status from server in background (handles admin-granted premium)
     refreshPremiumStatus();
   } else {
@@ -710,7 +710,7 @@ function initAuthState() {
     }
 
     statusText.textContent = '';
-    actionBtn.textContent = '🔐 Sign In';
+    actionBtn.innerHTML = SIGN_IN_BTN_HTML;
     actionBtn.classList.remove('signout-btn');
     actionBtn.onclick = openAuth;
 
@@ -719,9 +719,6 @@ function initAuthState() {
       premBtn.classList.remove('hidden');
       premBtn.textContent = '⭐ Premium';
     }
-
-    const profileBtn = document.getElementById('profile-btn');
-    if (profileBtn) profileBtn.classList.add('hidden');
 
     // Hide premium dashboard
     const dash = document.getElementById('premium-dashboard');
