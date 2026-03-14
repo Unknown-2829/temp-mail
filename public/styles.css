@@ -938,6 +938,18 @@ body {
 
 .footer-links {
   margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-links-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .footer-btn {
@@ -2293,7 +2305,6 @@ body {
 .footer-btn.coffee {
   background: #ffdd00;
   color: #1a1a2e;
-  margin-right: 10px;
 }
 
 .footer-btn.coffee:hover {
@@ -2312,10 +2323,9 @@ body {
     padding: 14px;
   }
 
-  .footer-links {
-    display: flex;
+  .footer-links-row {
     flex-direction: column;
-    gap: 10px;
+    align-items: center;
   }
 
   .footer-btn.coffee {
@@ -2911,6 +2921,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
   padding: 20px;
   z-index: 1000;
   visibility: hidden;
@@ -2935,6 +2946,8 @@ body {
   padding: 32px 28px 28px;
   max-width: 420px;
   width: 100%;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,215,0,0.08);
   /* animation triggered only when overlay is visible */
@@ -3099,7 +3112,10 @@ body {
 
 /* ===== Profile Modal ===== */
 .profile-modal {
-  display: none;
+  display: flex;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.72);
@@ -3107,10 +3123,17 @@ body {
   -webkit-backdrop-filter: blur(6px);
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
   padding: 20px;
   z-index: 1100;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
 }
-.profile-modal.show { display: flex; }
+.profile-modal.show {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: all;
+  transition: opacity 0.25s ease, visibility 0s linear 0s;
+}
 .profile-content {
   background: #14142a;
   border: 1px solid rgba(255,255,255,0.1);
@@ -3118,9 +3141,17 @@ body {
   padding: 0;
   max-width: 420px;
   width: 100%;
-  max-height: 90vh;
+  max-height: calc(100dvh - 40px);
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+
+.profile-modal.show .profile-content {
+  animation: pvSlideUp 0.3s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+
+.confirm-modal.show .confirm-box {
+  animation: pvSlideUp 0.3s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
 }
 .profile-header {
   display: flex;
@@ -3415,7 +3446,10 @@ button,
 
 /* ===== Sign-out Confirm Modal ===== */
 .confirm-modal {
-  display: none;
+  display: flex;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.72);
@@ -3423,10 +3457,17 @@ button,
   -webkit-backdrop-filter: blur(6px);
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
   padding: 20px;
   z-index: 1200;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
 }
-.confirm-modal.show { display: flex; }
+.confirm-modal.show {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: all;
+  transition: opacity 0.2s ease, visibility 0s linear 0s;
+}
 .confirm-box {
   background: #14142a;
   border: 1px solid rgba(255,255,255,0.1);
@@ -3436,7 +3477,6 @@ button,
   width: 100%;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-  animation: pvSlideUp 0.3s cubic-bezier(0.34,1.4,0.64,1) forwards;
 }
 .confirm-icon { font-size: 44px; margin-bottom: 14px; }
 .confirm-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 8px; }
