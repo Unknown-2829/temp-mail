@@ -929,9 +929,26 @@ function copyApiKey() {
     .catch(() => showToast('❌ Copy failed'));
 }
 
+/**
+ * Dismiss a modal with a fade-out animation, then hide it via display:none.
+ * Adds the `.hiding` class (which triggers the CSS @keyframes overlayFadeOut),
+ * then removes it once the animation ends (falling back to a timeout so the
+ * class is always cleaned up even when animationend doesn't fire).
+ */
+function _dismissModal(el) {
+  if (!el || !el.classList.contains('show')) return;
+  el.classList.remove('show');
+  el.classList.add('hiding');
+  const cleanup = () => el.classList.remove('hiding');
+  el.addEventListener('animationend', cleanup, { once: true });
+  // Safety fallback in case animationend doesn't fire
+  setTimeout(cleanup, 400);
+}
+
 function confirmSignOut() {
   const modal = document.getElementById('signout-confirm-modal');
   if (modal) {
+    modal.classList.remove('hiding');
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
   } else {
@@ -940,8 +957,7 @@ function confirmSignOut() {
 }
 
 function closeSignOutConfirm() {
-  const modal = document.getElementById('signout-confirm-modal');
-  if (modal) modal.classList.remove('show');
+  _dismissModal(document.getElementById('signout-confirm-modal'));
   document.body.style.overflow = '';
 }
 
@@ -1066,14 +1082,14 @@ function closeAbout() {
 async function openProfile() {
   const modal = document.getElementById('profile-modal');
   if (!modal) return;
+  modal.classList.remove('hiding');
   modal.classList.add('show');
   document.body.style.overflow = 'hidden';
   await loadProfileData();
 }
 
 function closeProfile() {
-  const modal = document.getElementById('profile-modal');
-  if (modal) modal.classList.remove('show');
+  _dismissModal(document.getElementById('profile-modal'));
   document.body.style.overflow = '';
 }
 
@@ -1325,13 +1341,13 @@ function showPremiumRequiredPrompt(message) {
     const isLoggedIn = !!localStorage.getItem('authToken');
     signInBtn.style.display = isLoggedIn ? 'none' : '';
   }
+  modal.classList.remove('hiding');
   modal.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 
 function closePremiumRequiredPrompt() {
-  const modal = document.getElementById('premium-required-modal');
-  if (modal) modal.classList.remove('show');
+  _dismissModal(document.getElementById('premium-required-modal'));
   document.body.style.overflow = '';
 }
 

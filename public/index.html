@@ -430,10 +430,10 @@
   </div>
 
   <!-- Profile Modal -->
-  <div class="profile-modal" id="profile-modal">
+  <div class="profile-modal" id="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
     <div class="profile-content">
       <div class="profile-header">
-        <h2>👤 Profile</h2>
+        <h2 id="profile-modal-title">👤 Profile</h2>
         <button class="profile-close" onclick="closeProfile()">✕</button>
       </div>
       <div class="profile-body" id="profile-body">
@@ -443,10 +443,10 @@
   </div>
 
   <!-- Sign-out Confirm Modal -->
-  <div class="confirm-modal" id="signout-confirm-modal" onclick="if(event.target===this)closeSignOutConfirm()">
+  <div class="confirm-modal" id="signout-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="signout-modal-title" onclick="if(event.target===this)closeSignOutConfirm()">
     <div class="confirm-box">
       <div class="confirm-icon">👋</div>
-      <h3 class="confirm-title">Sign Out?</h3>
+      <h3 class="confirm-title" id="signout-modal-title">Sign Out?</h3>
       <p class="confirm-msg">Are you sure you want to sign out of your account?</p>
       <div class="confirm-actions">
         <button class="confirm-cancel-btn" onclick="closeSignOutConfirm()">Cancel</button>
@@ -456,10 +456,10 @@
   </div>
 
   <!-- Premium Required Prompt -->
-  <div class="confirm-modal" id="premium-required-modal" onclick="if(event.target===this)closePremiumRequiredPrompt()">
+  <div class="confirm-modal" id="premium-required-modal" role="alertdialog" aria-modal="true" aria-labelledby="premium-req-modal-title" onclick="if(event.target===this)closePremiumRequiredPrompt()">
     <div class="confirm-box">
       <div class="confirm-icon">⭐</div>
-      <h3 class="confirm-title">Premium Required</h3>
+      <h3 class="confirm-title" id="premium-req-modal-title">Premium Required</h3>
       <p class="confirm-msg" id="premium-required-msg">Sign in and get Premium to save emails permanently.</p>
       <div class="confirm-actions">
         <button class="confirm-cancel-btn" id="premium-prompt-signin-btn" onclick="premiumRequiredSignIn()">🔐 Sign In</button>
