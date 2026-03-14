@@ -4,6 +4,17 @@
  * Header: X-API-Key: YOUR_API_KEY
  */
 
+export async function onRequestOptions() {
+    return new Response(null, {
+        status: 204,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'X-API-Key'
+        }
+    });
+}
+
 export async function onRequestGet(context) {
     const { request, env } = context;
 
@@ -14,6 +25,9 @@ export async function onRequestGet(context) {
     }
 
     // Validate API key
+    if (!env.API_KEYS) {
+        return jsonResponse({ error: 'Service unavailable' }, 503);
+    }
     const keyData = await env.API_KEYS.get(apiKey, { type: 'json' });
     if (!keyData) {
         return jsonResponse({ error: 'Invalid API key' }, 401);
@@ -25,6 +39,15 @@ export async function onRequestGet(context) {
 
         if (!address) {
             return jsonResponse({ error: 'Address parameter required' }, 400);
+        }
+
+        // Validate address format
+        if (address.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+            return jsonResponse({ error: 'Invalid email address format' }, 400);
+        }
+
+        if (!env.TEMP_EMAILS) {
+            return jsonResponse({ error: 'Service unavailable' }, 503);
         }
 
         // Verify email exists

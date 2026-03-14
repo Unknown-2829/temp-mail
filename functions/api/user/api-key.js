@@ -32,14 +32,14 @@ export async function onRequest(context) {
 
 async function handleGet(user, env) {
     if (!user.apiKey) return jsonResponse({ apiKey: null, message: 'No API key generated' });
-    // Ensure key is synced to API_KEYS for v1 API
+    // Ensure key is synced to API_KEYS for v1 API, and that isPremium is current
     if (env.API_KEYS) {
-        const keyData = await env.API_KEYS.get(user.apiKey).catch(() => null);
-        if (!keyData) {
+        const existing = await env.API_KEYS.get(user.apiKey, { type: 'json' }).catch(() => null);
+        if (!existing || existing.isPremium !== !!user.isPremium) {
             await env.API_KEYS.put(user.apiKey, JSON.stringify({
                 userId: user.username || 'unknown',
                 isPremium: !!user.isPremium,
-                createdAt: user.apiKeyCreatedAt || Date.now()
+                createdAt: existing?.createdAt || user.apiKeyCreatedAt || Date.now()
             })).catch(() => {});
         }
     }

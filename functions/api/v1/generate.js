@@ -5,6 +5,17 @@
  * Optional Body: { username: string } for custom username (premium)
  */
 
+export async function onRequestOptions() {
+    return new Response(null, {
+        status: 204,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key'
+        }
+    });
+}
+
 export async function onRequestPost(context) {
     const { request, env } = context;
 
@@ -15,24 +26,39 @@ export async function onRequestPost(context) {
     }
 
     // Validate API key
+    if (!env.API_KEYS) {
+        return jsonResponse({ error: 'Service unavailable' }, 503);
+    }
     const keyData = await env.API_KEYS.get(apiKey, { type: 'json' });
     if (!keyData) {
         return jsonResponse({ error: 'Invalid API key' }, 401);
     }
 
     // Check rate limit (100/day free)
+    if (!env.API_USAGE) {
+        return jsonResponse({ error: 'Service unavailable' }, 503);
+    }
     const today = new Date().toISOString().split('T')[0];
     const usageKey = `usage:${apiKey}:${today}`;
-    let usage = parseInt(await env.API_USAGE.get(usageKey) || '0');
+    let usage = parseInt(await env.API_USAGE.get(usageKey)) || 0;
 
     const limit = keyData.isPremium ? 10000 : 100;
     if (usage >= limit) {
         return jsonResponse({ error: 'Rate limit exceeded', limit, used: usage }, 429);
     }
 
+    if (!env.TEMP_EMAILS) {
+        return jsonResponse({ error: 'Service unavailable' }, 503);
+    }
+
     try {
         let email;
-        const body = await request.json().catch(() => ({}));
+        let body = {};
+        try {
+            body = await request.json();
+        } catch {
+            body = {};
+        }
 
         // Custom username (premium only)
         if (body.username) {
