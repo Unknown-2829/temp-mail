@@ -33,7 +33,7 @@
       <button class="premium-btn" id="premium-header-btn" onclick="openPremium()">⭐ Premium</button>
       <div class="auth-status-section" id="auth-status-section">
         <span class="auth-status-text" id="auth-status-text"></span>
-        <button class="auth-action-btn" id="auth-action-btn"></button>
+        <button class="auth-action-btn" id="auth-action-btn" onclick="openAuth()">🔐 Sign In</button>
       </div>
       <button class="about-btn" onclick="openAbout()">About</button>
     </div>
@@ -235,172 +235,36 @@
     </div>
   </div>
 
-  <!-- Premium Flow Overlay (Full Screen) -->
-  <div class="premium-flow-overlay" id="premium-flow-overlay">
-    <div class="pf-container">
-      <div class="pf-header">
-        <button class="pf-back hidden" id="pf-back-btn" onclick="prevPremiumStep()">← Back</button>
-        <div class="pf-steps">
-          <span class="pf-step-dot active" id="pf-dot-1"></span>
-          <span class="pf-step-dot" id="pf-dot-2"></span>
-          <span class="pf-step-dot" id="pf-dot-3"></span>
-        </div>
-        <button class="pf-close" onclick="closePremiumFlow()">✕</button>
+  <!-- Premium Preview Modal (simple features + CTA to premium.html) -->
+  <div class="pv-overlay" id="pv-overlay" onclick="if(event.target===this)closePremiumPreview()">
+    <div class="pv-box">
+      <button class="pv-close" onclick="closePremiumPreview()" aria-label="Close">✕</button>
+
+      <div class="pv-header">
+        <div class="pv-badge">⭐ PREMIUM</div>
+        <h2 class="pv-title">Unlock <span class="pv-gold">powerful features</span></h2>
+        <p class="pv-sub">Everything you need for private, permanent email.</p>
       </div>
 
-      <!-- STEP 1: Plan Selection -->
-      <div class="pf-step" id="pf-step-1">
-        <h2 class="pf-title">Upgrade to Phantom <span class="gold">Premium</span></h2>
-        <p class="pf-subtitle">Unlock powerful privacy features and permanent emails.</p>
+      <ul class="pv-list">
+        <li><span class="pv-ico">💾</span><div><strong>8 Permanent Addresses</strong><span>Never expire — yours forever</span></div></li>
+        <li><span class="pv-ico">🎯</span><div><strong>Custom Usernames</strong><span>Choose your own address handle</span></div></li>
+        <li><span class="pv-ico">📨</span><div><strong>Email Forwarding</strong><span>Forward to your real inbox</span></div></li>
+        <li><span class="pv-ico">🔌</span><div><strong>Developer API</strong><span>1,000 requests/day</span></div></li>
+        <li><span class="pv-ico">🛡️</span><div><strong>Priority Support</strong><span>Fast response from the team</span></div></li>
+      </ul>
 
-        <!-- Dynamic feature grid -->
-        <div class="pf-features-grid">
-          <div class="pf-feat glass-panel">
-            <span class="pf-icon">🎯</span>
-            <div class="pf-feat-text"><strong>Custom Usernames</strong><br>Choose your handle</div>
-          </div>
-          <div class="pf-feat glass-panel">
-            <span class="pf-icon">💾</span>
-            <div class="pf-feat-text"><strong>8 Permanent Emails</strong><br>Never expire</div>
-          </div>
-          <div class="pf-feat glass-panel">
-            <span class="pf-icon">📨</span>
-            <div class="pf-feat-text"><strong>Email Forwarding</strong><br>To real inbox</div>
-          </div>
-          <div class="pf-feat glass-panel">
-            <span class="pf-icon">🔌</span>
-            <div class="pf-feat-text"><strong>Developer API</strong><br>1000 requests/day</div>
-          </div>
-        </div>
-
-        <!-- Comparison Table (Moved UP) -->
-        <div class="plan-compare glass-panel">
-          <div class="compare-row header-row">
-            <div class="col-feature">Features</div>
-            <div class="col-free">Basic</div>
-            <div class="col-premium gold">Premium</div>
-          </div>
-          <div class="compare-row">
-            <div class="col-feature">Generate Temporaries</div>
-            <div class="col-free">1 Hour Only</div>
-            <div class="col-premium"><span class="check-icon">✓</span> Unlimited</div>
-          </div>
-          <div class="compare-row">
-            <div class="col-feature">Permanent Addresses</div>
-            <div class="col-free">❌</div>
-            <div class="col-premium"><span class="check-icon">✓</span> Up to 8</div>
-          </div>
-          <div class="compare-row">
-            <div class="col-feature">Email Forwarding</div>
-            <div class="col-free">❌</div>
-            <div class="col-premium"><span class="check-icon">✓</span> Yes</div>
-          </div>
-          <div class="compare-row">
-            <div class="col-feature">Custom Usernames</div>
-            <div class="col-free">❌</div>
-            <div class="col-premium"><span class="check-icon">✓</span> Yes</div>
-          </div>
-          <div class="compare-row">
-            <div class="col-feature">API Access</div>
-            <div class="col-free">❌</div>
-            <div class="col-premium"><span class="check-icon">✓</span> 1,000 req/day</div>
-          </div>
-          <div class="compare-row">
-            <div class="col-feature">Email Support</div>
-            <div class="col-free">❌</div>
-            <div class="col-premium"><span class="check-icon">✓</span> Priority</div>
-          </div>
-        </div>
-
-        <div class="pf-pricing-section">
-          <!-- Pricing Cards -->
-          <div class="pf-pricing-options">
-            <button class="pf-price-card glass-panel" id="pf-plan-monthly" onclick="selectPremiumPlan('monthly')">
-              <div class="pf-card-head">Monthly</div>
-              <div class="pf-card-price">$3<span>/mo</span></div>
-            </button>
-
-            <button class="pf-price-card featured active glass-panel" id="pf-plan-yearly"
-              onclick="selectPremiumPlan('yearly')">
-              <div class="pf-badge glow-badge">Best Value</div>
-              <div class="pf-card-head">Yearly</div>
-              <div class="pf-card-price">$20<span>/yr</span></div>
-              <div class="pf-card-save">Save 45%</div>
-            </button>
-          </div>
-
-          <div class="pf-continue-wrapper">
-            <button class="pf-continue-btn glass-btn liquid-hover" onclick="continueFromPlan()">Continue →</button>
-          </div>
-        </div>
+      <div class="pv-pricing">
+        <span class="pv-price-tag">From <strong>$3</strong><small>/mo</small></span>
+        <span class="pv-price-or">·</span>
+        <span class="pv-price-tag"><strong>$20</strong><small>/yr</small> <span class="pv-save">Save 45%</span></span>
       </div>
 
-      <!-- STEP 2: Authentication -->
-      <div class="pf-step hidden" id="pf-step-2">
-        <h2 class="pf-title">Create your Account</h2>
-        <p class="pf-subtitle">You need an account to attach your Premium subscription.</p>
+      <a class="pv-cta" href="/premium.html" target="_blank" rel="noopener" onclick="closePremiumPreview()">
+        Get Premium →
+      </a>
 
-        <div class="pf-auth-box">
-          <div class="auth-tabs">
-            <button class="auth-tab" id="pf-tab-signin" onclick="switchPfAuthTab('signin')">Sign In</button>
-            <button class="auth-tab active" id="pf-tab-signup" onclick="switchPfAuthTab('signup')">Create
-              Account</button>
-          </div>
-
-          <!-- Sign Up (Default for flow) -->
-          <div id="pf-signup-section">
-            <input type="text" id="pf-signup-username" placeholder="Username" class="auth-input">
-            <input type="password" id="pf-signup-password" placeholder="Password" class="auth-input">
-            <input type="email" id="pf-signup-email" placeholder="Email (optional)" class="auth-input">
-            <div class="auth-warning">
-              ⚠️ <strong>Save your credentials.</strong> There is no password recovery.
-            </div>
-            <button class="auth-verify-btn" onclick="pfSignUp()">Continue to Payment →</button>
-          </div>
-
-          <!-- Sign In -->
-          <div id="pf-signin-section" class="hidden">
-            <input type="text" id="pf-signin-username" placeholder="Username" class="auth-input">
-            <input type="password" id="pf-signin-password" placeholder="Password" class="auth-input">
-            <button class="auth-verify-btn" onclick="pfSignIn()">Sign In & Continue →</button>
-          </div>
-
-          <p class="auth-error hidden" id="pf-auth-error"></p>
-        </div>
-      </div>
-
-      <!-- STEP 3: Checkout -->
-      <div class="pf-step hidden" id="pf-step-3">
-        <h2 class="pf-title">Complete Payment</h2>
-        <div class="pf-summary-box">
-          <span>Selected Plan:</span>
-          <strong id="pf-selected-plan-name">Yearly Premium ($20)</strong>
-        </div>
-
-        <p class="pf-instruction">1. Send <strong id="pf-pay-amount">$20</strong> to any of these addresses:</p>
-
-        <div class="pf-crypto-tabs">
-          <button class="pf-crypto-btn active" onclick="showCryptoAddress('btc')">Bitcoin</button>
-          <button class="pf-crypto-btn" onclick="showCryptoAddress('eth')">ETH/USDT</button>
-          <button class="pf-crypto-btn" onclick="showCryptoAddress('sol')">Solana</button>
-        </div>
-
-        <div class="pf-crypto-display">
-          <div class="pf-crypto-address-box">
-            <code id="pf-crypto-address-target">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</code>
-            <button class="pf-copy-btn" onclick="copyCrypto('pf-crypto-address-target')">Copy</button>
-          </div>
-          <p class="pf-network-hint" id="pf-crypto-network-hint">Network: Bitcoin (BTC)</p>
-        </div>
-
-        <p class="pf-instruction">2. Copy your transaction hash/ID.</p>
-        <p class="pf-instruction">3. Contact support to activate your account instantly.</p>
-
-        <a href="https://t.me/unknownlll2829" target="_blank" class="pf-telegram-btn" id="pf-telegram-link">
-          I have paid — DM @unknownlll2829
-        </a>
-      </div>
-
+      <p class="pv-note">Crypto payment · Activated by admin · Cancel anytime</p>
     </div>
   </div>
 
@@ -534,6 +398,21 @@
   </div>
 
   <script src="app.js"></script>
+  <script>
+    // Handle redirect back from premium.html when user is already premium
+    if (new URLSearchParams(window.location.search).get('premium') === 'already') {
+      window.history.replaceState({}, '', '/');
+      document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+          showToast('⭐ You already have Premium!');
+          const dash = document.getElementById('premium-dashboard');
+          if (dash && !dash.classList.contains('hidden')) {
+            dash.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 600);
+      });
+    }
+  </script>
 </body>
 
 </html>
