@@ -58,6 +58,8 @@ git push -u origin main
 2. Add KV namespace bindings:
    - `TEMP_EMAILS` → Your TEMP_EMAILS KV namespace
    - `EMAILS` → Your EMAILS KV namespace
+   - `API_KEYS` → Your API_KEYS KV namespace (required for /api/v1 developer API)
+   - `API_USAGE` → Your API_USAGE KV namespace (required for /api/v1 rate limiting)
 
 ### 4. Connect Custom Domain
 

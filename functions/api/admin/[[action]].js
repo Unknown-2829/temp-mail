@@ -144,6 +144,15 @@ async function handleGrantPremium(request, env) {
 
     await env.EMAILS.put(userKey, JSON.stringify(user));
 
+    // Keep API_KEYS entry in sync so rate limit takes effect immediately
+    if (user.apiKey && env.API_KEYS) {
+        const keyData = await env.API_KEYS.get(user.apiKey, { type: 'json' }).catch(() => null);
+        if (keyData) {
+            keyData.isPremium = true;
+            await env.API_KEYS.put(user.apiKey, JSON.stringify(keyData)).catch(() => {});
+        }
+    }
+
     return jsonResponse({
         success: true,
         message: `Premium granted to @${username.toLowerCase()} for ${days} days`,
@@ -163,6 +172,15 @@ async function handleRevokePremium(request, env) {
     user.isPremium = false;
     user.premiumExpiry = null;
     await env.EMAILS.put(userKey, JSON.stringify(user));
+
+    // Keep API_KEYS entry in sync so rate limit takes effect immediately
+    if (user.apiKey && env.API_KEYS) {
+        const keyData = await env.API_KEYS.get(user.apiKey, { type: 'json' }).catch(() => null);
+        if (keyData) {
+            keyData.isPremium = false;
+            await env.API_KEYS.put(user.apiKey, JSON.stringify(keyData)).catch(() => {});
+        }
+    }
 
     return jsonResponse({ success: true, message: `Premium revoked from @${username.toLowerCase()}` });
 }
