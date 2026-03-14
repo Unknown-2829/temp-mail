@@ -4,6 +4,17 @@
  * Header: X-API-Key: YOUR_API_KEY
  */
 
+export async function onRequestOptions() {
+    return new Response(null, {
+        status: 204,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'X-API-Key'
+        }
+    });
+}
+
 export async function onRequestGet(context) {
     const { request, env } = context;
 
@@ -33,6 +44,10 @@ export async function onRequestGet(context) {
         // Validate address format
         if (address.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
             return jsonResponse({ error: 'Invalid email address format' }, 400);
+        }
+
+        if (!env.TEMP_EMAILS) {
+            return jsonResponse({ error: 'Service unavailable' }, 503);
         }
 
         // Verify email exists

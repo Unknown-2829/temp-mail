@@ -5,6 +5,17 @@
  * Optional Body: { username: string } for custom username (premium)
  */
 
+export async function onRequestOptions() {
+    return new Response(null, {
+        status: 204,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key'
+        }
+    });
+}
+
 export async function onRequestPost(context) {
     const { request, env } = context;
 
@@ -29,11 +40,15 @@ export async function onRequestPost(context) {
     }
     const today = new Date().toISOString().split('T')[0];
     const usageKey = `usage:${apiKey}:${today}`;
-    let usage = parseInt(await env.API_USAGE.get(usageKey) || '0');
+    let usage = parseInt(await env.API_USAGE.get(usageKey) || '0') || 0;
 
     const limit = keyData.isPremium ? 10000 : 100;
     if (usage >= limit) {
         return jsonResponse({ error: 'Rate limit exceeded', limit, used: usage }, 429);
+    }
+
+    if (!env.TEMP_EMAILS) {
+        return jsonResponse({ error: 'Service unavailable' }, 503);
     }
 
     try {
