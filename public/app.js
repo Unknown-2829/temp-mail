@@ -654,13 +654,26 @@ function initAuthState() {
   const statusText = document.getElementById('auth-status-text');
   const actionBtn = document.getElementById('auth-action-btn');
   const premBtn = document.getElementById('premium-header-btn');
+  const avatarEl = document.getElementById('user-avatar');
   if (!section) return;
 
   if (username) {
+    // Avatar: show first letter, gold if premium
+    if (avatarEl) {
+      avatarEl.textContent = username[0].toUpperCase();
+      avatarEl.title = `@${username}${isPremium ? ' (Premium)' : ''}`;
+      avatarEl.classList.remove('hidden');
+      if (isPremium) {
+        avatarEl.classList.add('premium-avatar');
+      } else {
+        avatarEl.classList.remove('premium-avatar');
+      }
+    }
+
     statusText.textContent = isPremium
       ? `⭐ @${username}`
-      : `👤 @${username}`;
-    actionBtn.textContent = 'Logout';
+      : `@${username}`;
+    actionBtn.textContent = 'Sign Out';
     actionBtn.classList.add('signout-btn');
     actionBtn.onclick = signOut;
 
@@ -677,6 +690,12 @@ function initAuthState() {
     // Show/hide premium dashboard
     updatePremiumDashboard(username, isPremium);
   } else {
+    // Logged out: hide avatar
+    if (avatarEl) {
+      avatarEl.classList.add('hidden');
+      avatarEl.classList.remove('premium-avatar');
+    }
+
     statusText.textContent = '';
     actionBtn.textContent = '🔐 Sign In';
     actionBtn.classList.remove('signout-btn');

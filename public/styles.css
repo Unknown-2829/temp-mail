@@ -1084,10 +1084,11 @@ body {
 
   .logo {
     display: inline-flex;
-    flex-shrink: 0;
+    flex: 1;
     align-items: center;
     gap: 8px;
     min-width: 0;
+    overflow: hidden;
   }
 
   .logo-icon {
@@ -2395,8 +2396,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 200px;
-  overflow: hidden;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .auth-status-text {
@@ -2405,7 +2406,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 130px;
+  max-width: 110px;
 }
 
 .auth-action-btn {
@@ -2420,6 +2421,9 @@ body {
   transition: all 0.2s;
   white-space: nowrap;
   flex-shrink: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .auth-action-btn:hover {
@@ -2436,6 +2440,30 @@ body {
   background: rgba(255, 107, 107, 0.15);
   border-color: #ff6b6b;
   color: #ff6b6b;
+}
+
+/* User avatar circle — shows username initial when logged in */
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00d09c, #0088cc);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  cursor: default;
+  user-select: none;
+}
+
+.user-avatar.premium-avatar {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #1a1a2e;
 }
 
 /* ===== Premium Dashboard ===== */
@@ -2725,10 +2753,6 @@ body {
 
 /* ===== Mobile fixes for new elements ===== */
 @media (max-width: 600px) {
-  .auth-status-section {
-    max-width: 120px;
-  }
-
   .auth-status-text {
     display: none;
   }
@@ -2736,6 +2760,7 @@ body {
   .auth-action-btn {
     font-size: 11px;
     padding: 6px 10px;
+    max-width: 80px;
   }
 
   .pdash-add-row {
@@ -2762,6 +2787,19 @@ body {
 
   .premium-dashboard {
     padding: 0 0 30px;
+  }
+
+  /* Premium preview modal — compact on mobile */
+  .pv-box {
+    padding: 24px 18px 20px;
+    border-radius: 16px;
+  }
+
+  .pv-title { font-size: 19px; }
+
+  .pv-pricing {
+    flex-direction: column;
+    gap: 6px;
   }
 }
 
@@ -2980,59 +3018,4 @@ body {
   color: #555;
   font-size: 11px;
   line-height: 1.4;
-}
-
-/* ===================================================
-   IMPROVED HEADER AUTH SECTION
-   =================================================== */
-
-/* Tighten up the auth-status-section so it never breaks layout */
-.auth-status-section {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  flex-shrink: 0;
-}
-
-.auth-status-text {
-  font-size: 12px;
-  color: #aaa;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 110px;
-}
-
-/* Auth action button — compact pill */
-.auth-action-btn {
-  white-space: nowrap;
-  flex-shrink: 0;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Mobile: keep only the essential button text short */
-@media (max-width: 600px) {
-  .auth-status-text { display: none; }
-
-  .auth-action-btn {
-    font-size: 11px;
-    padding: 6px 10px;
-    max-width: 80px;
-  }
-
-  /* Premium preview modal — full-width on mobile */
-  .pv-box {
-    padding: 24px 18px 20px;
-    border-radius: 16px;
-  }
-
-  .pv-title { font-size: 19px; }
-
-  .pv-pricing {
-    flex-direction: column;
-    gap: 6px;
-  }
 }
