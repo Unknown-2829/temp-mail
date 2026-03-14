@@ -18,18 +18,19 @@ export default {
             console.log("From:", message.from);
 
             // Verify email exists in system (temp emails in TEMP_EMAILS, permanent/saved in EMAILS)
-            let emailExists = await env.TEMP_EMAILS.get(recipientEmail);
-            if (!emailExists) {
-                emailExists = await env.EMAILS.get(recipientEmail);
+            const tempEmailRecord = await env.TEMP_EMAILS.get(recipientEmail);
+            let isPermanentAddress = false;
+            if (!tempEmailRecord) {
+                const permRecord = await env.EMAILS.get(recipientEmail, { type: 'json' });
+                if (!permRecord) {
+                    console.log("❌ Email not registered");
+                    message.setReject("Address not found");
+                    return;
+                }
+                isPermanentAddress = !!permRecord.isPermanent;
             }
 
-            if (!emailExists) {
-                console.log("❌ Email not registered");
-                message.setReject("Address not found");
-                return;
-            }
-
-            console.log("✅ Email verified");
+            console.log("✅ Email verified", isPermanentAddress ? "(permanent)" : "(temp)");
 
             // Read raw email
             const rawEmail = await this.streamToString(message.raw);
@@ -53,13 +54,14 @@ export default {
                 }
             };
 
-            // Store in KV
+            // Store in KV — permanent addresses keep messages for 30 days; temp for 1 hour
             const storageKey = `email:${recipientEmail}:${Date.now()}`;
+            const ttlSeconds = isPermanentAddress ? 30 * 24 * 3600 : 3600;
 
             await env.EMAILS.put(
                 storageKey,
                 JSON.stringify(emailData),
-                { expirationTtl: 3600 }
+                { expirationTtl: ttlSeconds }
             );
 
             console.log("✅ Email stored:", storageKey);

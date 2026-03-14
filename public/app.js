@@ -7,7 +7,6 @@ let currentEmail = '';
 let emailsList = [];
 let autoRefreshInterval = null;
 let currentViewIndex = -1;
-let previousEmailCount = 0;
 const originalTitle = document.title;
 
 // Reusable SVG markup for the Sign-In account icon button
@@ -119,7 +118,6 @@ function regenerateEmail() {
 
   stopAutoRefresh();
   emailsList = [];
-  previousEmailCount = 0;
 
   localStorage.removeItem('tempEmail');
   localStorage.removeItem('emailCreatedAt');
@@ -137,7 +135,6 @@ function deleteEmail() {
   stopAutoRefresh();
   currentEmail = '';
   emailsList = [];
-  previousEmailCount = 0;
 
   localStorage.removeItem('tempEmail');
   localStorage.removeItem('emailCreatedAt');
@@ -724,8 +721,7 @@ function initAuthState() {
     }
 
     // Hide premium dashboard
-    const dash = document.getElementById('premium-dashboard');
-    if (dash) dash.classList.add('hidden');
+    closePremiumDashboard();
   }
 }
 
@@ -766,12 +762,17 @@ async function refreshPremiumStatus() {
 }
 
 // ===== Premium Dashboard =====
+function closePremiumDashboard() {
+  const dash = document.getElementById('premium-dashboard');
+  if (dash) dash.classList.add('hidden');
+}
+
 function updatePremiumDashboard(username, isPremium) {
   const dash = document.getElementById('premium-dashboard');
   if (!dash) return;
 
   if (!isPremium) {
-    dash.classList.add('hidden');
+    closePremiumDashboard();
     return;
   }
 
@@ -871,7 +872,8 @@ function useSavedEmail(address) {
   const emailDisplay = document.getElementById('email-display');
   if (emailDisplay) emailDisplay.value = address;
   emailsList = [];
-  previousEmailCount = 0;
+  // Close the premium dashboard so the inbox is visible
+  closePremiumDashboard();
   startAutoRefresh();
   scheduleRender();
   refreshEmails();
