@@ -663,6 +663,7 @@ function initAuthState() {
   const statusText = document.getElementById('auth-status-text');
   const actionBtn = document.getElementById('auth-action-btn');
   const premBtn = document.getElementById('premium-header-btn');
+  const mobileAccountHeaderBtn = document.getElementById('mobile-account-header-btn');
   const avatarEl = document.getElementById('user-avatar');
   const mobileSigninBtn = document.getElementById('mobile-signin-btn');
   const mobileSigninRow = document.getElementById('mobile-signin-row');
@@ -682,12 +683,11 @@ function initAuthState() {
     actionBtn.classList.remove('signout-btn');
     actionBtn.onclick = openProfile;
 
-    // Mobile sign-in button → becomes Account button when logged in
-    if (mobileSigninBtn) {
-      mobileSigninBtn.innerHTML = ACCOUNT_BTN_HTML;
-      mobileSigninBtn.onclick = openProfile;
+    // Mobile: show Account button in header (replaces Premium button); hide middle sign-in row
+    if (mobileAccountHeaderBtn) {
+      mobileAccountHeaderBtn.classList.remove('hidden');
     }
-    if (mobileSigninRow) mobileSigninRow.classList.remove('hidden');
+    if (mobileSigninRow) mobileSigninRow.classList.add('hidden');
 
     // Hide the dashboard/premium button after login
     if (premBtn) {
@@ -711,10 +711,9 @@ function initAuthState() {
     actionBtn.classList.remove('signout-btn');
     actionBtn.onclick = openAuth;
 
-    // Mobile sign-in button → Sign In
-    if (mobileSigninBtn) {
-      mobileSigninBtn.innerHTML = SIGN_IN_BTN_HTML;
-      mobileSigninBtn.onclick = openAuth;
+    // Mobile: hide Account header button; show Sign In in middle row
+    if (mobileAccountHeaderBtn) {
+      mobileAccountHeaderBtn.classList.add('hidden');
     }
     if (mobileSigninRow) mobileSigninRow.classList.remove('hidden');
 
