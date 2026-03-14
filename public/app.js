@@ -1243,7 +1243,7 @@ async function addPermanentEmail() {
   const errEl = document.getElementById('perm-email-error');
   const username = (input?.value || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
   if (errEl) errEl.classList.add('hidden');
-  if (!username || username.length < 3) {
+  if (!username || username.length < 3 || !PERM_USERNAME_RE.test(username)) {
     if (errEl) { errEl.textContent = 'Username must be at least 3 characters.'; errEl.classList.remove('hidden'); }
     return;
   }
