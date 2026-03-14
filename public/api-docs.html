@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Phantom Mail — API Documentation</title>
+  <meta name="description" content="Phantom Mail Developer API documentation. Generate temporary emails and read messages programmatically.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📬</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #0d0d1a; color: #e0e0f0; min-height: 100vh; line-height: 1.6; }
+
+    /* Nav */
+    .nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; background: rgba(13,13,26,0.95); border-bottom: 1px solid rgba(255,255,255,0.07); position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+    .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fff; font-size: 17px; font-weight: 700; }
+    .nav-logo span { color: #00d09c; }
+    .nav-back { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #ccc; padding: 7px 14px; border-radius: 8px; font-size: 13px; text-decoration: none; transition: all 0.2s; }
+    .nav-back:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+    /* Layout */
+    .page-wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+    .page-hero { text-align: center; margin-bottom: 48px; }
+    .page-hero h1 { font-size: clamp(26px, 5vw, 40px); font-weight: 800; margin-bottom: 12px; }
+    .page-hero h1 span { color: #00d09c; }
+    .page-hero p { color: #8b8baf; font-size: 15px; max-width: 500px; margin: 0 auto; }
+
+    /* Section */
+    .doc-section { margin-bottom: 40px; }
+    .doc-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #00d09c; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .doc-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+
+    /* Endpoint Card */
+    .endpoint-card { background: rgba(26,26,46,0.8); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
+    .endpoint-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .method-badge { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; flex-shrink: 0; }
+    .method-badge.get { background: rgba(0,208,156,0.15); color: #00d09c; border: 1px solid rgba(0,208,156,0.3); }
+    .method-badge.post { background: rgba(255,193,7,0.12); color: #ffc107; border: 1px solid rgba(255,193,7,0.3); }
+    .endpoint-path { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #fff; font-weight: 500; }
+    .endpoint-desc { color: #888; font-size: 13px; margin-left: auto; }
+    .endpoint-body { padding: 20px; }
+
+    /* Auth badge */
+    .auth-required { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.25); color: #ff9999; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-bottom: 14px; }
+
+    /* Param table */
+    .param-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+    .param-table th { text-align: left; color: #666; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .param-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+    .param-name { font-family: 'JetBrains Mono', monospace; color: #ffd700; font-size: 12px; }
+    .param-type { color: #00d09c; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .param-req { color: #ff6b6b; font-size: 11px; }
+    .param-opt { color: #666; font-size: 11px; }
+    .param-desc { color: #bbb; }
+
+    /* Code blocks */
+    .code-block { background: #0a0a18; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+    .code-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .code-lang { font-size: 11px; color: #555; font-family: 'JetBrains Mono', monospace; }
+    .code-copy { background: none; border: none; color: #555; font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color 0.2s; }
+    .code-copy:hover { color: #00d09c; }
+    pre { padding: 16px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; color: #c9d1d9; }
+    .kw { color: #ff79c6; }
+    .str { color: #f1fa8c; }
+    .num { color: #bd93f9; }
+    .key { color: #8be9fd; }
+    .cmt { color: #6272a4; }
+    .val { color: #50fa7b; }
+
+    /* Info box */
+    .info-box { background: rgba(0,208,156,0.06); border: 1px solid rgba(0,208,156,0.2); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; font-size: 13px; color: #bbb; }
+    .info-box strong { color: #00d09c; }
+    .warn-box { background: rgba(255,193,7,0.06); border: 1px solid rgba(255,193,7,0.2); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; font-size: 13px; color: #bbb; }
+    .warn-box strong { color: #ffc107; }
+
+    /* Base URL */
+    .base-url-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .base-url-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #555; }
+    .base-url-value { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00d09c; }
+
+    /* Rate limit table */
+    .rate-table { background: rgba(26,26,46,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+    .rate-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 12px 18px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .rate-row:last-child { border-bottom: none; }
+    .rate-row.head { background: rgba(0,0,0,0.2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #555; }
+
+    /* TOC */
+    .toc { background: rgba(26,26,46,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 20px 24px; margin-bottom: 40px; }
+    .toc h3 { font-size: 13px; color: #00d09c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+    .toc a { display: block; color: #aaa; text-decoration: none; font-size: 13px; padding: 4px 0; transition: color 0.2s; }
+    .toc a:hover { color: #00d09c; }
+
+    /* Response status badges */
+    .status-200 { color: #00d09c; font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .status-4xx { color: #ff6b6b; font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+    @media (max-width: 600px) {
+      .page-wrap { padding: 24px 16px 60px; }
+      .endpoint-header { flex-wrap: wrap; }
+      .endpoint-desc { margin-left: 0; }
+      .rate-row { grid-template-columns: 1fr 1fr; }
+      .rate-row > *:last-child { display: none; }
+      pre { font-size: 11.5px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">📬 Phantom <span>MAIL</span></a>
+  <a href="/" class="nav-back">← Back to Inbox</a>
+</nav>
+
+<div class="page-wrap">
+
+  <div class="page-hero">
+    <h1>📡 <span>API</span> Documentation</h1>
+    <p>Integrate Phantom Mail into your apps. Generate disposable emails and read messages programmatically.</p>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <a href="#getting-started">Getting Started</a>
+    <a href="#authentication">Authentication</a>
+    <a href="#rate-limits">Rate Limits</a>
+    <a href="#endpoints">Endpoints</a>
+    <a href="#ep-generate">— POST /api/v1/generate</a>
+    <a href="#ep-emails">— GET /api/v1/emails</a>
+    <a href="#errors">Error Codes</a>
+    <a href="#examples">Code Examples</a>
+  </div>
+
+  <!-- Getting Started -->
+  <div class="doc-section" id="getting-started">
+    <div class="doc-section-title">Getting Started</div>
+
+    <div class="info-box">
+      <strong>Premium Feature:</strong> API access requires a Phantom Mail Premium account. Sign in on the main site, go to the Premium Dashboard → API Key tab, and generate your key.
+    </div>
+
+    <div class="base-url-box">
+      <span class="base-url-label">Base URL</span>
+      <span class="base-url-value">https://phantommail.unknownlll2829.qzz.io</span>
+    </div>
+
+    <p style="color:#888;font-size:14px;margin-bottom:8px;">All API endpoints are served over HTTPS. Requests must include your API key in the <code style="color:#ffd700;font-family:'JetBrains Mono',monospace;font-size:12px;">X-API-Key</code> header.</p>
+  </div>
+
+  <!-- Authentication -->
+  <div class="doc-section" id="authentication">
+    <div class="doc-section-title">Authentication</div>
+    <p style="color:#bbb;font-size:14px;margin-bottom:16px;">Include your API key in every request using the <strong style="color:#ffd700">X-API-Key</strong> HTTP header.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">HTTP Header</span>
+      </div>
+      <pre><span class="key">X-API-Key</span>: pm_<span class="str">your32characterapikey...</span></pre>
+    </div>
+
+    <div class="warn-box">
+      <strong>⚠️ Keep your API key secret.</strong> Never expose it in client-side code or public repositories. If compromised, regenerate it from your dashboard immediately.
+    </div>
+  </div>
+
+  <!-- Rate Limits -->
+  <div class="doc-section" id="rate-limits">
+    <div class="doc-section-title">Rate Limits</div>
+    <p style="color:#bbb;font-size:14px;margin-bottom:16px;">Rate limits are applied per API key, per day (UTC reset at midnight).</p>
+
+    <div class="rate-table">
+      <div class="rate-row head">
+        <div>Plan</div>
+        <div>Requests / Day</div>
+        <div>Notes</div>
+      </div>
+      <div class="rate-row">
+        <div style="color:#ffd700;font-weight:600;">⭐ Premium</div>
+        <div style="color:#00d09c;font-weight:700;">10,000</div>
+        <div style="color:#888;">High-volume use</div>
+      </div>
+    </div>
+
+    <p style="color:#888;font-size:13px;margin-top:12px;">When you exceed the rate limit, you'll receive a <span class="status-4xx">429</span> response with <code style="color:#ffd700;font-size:12px">X-RateLimit-Limit</code> and <code style="color:#ffd700;font-size:12px">X-RateLimit-Remaining</code> info in the response body.</p>
+  </div>
+
+  <!-- Endpoints -->
+  <div class="doc-section" id="endpoints">
+    <div class="doc-section-title">Endpoints</div>
+  </div>
+
+  <!-- Generate Endpoint -->
+  <div id="ep-generate" style="margin-bottom:32px;">
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method-badge post">POST</span>
+        <span class="endpoint-path">/api/v1/generate</span>
+        <span class="endpoint-desc">Generate a temporary email address</span>
+      </div>
+      <div class="endpoint-body">
+        <span class="auth-required">🔑 Requires API Key</span>
+
+        <p style="color:#bbb;font-size:13px;margin-bottom:16px;">Generates a new disposable email address. Optionally specify a custom username (Premium only). The address expires in 1 hour by default.</p>
+
+        <p style="color:#aaa;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Request Headers</p>
+        <table class="param-table" style="margin-bottom:20px;">
+          <thead><tr><th>Header</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">X-API-Key</td><td class="param-type">string</td><td class="param-req">Required</td><td class="param-desc">Your Premium API key</td></tr>
+          </tbody>
+        </table>
+
+        <p style="color:#aaa;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Request Body (JSON, optional)</p>
+        <table class="param-table" style="margin-bottom:20px;">
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">username</td><td class="param-type">string</td><td class="param-opt">Optional</td><td class="param-desc">Custom username (3–30 chars, a-z 0-9 . _ -). Generates <code style="color:#00d09c;font-size:11px">{username}@unknownlll2829.qzz.io</code>. Premium only.</td></tr>
+          </tbody>
+        </table>
+
+        <p style="color:#aaa;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Responses</p>
+
+        <p style="margin-bottom:6px;font-size:12px;"><span class="status-200">200 OK</span> — Email generated successfully</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">JSON</span></div>
+          <pre>{
+  <span class="key">"success"</span>: <span class="val">true</span>,
+  <span class="key">"email"</span>: <span class="str">"cooluser42@unknownlll2829.qzz.io"</span>,
+  <span class="key">"expiresIn"</span>: <span class="num">3600</span>,
+  <span class="key">"usage"</span>: {
+    <span class="key">"today"</span>: <span class="num">5</span>,
+    <span class="key">"limit"</span>: <span class="num">10000</span>
+  }
+}</pre>
+        </div>
+
+        <p style="margin-bottom:6px;font-size:12px;"><span class="status-4xx">400 Bad Request</span> — Invalid username</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">JSON</span></div>
+          <pre>{ <span class="key">"error"</span>: <span class="str">"Username must be 3-30 characters"</span> }</pre>
+        </div>
+
+        <p style="margin-bottom:6px;font-size:12px;"><span class="status-4xx">429 Too Many Requests</span> — Rate limit exceeded</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">JSON</span></div>
+          <pre>{ <span class="key">"error"</span>: <span class="str">"Rate limit exceeded"</span>, <span class="key">"limit"</span>: <span class="num">10000</span>, <span class="key">"used"</span>: <span class="num">10000</span> }</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emails Endpoint -->
+  <div id="ep-emails" style="margin-bottom:32px;">
+    <div class="endpoint-card">
+      <div class="endpoint-header">
+        <span class="method-badge get">GET</span>
+        <span class="endpoint-path">/api/v1/emails</span>
+        <span class="endpoint-desc">Retrieve emails for an address</span>
+      </div>
+      <div class="endpoint-body">
+        <span class="auth-required">🔑 Requires API Key</span>
+
+        <p style="color:#bbb;font-size:13px;margin-bottom:16px;">Returns all received emails for a given address. The address must exist (previously generated via the API or the web interface).</p>
+
+        <p style="color:#aaa;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Query Parameters</p>
+        <table class="param-table" style="margin-bottom:20px;">
+          <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">address</td><td class="param-type">string</td><td class="param-req">Required</td><td class="param-desc">The full email address to check (e.g. <code style="color:#00d09c;font-size:11px">user@unknownlll2829.qzz.io</code>)</td></tr>
+          </tbody>
+        </table>
+
+        <p style="color:#aaa;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Responses</p>
+
+        <p style="margin-bottom:6px;font-size:12px;"><span class="status-200">200 OK</span></p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">JSON</span></div>
+          <pre>{
+  <span class="key">"success"</span>: <span class="val">true</span>,
+  <span class="key">"address"</span>: <span class="str">"cooluser42@unknownlll2829.qzz.io"</span>,
+  <span class="key">"count"</span>: <span class="num">2</span>,
+  <span class="key">"emails"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="str">"abc123"</span>,
+      <span class="key">"from"</span>: <span class="str">"noreply@example.com"</span>,
+      <span class="key">"subject"</span>: <span class="str">"Your verification code"</span>,
+      <span class="key">"body"</span>: <span class="str">"Your code is 123456"</span>,
+      <span class="key">"hasHtml"</span>: <span class="val">true</span>,
+      <span class="key">"timestamp"</span>: <span class="num">1710000000000</span>
+    }
+  ]
+}</pre>
+        </div>
+
+        <p style="margin-bottom:6px;font-size:12px;"><span class="status-4xx">404 Not Found</span> — Email address not found or expired</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">JSON</span></div>
+          <pre>{ <span class="key">"error"</span>: <span class="str">"Email not found or expired"</span> }</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Errors -->
+  <div class="doc-section" id="errors">
+    <div class="doc-section-title">Error Codes</div>
+    <table class="param-table">
+      <thead><tr><th>Status</th><th>Code</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td class="param-type">401</td><td class="param-name">Unauthorized</td><td class="param-desc">API key missing or invalid</td></tr>
+        <tr><td class="param-type">400</td><td class="param-name">Bad Request</td><td class="param-desc">Missing or invalid parameters</td></tr>
+        <tr><td class="param-type">403</td><td class="param-name">Forbidden</td><td class="param-desc">Feature requires Premium plan</td></tr>
+        <tr><td class="param-type">404</td><td class="param-name">Not Found</td><td class="param-desc">Resource does not exist or has expired</td></tr>
+        <tr><td class="param-type">429</td><td class="param-name">Too Many Requests</td><td class="param-desc">Daily rate limit exceeded</td></tr>
+        <tr><td class="param-type">500</td><td class="param-name">Server Error</td><td class="param-desc">Internal server error — try again</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Code Examples -->
+  <div class="doc-section" id="examples">
+    <div class="doc-section-title">Code Examples</div>
+
+    <p style="color:#bbb;font-size:14px;margin-bottom:20px;">Quick start examples in popular languages.</p>
+
+    <p style="color:#aaa;font-size:13px;font-weight:600;margin-bottom:8px;">Generate an email address (JavaScript)</p>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">JavaScript (fetch)</span>
+        <button class="code-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="kw">const</span> <span class="key">response</span> = <span class="kw">await</span> fetch(<span class="str">'https://phantommail.unknownlll2829.qzz.io/api/v1/generate'</span>, {
+  method: <span class="str">'POST'</span>,
+  headers: {
+    <span class="str">'X-API-Key'</span>: <span class="str">'pm_your_api_key_here'</span>,
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>
+  },
+  <span class="cmt">// Optional: provide a custom username</span>
+  body: JSON.stringify({ username: <span class="str">'myapp_test'</span> })
+});
+
+<span class="kw">const</span> <span class="key">data</span> = <span class="kw">await</span> response.json();
+console.log(data.email); <span class="cmt">// myapp_test@unknownlll2829.qzz.io</span></pre>
+    </div>
+
+    <p style="color:#aaa;font-size:13px;font-weight:600;margin-bottom:8px;">Check for new emails (JavaScript)</p>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">JavaScript (fetch)</span>
+        <button class="code-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="kw">const</span> <span class="key">emailAddr</span> = <span class="str">'myapp_test@unknownlll2829.qzz.io'</span>;
+
+<span class="kw">const</span> <span class="key">res</span> = <span class="kw">await</span> fetch(
+  <span class="str">`https://phantommail.unknownlll2829.qzz.io/api/v1/emails?address=${encodeURIComponent(emailAddr)}`</span>,
+  { headers: { <span class="str">'X-API-Key'</span>: <span class="str">'pm_your_api_key_here'</span> } }
+);
+
+<span class="kw">const</span> <span class="key">data</span> = <span class="kw">await</span> res.json();
+console.log(<span class="str">`${data.count} email(s) received`</span>);
+data.emails.forEach(<span class="key">email</span> => {
+  console.log(<span class="str">`From: ${email.from} | Subject: ${email.subject}`</span>);
+});</pre>
+    </div>
+
+    <p style="color:#aaa;font-size:13px;font-weight:600;margin-bottom:8px;">Python example</p>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Python (requests)</span>
+        <button class="code-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="kw">import</span> requests
+
+API_KEY = <span class="str">"pm_your_api_key_here"</span>
+BASE = <span class="str">"https://phantommail.unknownlll2829.qzz.io/api/v1"</span>
+HEADERS = {<span class="str">"X-API-Key"</span>: API_KEY}
+
+<span class="cmt"># Generate email</span>
+r = requests.post(<span class="str">f"{BASE}/generate"</span>, headers=HEADERS)
+email = r.json()[<span class="str">"email"</span>]
+print(<span class="str">f"Email: {email}"</span>)
+
+<span class="cmt"># Poll for messages</span>
+r = requests.get(<span class="str">f"{BASE}/emails"</span>, headers=HEADERS, params={<span class="str">"address"</span>: email})
+msgs = r.json().get(<span class="str">"emails"</span>, [])
+<span class="kw">for</span> msg <span class="kw">in</span> msgs:
+    print(<span class="str">f"From: {msg['from']} | {msg['subject']}"</span>)</pre>
+    </div>
+
+    <p style="color:#aaa;font-size:13px;font-weight:600;margin-bottom:8px;">cURL example</p>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">cURL</span>
+        <button class="code-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="cmt"># Generate a random email</span>
+curl -X POST https://phantommail.unknownlll2829.qzz.io/api/v1/generate \
+  -H <span class="str">"X-API-Key: pm_your_api_key_here"</span>
+
+<span class="cmt"># Check inbox</span>
+curl https://phantommail.unknownlll2829.qzz.io/api/v1/emails?address=user@unknownlll2829.qzz.io \
+  -H <span class="str">"X-API-Key: pm_your_api_key_here"</span></pre>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06);">
+    <p style="color:#555;font-size:13px;">Need help? Contact us on <a href="https://t.me/unknownlll2829" target="_blank" style="color:#0088cc;text-decoration:none;">Telegram @unknownlll2829</a></p>
+    <p style="color:#333;font-size:12px;margin-top:6px;">© 2026 Phantom Mail</p>
+  </div>
+
+</div>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    }).catch(() => { btn.textContent = 'Failed'; });
+  }
+</script>
+
+</body>
+</html>

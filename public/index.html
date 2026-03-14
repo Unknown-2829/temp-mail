@@ -33,6 +33,7 @@
       <button class="premium-btn" id="premium-header-btn" onclick="openPremium()">⭐ Premium</button>
       <div class="auth-status-section" id="auth-status-section">
         <span class="user-avatar hidden" id="user-avatar" title=""></span>
+        <button class="profile-btn hidden" id="profile-btn" onclick="openProfile()">👤 Profile</button>
         <span class="auth-status-text" id="auth-status-text"></span>
         <button class="auth-action-btn" id="auth-action-btn" onclick="openAuth()">🔐 Sign In</button>
       </div>
@@ -106,6 +107,9 @@
           <button class="action-btn-small" onclick="deleteEmail()" title="Delete">
             <span>🗑️</span> Delete
           </button>
+          <button class="action-btn-small save-email-btn hidden" id="save-email-btn" onclick="saveCurrentEmail()" title="Save to Account">
+            <span>💾</span> Save Email
+          </button>
         </div>
       </div>
 
@@ -164,6 +168,8 @@
 
       <div class="pdash-tabs">
         <button class="pdash-tab active" onclick="switchPDashTab('saved')">📁 Saved Emails</button>
+        <button class="pdash-tab" onclick="switchPDashTab('permanent')">🔒 Permanent Email</button>
+        <button class="pdash-tab" onclick="switchPDashTab('forwarding')">📨 Forwarding</button>
         <button class="pdash-tab" onclick="switchPDashTab('apikey')">🔌 API Key</button>
       </div>
 
@@ -190,6 +196,36 @@
             <div class="pdash-loading">Loading API key…</div>
           </div>
           <button class="pdash-gen-btn" onclick="generateApiKey()">🔄 Generate New Key</button>
+        </div>
+      </div>
+
+      <!-- Permanent Email Tab -->
+      <div class="pdash-panel hidden" id="pdash-permanent">
+        <div class="pdash-section">
+          <div class="pdash-section-title">Permanent Email Address</div>
+          <p class="pdash-section-sub">Create a permanent email address with your custom name on <strong style="color:#00d09c">@unknownlll2829.qzz.io</strong>. This address never expires.</p>
+          <div class="pdash-add-row">
+            <div class="perm-email-input-wrap">
+              <input type="text" id="perm-username-input" class="pdash-input perm-username-field" placeholder="yourname" pattern="[a-z0-9._-]+" maxlength="30">
+              <span class="perm-domain-label">@unknownlll2829.qzz.io</span>
+            </div>
+            <button class="pdash-add-btn" onclick="addPermanentEmail()">✨ Create</button>
+          </div>
+          <p id="perm-email-error" class="pdash-perm-error hidden"></p>
+          <div id="perm-emails-list" class="saved-emails-list">
+            <div class="pdash-loading">Loading permanent emails…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Forwarding Tab -->
+      <div class="pdash-panel hidden" id="pdash-forwarding">
+        <div class="pdash-section">
+          <div class="pdash-section-title">Email Forwarding</div>
+          <p class="pdash-section-sub">Forward emails from your permanent addresses to your real inbox. Select an address below to set up forwarding.</p>
+          <div id="forwarding-list" class="forwarding-list">
+            <div class="pdash-loading">Loading forwarding settings…</div>
+          </div>
         </div>
       </div>
     </div>
@@ -237,7 +273,7 @@
   </div>
 
   <!-- Premium Preview Modal (simple features + CTA to premium.html) -->
-  <div class="pv-overlay" id="pv-overlay" style="display:none" onclick="if(event.target===this)closePremiumPreview()">
+  <div class="pv-overlay" id="pv-overlay" onclick="if(event.target===this)closePremiumPreview()">
     <div class="pv-box">
       <button class="pv-close" onclick="closePremiumPreview()" aria-label="Close">✕</button>
 
@@ -396,6 +432,19 @@
   <!-- Toast -->
   <div class="toast" id="toast">
     <span id="toast-message">Copied!</span>
+  </div>
+
+  <!-- Profile Modal -->
+  <div class="profile-modal" id="profile-modal">
+    <div class="profile-content">
+      <div class="profile-header">
+        <h2>👤 Profile</h2>
+        <button class="profile-close" onclick="closeProfile()">✕</button>
+      </div>
+      <div class="profile-body" id="profile-body">
+        <div class="profile-loading">Loading profile…</div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
