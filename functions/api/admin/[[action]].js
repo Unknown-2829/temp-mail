@@ -2,9 +2,13 @@
  * Admin API - Protected by ADMIN_SECRET env variable
  * POST /api/admin/login         - { secret } → returns adminToken
  * GET  /api/admin/user          - ?username=xxx → user info
+ * GET  /api/admin/list-users    - ?cursor=&filter=all|premium|free → paginated user list
  * POST /api/admin/grant-premium - { username, adminToken, days? }
  * POST /api/admin/revoke-premium- { username, adminToken }
  * GET  /api/admin/stats         - admin stats
+ *
+ * All user data lives in env.EMAILS with prefix "user:{username}".
+ * Admin sessions live in env.EMAILS with prefix "admin_session:{token}".
  */
 
 export async function onRequest(context) {
@@ -38,6 +42,8 @@ export async function onRequest(context) {
     switch (action) {
         case 'user':
             return handleGetUser(url, env);
+        case 'list-users':
+            return handleListUsers(url, env);
         case 'grant-premium':
             return handleGrantPremium(request, env);
         case 'revoke-premium':
@@ -59,7 +65,7 @@ async function handleLogin(request, env) {
     const adminToken = 'adm_' + Array.from(crypto.getRandomValues(new Uint8Array(32)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
 
-    await env.ADMIN_SESSIONS.put(adminToken, JSON.stringify({
+    await env.EMAILS.put(`admin_session:${adminToken}`, JSON.stringify({
         createdAt: Date.now(),
         expiresAt: Date.now() + 2 * 60 * 60 * 1000 // 2 hours
     }), { expirationTtl: 7200 });
@@ -70,10 +76,10 @@ async function handleLogin(request, env) {
 // ===== Verify Admin Token =====
 async function verifyAdminToken(token, env) {
     if (!token) return false;
-    const session = await env.ADMIN_SESSIONS.get(token, { type: 'json' });
+    const session = await env.EMAILS.get(`admin_session:${token}`, { type: 'json' });
     if (!session) return false;
     if (session.expiresAt < Date.now()) {
-        await env.ADMIN_SESSIONS.delete(token);
+        await env.EMAILS.delete(`admin_session:${token}`);
         return false;
     }
     return true;
@@ -84,19 +90,43 @@ async function handleGetUser(url, env) {
     const username = url.searchParams.get('username')?.toLowerCase();
     if (!username) return jsonResponse({ error: 'username required' }, 400);
 
-    const user = await env.USERS.get(username, { type: 'json' });
+    const user = await env.EMAILS.get(`user:${username}`, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
-    // Return safe user info (no password hash/salt)
-    return jsonResponse({
-        username: user.username,
-        email: user.email || null,
-        createdAt: user.createdAt,
-        isPremium: user.isPremium,
-        premiumExpiry: user.premiumExpiry,
-        savedEmails: (user.savedEmails || []).length,
-        hasApiKey: !!user.apiKey
-    });
+    return jsonResponse(safeUser(user));
+}
+
+// ===== List Users =====
+async function handleListUsers(url, env) {
+    try {
+        const cursor = url.searchParams.get('cursor') || undefined;
+        const filter = url.searchParams.get('filter') || 'all'; // all | premium | free
+        const limit = 50;
+
+        const list = await env.EMAILS.list({ prefix: 'user:', limit, cursor });
+
+        const users = (await Promise.all(
+            list.keys.map(async (key) => {
+                const user = await env.EMAILS.get(key.name, { type: 'json' });
+                if (!user) return null;
+                return safeUser(user);
+            })
+        )).filter(Boolean);
+
+        const filtered = filter === 'premium'
+            ? users.filter(u => u.isPremium)
+            : filter === 'free'
+                ? users.filter(u => !u.isPremium)
+                : users;
+
+        return jsonResponse({
+            users: filtered,
+            cursor: list.cursor || null,
+            hasMore: !list.complete
+        });
+    } catch (e) {
+        return jsonResponse({ error: 'Failed to list users' }, 500);
+    }
 }
 
 // ===== Grant Premium =====
@@ -104,19 +134,19 @@ async function handleGrantPremium(request, env) {
     const { username, days = 365 } = await request.json();
     if (!username) return jsonResponse({ error: 'username required' }, 400);
 
-    const userKey = username.toLowerCase();
-    const user = await env.USERS.get(userKey, { type: 'json' });
+    const userKey = `user:${username.toLowerCase()}`;
+    const user = await env.EMAILS.get(userKey, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
     user.isPremium = true;
     user.premiumExpiry = Date.now() + days * 24 * 60 * 60 * 1000;
     user.premiumGrantedAt = Date.now();
 
-    await env.USERS.put(userKey, JSON.stringify(user));
+    await env.EMAILS.put(userKey, JSON.stringify(user));
 
     return jsonResponse({
         success: true,
-        message: `Premium granted to @${userKey} for ${days} days`,
+        message: `Premium granted to @${username.toLowerCase()} for ${days} days`,
         premiumExpiry: new Date(user.premiumExpiry).toISOString()
     });
 }
@@ -126,26 +156,26 @@ async function handleRevokePremium(request, env) {
     const { username } = await request.json();
     if (!username) return jsonResponse({ error: 'username required' }, 400);
 
-    const userKey = username.toLowerCase();
-    const user = await env.USERS.get(userKey, { type: 'json' });
+    const userKey = `user:${username.toLowerCase()}`;
+    const user = await env.EMAILS.get(userKey, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
     user.isPremium = false;
     user.premiumExpiry = null;
-    await env.USERS.put(userKey, JSON.stringify(user));
+    await env.EMAILS.put(userKey, JSON.stringify(user));
 
-    return jsonResponse({ success: true, message: `Premium revoked from @${userKey}` });
+    return jsonResponse({ success: true, message: `Premium revoked from @${username.toLowerCase()}` });
 }
 
 // ===== Stats =====
 async function handleStats(env) {
     try {
-        const list = await env.USERS.list({ limit: 1000 });
+        const list = await env.EMAILS.list({ prefix: 'user:', limit: 1000 });
         let premiumCount = 0;
-        let total = list.keys.length;
+        const total = list.keys.length;
 
         for (const key of list.keys) {
-            const user = await env.USERS.get(key.name, { type: 'json' });
+            const user = await env.EMAILS.get(key.name, { type: 'json' });
             if (user?.isPremium) premiumCount++;
         }
 
@@ -153,6 +183,22 @@ async function handleStats(env) {
     } catch (e) {
         return jsonResponse({ total: '?', premium: '?', free: '?' });
     }
+}
+
+// ===== Helpers =====
+function safeUser(user) {
+    const rawName = user.username || '';
+    const displayName = user.displayUsername || rawName.replace(/^user:/, '');
+    return {
+        username: displayName,
+        email: user.email || null,
+        createdAt: user.createdAt,
+        isPremium: !!user.isPremium,
+        premiumExpiry: user.premiumExpiry || null,
+        premiumGrantedAt: user.premiumGrantedAt || null,
+        savedEmails: (user.savedEmails || []).length,
+        hasApiKey: !!user.apiKey
+    };
 }
 
 function corsHeaders() {

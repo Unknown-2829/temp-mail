@@ -10,10 +10,10 @@ export async function onRequestPost(context) {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
     if (!token) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-    const session = await env.SESSIONS.get(token, { type: 'json' });
+    const session = await env.EMAILS.get(`session:${token}`, { type: 'json' });
     if (!session || session.expiresAt < Date.now()) return jsonResponse({ error: 'Session expired' }, 401);
 
-    const user = await env.USERS.get(session.username, { type: 'json' });
+    const user = await env.EMAILS.get(session.username, { type: 'json' });
     if (!user || !user.isPremium) return jsonResponse({ error: 'Premium required' }, 403);
 
     try {
@@ -28,13 +28,13 @@ export async function onRequestPost(context) {
 
         savedEmails[emailIndex].forwarding = forwardTo || null;
         user.savedEmails = savedEmails;
-        await env.USERS.put(session.username, JSON.stringify(user));
+        await env.EMAILS.put(session.username, JSON.stringify(user));
 
         const forwardingKey = `forward:${address}`;
         if (forwardTo) {
-            await env.TEMP_EMAILS.put(forwardingKey, JSON.stringify({ to: forwardTo, userId: session.username, createdAt: Date.now() }));
+            await env.EMAILS.put(forwardingKey, JSON.stringify({ to: forwardTo, userId: session.username, createdAt: Date.now() }));
         } else {
-            await env.TEMP_EMAILS.delete(forwardingKey);
+            await env.EMAILS.delete(forwardingKey);
         }
 
         return jsonResponse({

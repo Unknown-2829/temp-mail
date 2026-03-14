@@ -778,19 +778,215 @@ function initAuthState() {
   const section = document.getElementById('auth-status-section');
   const statusText = document.getElementById('auth-status-text');
   const actionBtn = document.getElementById('auth-action-btn');
+  const premBtn = document.getElementById('premium-header-btn');
   if (!section) return;
 
   if (username) {
     statusText.textContent = isPremium
-      ? `⭐ @${username} — Premium Active`
-      : `👤 @${username} — Free Plan`;
-    actionBtn.textContent = 'Sign Out';
+      ? `⭐ @${username}`
+      : `👤 @${username}`;
+    actionBtn.textContent = 'Logout';
+    actionBtn.classList.add('signout-btn');
     actionBtn.onclick = signOut;
+
+    // Update premium button label
+    if (premBtn) {
+      premBtn.textContent = isPremium ? '⭐ Premium' : '⭐ Get Premium';
+    }
+
+    // Show/hide premium dashboard
+    updatePremiumDashboard(username, isPremium);
   } else {
-    statusText.textContent = 'Have an account?';
-    actionBtn.textContent = '🔐 Sign In / Sign Up';
+    statusText.textContent = '';
+    actionBtn.textContent = '🔐 Sign In';
+    actionBtn.classList.remove('signout-btn');
     actionBtn.onclick = openAuth;
+
+    if (premBtn) premBtn.textContent = '⭐ Premium';
+
+    // Hide premium dashboard
+    const dash = document.getElementById('premium-dashboard');
+    if (dash) dash.classList.add('hidden');
   }
+}
+
+// ===== Premium Dashboard =====
+function updatePremiumDashboard(username, isPremium) {
+  const dash = document.getElementById('premium-dashboard');
+  if (!dash) return;
+
+  if (!isPremium) {
+    dash.classList.add('hidden');
+    return;
+  }
+
+  dash.classList.remove('hidden');
+  document.getElementById('pdash-username').textContent = `@${username}`;
+  loadSavedEmails();
+  loadApiKey();
+}
+
+function switchPDashTab(tab) {
+  document.getElementById('pdash-saved').classList.toggle('hidden', tab !== 'saved');
+  document.getElementById('pdash-apikey').classList.toggle('hidden', tab !== 'apikey');
+  document.querySelectorAll('.pdash-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'saved') || (i === 1 && tab === 'apikey'));
+  });
+}
+
+async function loadSavedEmails() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const container = document.getElementById('saved-emails-list');
+  container.innerHTML = '<div class="pdash-loading">Loading…</div>';
+  try {
+    const res = await fetch('/api/user/saved-emails', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) { container.innerHTML = `<div class="pdash-loading">${escapeHtml(data.error || 'Error')}</div>`; return; }
+    renderSavedEmails(data.savedEmails || []);
+  } catch (e) {
+    container.innerHTML = '<div class="pdash-loading">Failed to load.</div>';
+  }
+}
+
+function renderSavedEmails(list) {
+  const container = document.getElementById('saved-emails-list');
+  const countEl = document.getElementById('saved-email-count');
+  if (countEl) countEl.textContent = `${list.length}/8`;
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="pdash-loading">No saved emails yet. Add one above.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  list.forEach(e => {
+    const item = document.createElement('div');
+    item.className = 'saved-email-item';
+
+    const addr = document.createElement('div');
+    addr.className = 'saved-email-addr';
+    addr.textContent = e.address;
+
+    const actions = document.createElement('div');
+    actions.className = 'saved-email-actions';
+
+    const useBtn = document.createElement('button');
+    useBtn.className = 'se-use-btn';
+    useBtn.textContent = '📥 Use';
+    useBtn.addEventListener('click', () => useSavedEmail(e.address));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'se-del-btn';
+    delBtn.textContent = '🗑️';
+    delBtn.addEventListener('click', () => deleteSavedEmail(e.address));
+
+    actions.appendChild(useBtn);
+    actions.appendChild(delBtn);
+    item.appendChild(addr);
+    item.appendChild(actions);
+    container.appendChild(item);
+  });
+}
+
+async function addSavedEmail() {
+  const input = document.getElementById('new-saved-email');
+  const address = input.value.trim();
+  if (!address || !address.includes('@')) { showToast('❌ Enter a valid email address'); return; }
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/user/saved-emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ address })
+    });
+    const data = await res.json();
+    if (res.ok) { input.value = ''; renderSavedEmails(data.savedEmails); showToast('✅ Email saved!'); }
+    else showToast('❌ ' + (data.error || 'Error'));
+  } catch (e) { showToast('❌ Network error'); }
+}
+
+async function deleteSavedEmail(address) {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/user/saved-emails', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ address })
+    });
+    const data = await res.json();
+    if (res.ok) { renderSavedEmails(data.savedEmails); showToast('🗑️ Removed'); }
+    else showToast('❌ ' + (data.error || 'Error'));
+  } catch (e) { showToast('❌ Network error'); }
+}
+
+function useSavedEmail(address) {
+  currentEmail = address;
+  const emailDisplay = document.getElementById('email-display');
+  if (emailDisplay) emailDisplay.value = address;
+  emailsList = [];
+  scheduleRender();
+  refreshEmails();
+  showToast('✅ Now using ' + address);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function loadApiKey() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const container = document.getElementById('apikey-display');
+  if (!container) return;
+  container.innerHTML = '<div class="pdash-loading">Loading…</div>';
+  try {
+    const res = await fetch('/api/user/api-key', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) { container.innerHTML = `<div class="pdash-loading">${escapeHtml(data.error || 'Error')}</div>`; return; }
+    if (data.apiKey) {
+      container.innerHTML = `
+        <span class="apikey-text" id="apikey-value">${escapeHtml(data.apiKey)}</span>
+        <button class="apikey-copy-btn" onclick="copyApiKey()">📋 Copy</button>
+      `;
+    } else {
+      container.innerHTML = '<span class="apikey-none">No API key yet — generate one below.</span>';
+    }
+  } catch (e) {
+    container.innerHTML = '<div class="pdash-loading">Failed to load.</div>';
+  }
+}
+
+async function generateApiKey() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/user/api-key', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const container = document.getElementById('apikey-display');
+      if (container) container.innerHTML = `
+        <span class="apikey-text" id="apikey-value">${escapeHtml(data.apiKey)}</span>
+        <button class="apikey-copy-btn" onclick="copyApiKey()">📋 Copy</button>
+      `;
+      showToast('🔑 New API key generated!');
+    } else {
+      showToast('❌ ' + (data.error || 'Error'));
+    }
+  } catch (e) { showToast('❌ Network error'); }
+}
+
+function copyApiKey() {
+  const el = document.getElementById('apikey-value');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent)
+    .then(() => showToast('📋 API key copied!'))
+    .catch(() => showToast('❌ Copy failed'));
 }
 
 function signOut() {

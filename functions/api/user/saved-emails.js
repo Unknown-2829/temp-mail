@@ -11,10 +11,10 @@ export async function onRequest(context) {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
     if (!token) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-    const session = await env.SESSIONS.get(token, { type: 'json' });
+    const session = await env.EMAILS.get(`session:${token}`, { type: 'json' });
     if (!session || session.expiresAt < Date.now()) return jsonResponse({ error: 'Session expired' }, 401);
 
-    const user = await env.USERS.get(session.username, { type: 'json' });
+    const user = await env.EMAILS.get(session.username, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
     if (!user.isPremium) return jsonResponse({ error: 'Premium required' }, 403);
@@ -53,8 +53,8 @@ async function handlePost(request, user, env, username) {
 
     savedEmails.push({ address, customName: customName || address.split('@')[0], savedAt: Date.now(), forwarding: null });
     user.savedEmails = savedEmails;
-    await env.USERS.put(username, JSON.stringify(user));
-    await env.TEMP_EMAILS.put(address, JSON.stringify({ createdAt: Date.now(), isPermanent: true, userId: username }));
+    await env.EMAILS.put(username, JSON.stringify(user));
+    await env.EMAILS.put(address, JSON.stringify({ createdAt: Date.now(), isPermanent: true, userId: username }));
 
     return jsonResponse({ success: true, savedEmails });
 }
@@ -69,8 +69,8 @@ async function handleDelete(request, user, env, username) {
 
     savedEmails.splice(index, 1);
     user.savedEmails = savedEmails;
-    await env.USERS.put(username, JSON.stringify(user));
-    await env.TEMP_EMAILS.delete(address);
+    await env.EMAILS.put(username, JSON.stringify(user));
+    await env.EMAILS.delete(address);
 
     return jsonResponse({ success: true, savedEmails });
 }
