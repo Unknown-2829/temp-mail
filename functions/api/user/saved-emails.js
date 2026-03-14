@@ -17,7 +17,16 @@ export async function onRequest(context) {
     const user = await env.EMAILS.get(session.username, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
-    if (!user.isPremium) return jsonResponse({ error: 'Premium required' }, 403);
+    // Auto-revoke expired premium
+    let isPremium = user.isPremium;
+    if (isPremium && user.premiumExpiry && user.premiumExpiry < Date.now()) {
+        user.isPremium = false;
+        user.premiumExpiry = null;
+        await env.EMAILS.put(session.username, JSON.stringify(user));
+        isPremium = false;
+    }
+
+    if (!isPremium) return jsonResponse({ error: 'Premium required' }, 403);
 
     switch (request.method) {
         case 'GET': return handleGet(user, env);

@@ -88,10 +88,8 @@ async function hashPassword(password, salt) {
 }
 
 function generateToken() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let token = '';
-    for (let i = 0; i < 64; i++) token += chars.charAt(Math.floor(Math.random() * chars.length));
-    return token;
+    return Array.from(crypto.getRandomValues(new Uint8Array(48)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function jsonResponse(data, status = 200) {

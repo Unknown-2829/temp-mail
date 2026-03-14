@@ -5,34 +5,34 @@ export async function onRequestGet(context) {
         const address = url.searchParams.get('address');
 
         if (!address) {
-            return new Response(
-                JSON.stringify({ error: 'Email address required' }),
-                { status: 400, headers: { 'Content-Type': 'application/json' } }
-            );
+            return jsonResponse({ error: 'Email address required' }, 400);
         }
 
-        // Get all emails for this address
+        // Fetch all email keys for this address in parallel with their data
         const emailKeys = await env.EMAILS.list({ prefix: `email:${address}:` });
 
-        const emails = [];
-        for (const key of emailKeys.keys) {
-            const emailData = await env.EMAILS.get(key.name);
-            if (emailData) {
-                emails.push(JSON.parse(emailData));
-            }
-        }
+        const emails = (
+            await Promise.all(
+                emailKeys.keys.map(key => env.EMAILS.get(key.name, { type: 'json' }))
+            )
+        ).filter(Boolean);
 
-        // Sort by timestamp
+        // Sort newest first
         emails.sort((a, b) => b.timestamp - a.timestamp);
 
-        return new Response(
-            JSON.stringify({ emails }),
-            { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } }
-        );
+        return jsonResponse({ emails });
     } catch (error) {
-        return new Response(
-            JSON.stringify({ error: error.message }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
+        return jsonResponse({ error: error.message }, 500);
     }
+}
+
+function jsonResponse(data, status = 200) {
+    return new Response(JSON.stringify(data), {
+        status,
+        headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-store'
+        }
+    });
 }

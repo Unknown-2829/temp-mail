@@ -17,8 +17,11 @@ export default {
             console.log("To:", recipientEmail);
             console.log("From:", message.from);
 
-            // Verify email exists in system
-            const emailExists = await env.TEMP_EMAILS.get(recipientEmail);
+            // Verify email exists in system (temp emails in TEMP_EMAILS, permanent/saved in EMAILS)
+            let emailExists = await env.TEMP_EMAILS.get(recipientEmail);
+            if (!emailExists) {
+                emailExists = await env.EMAILS.get(recipientEmail);
+            }
 
             if (!emailExists) {
                 console.log("❌ Email not registered");
@@ -64,9 +67,9 @@ export default {
             console.log("   Has HTML:", !!parsedEmail.htmlBody);
             console.log("   Attachments:", parsedEmail.attachments.length);
 
-            // Check for forwarding rule (Premium feature)
+            // Check for forwarding rule (Premium feature) — stored in EMAILS namespace
             const forwardingKey = `forward:${recipientEmail}`;
-            const forwardingRule = await env.TEMP_EMAILS.get(forwardingKey, { type: 'json' });
+            const forwardingRule = await env.EMAILS.get(forwardingKey, { type: 'json' });
 
             if (forwardingRule && forwardingRule.to && env.SENDGRID_API_KEY) {
                 console.log("📨 Forwarding to:", forwardingRule.to);

@@ -1,7 +1,6 @@
 /**
  * QR Code Generation API
- * Uses QRServer.com API - industry standard, fast, reliable
- * Returns base64 encoded QR image
+ * Fetches a QR image from QRServer.com and returns it as a base64 data-URI.
  */
 
 export async function onRequestGet(context) {
@@ -9,20 +8,11 @@ export async function onRequestGet(context) {
     const email = url.searchParams.get('email');
 
     if (!email) {
-        return new Response(
-            JSON.stringify({ error: 'Missing email parameter' }),
-            {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            }
-        );
+        return jsonResponse({ error: 'Missing email parameter' }, 400);
     }
 
     try {
-        // QR Server API - free, fast, reliable
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(email)}&margin=10`;
-
-        // Fetch QR image and convert to base64
         const qrResponse = await fetch(qrUrl);
 
         if (!qrResponse.ok) {
@@ -30,33 +20,25 @@ export async function onRequestGet(context) {
         }
 
         const qrBuffer = await qrResponse.arrayBuffer();
-        const bytes = new Uint8Array(qrBuffer);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        const base64 = btoa(binary);
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(qrBuffer)));
 
-        return new Response(
-            JSON.stringify({
-                qr: `data:image/png;base64,${base64}`,
-                email: email
-            }),
-            {
-                status: 200,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'public, max-age=3600'
-                }
-            }
+        return jsonResponse(
+            { qr: `data:image/png;base64,${base64}`, email },
+            200,
+            { 'Cache-Control': 'public, max-age=3600' }
         );
     } catch (error) {
-        return new Response(
-            JSON.stringify({ error: 'QR generation failed: ' + error.message }),
-            {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            }
-        );
+        return jsonResponse({ error: 'QR generation failed: ' + error.message }, 500);
     }
+}
+
+function jsonResponse(data, status = 200, extra = {}) {
+    return new Response(JSON.stringify(data), {
+        status,
+        headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            ...extra
+        }
+    });
 }

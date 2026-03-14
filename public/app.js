@@ -254,22 +254,6 @@ function renderInbox() {
   $inboxBody.innerHTML = rows;
 }
 
-// ===== Skeleton Loader =====
-function showSkeletonLoader(rows = 3) {
-  if (!$inboxBody) return;
-  let html = '';
-  for (let i = 0; i < rows; i++) {
-    html += `
-      <div class="skeleton-row">
-        <div class="skeleton-cell short"></div>
-        <div class="skeleton-cell long"></div>
-        <div class="skeleton-cell tiny"></div>
-      </div>
-    `;
-  }
-  $inboxBody.innerHTML = html;
-}
-
 // ===== Parse Sender =====
 function parseSender(from, emailObj) {
   if (!from) return { name: 'Unknown', email: '' };
@@ -530,10 +514,24 @@ function escapeHtml(text) {
 
 function sanitizeHtml(html) {
   if (!html) return '';
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/javascript:/gi, '#')
-    .replace(/on\w+\s*=/gi, 'data-x=');
+  // Parse with the browser's own HTML parser — handles all edge cases regex cannot
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  // Remove dangerous element types entirely
+  doc.querySelectorAll(
+    'script, style, iframe, object, embed, form, input, button, meta, link[rel="stylesheet"]'
+  ).forEach(el => el.remove());
+  // Neutralize dangerous attributes on every remaining element
+  doc.querySelectorAll('*').forEach(el => {
+    [...el.attributes].forEach(attr => {
+      if (/^on\w+$/i.test(attr.name)) {
+        el.removeAttribute(attr.name);
+      } else if ((attr.name === 'href' || attr.name === 'src' || attr.name === 'action') &&
+                 /^\s*javascript:/i.test(attr.value)) {
+        attr.name === 'href' ? el.setAttribute('href', '#') : el.removeAttribute(attr.name);
+      }
+    });
+  });
+  return doc.body.innerHTML;
 }
 
 function linkify(text) {
@@ -621,7 +619,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-function showQR() { toggleQR(); }
 function closeQR() {
   document.getElementById('qr-dropdown')?.classList.add('hidden');
   document.getElementById('qr-dropdown-mobile')?.classList.add('hidden');
@@ -851,24 +848,6 @@ function renderSavedEmails(list) {
   });
 }
 
-async function addSavedEmail() {
-  const input = document.getElementById('new-saved-email');
-  const address = input.value.trim();
-  if (!address || !address.includes('@')) { showToast('❌ Enter a valid email address'); return; }
-  const token = localStorage.getItem('authToken');
-  if (!token) return;
-  try {
-    const res = await fetch('/api/user/saved-emails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ address })
-    });
-    const data = await res.json();
-    if (res.ok) { input.value = ''; renderSavedEmails(data.savedEmails); showToast('✅ Email saved!'); }
-    else showToast('❌ ' + (data.error || 'Error'));
-  } catch (e) { showToast('❌ Network error'); }
-}
-
 async function deleteSavedEmail(address) {
   const token = localStorage.getItem('authToken');
   if (!token) return;
@@ -950,9 +929,26 @@ function copyApiKey() {
     .catch(() => showToast('❌ Copy failed'));
 }
 
+/**
+ * Dismiss a modal with a fade-out animation, then hide it via display:none.
+ * Adds the `.hiding` class (which triggers the CSS @keyframes overlayFadeOut),
+ * then removes it once the animation ends (falling back to a timeout so the
+ * class is always cleaned up even when animationend doesn't fire).
+ */
+function _dismissModal(el) {
+  if (!el || !el.classList.contains('show')) return;
+  el.classList.remove('show');
+  el.classList.add('hiding');
+  const cleanup = () => el.classList.remove('hiding');
+  el.addEventListener('animationend', cleanup, { once: true });
+  // Safety fallback in case animationend doesn't fire
+  setTimeout(cleanup, 400);
+}
+
 function confirmSignOut() {
   const modal = document.getElementById('signout-confirm-modal');
   if (modal) {
+    modal.classList.remove('hiding');
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
   } else {
@@ -961,8 +957,7 @@ function confirmSignOut() {
 }
 
 function closeSignOutConfirm() {
-  const modal = document.getElementById('signout-confirm-modal');
-  if (modal) modal.classList.remove('show');
+  _dismissModal(document.getElementById('signout-confirm-modal'));
   document.body.style.overflow = '';
 }
 
@@ -1087,14 +1082,14 @@ function closeAbout() {
 async function openProfile() {
   const modal = document.getElementById('profile-modal');
   if (!modal) return;
+  modal.classList.remove('hiding');
   modal.classList.add('show');
   document.body.style.overflow = 'hidden';
   await loadProfileData();
 }
 
 function closeProfile() {
-  const modal = document.getElementById('profile-modal');
-  if (modal) modal.classList.remove('show');
+  _dismissModal(document.getElementById('profile-modal'));
   document.body.style.overflow = '';
 }
 
@@ -1346,13 +1341,13 @@ function showPremiumRequiredPrompt(message) {
     const isLoggedIn = !!localStorage.getItem('authToken');
     signInBtn.style.display = isLoggedIn ? 'none' : '';
   }
+  modal.classList.remove('hiding');
   modal.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 
 function closePremiumRequiredPrompt() {
-  const modal = document.getElementById('premium-required-modal');
-  if (modal) modal.classList.remove('show');
+  _dismissModal(document.getElementById('premium-required-modal'));
   document.body.style.overflow = '';
 }
 
@@ -1364,59 +1359,6 @@ function premiumRequiredSignIn() {
 function premiumRequiredGetPremium() {
   closePremiumRequiredPrompt();
   openPremium();
-}
-
-// ===== Permanent Emails (Premium) =====
-async function loadPermanentEmails() {
-  const token = localStorage.getItem('authToken');
-  if (!token) return;
-  const container = document.getElementById('perm-emails-list');
-  if (!container) return;
-  container.innerHTML = '<div class="pdash-loading">Loading…</div>';
-  try {
-    const res = await fetch('/api/user/saved-emails', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (!res.ok) { container.innerHTML = `<div class="pdash-loading">${escapeHtml(data.error || 'Error')}</div>`; return; }
-    const permEmails = (data.savedEmails || []).filter(e => e.address && e.address.endsWith(PERM_EMAIL_DOMAIN));
-    renderPermanentEmails(permEmails);
-  } catch (e) {
-    container.innerHTML = '<div class="pdash-loading">Failed to load.</div>';
-  }
-}
-
-function renderPermanentEmails(list) {
-  const container = document.getElementById('perm-emails-list');
-  if (!container) return;
-  if (list.length === 0) {
-    container.innerHTML = '<div class="pdash-loading">No permanent addresses yet. Create one above.</div>';
-    return;
-  }
-  container.innerHTML = '';
-  list.forEach(e => {
-    const item = document.createElement('div');
-    item.className = 'saved-email-item';
-    const addr = document.createElement('div');
-    addr.className = 'saved-email-addr';
-    addr.textContent = e.address;
-    const actions = document.createElement('div');
-    actions.className = 'saved-email-actions';
-    const useBtn = document.createElement('button');
-    useBtn.className = 'se-use-btn';
-    useBtn.textContent = '📥 Use';
-    useBtn.addEventListener('click', () => useSavedEmail(e.address));
-    const delBtn = document.createElement('button');
-    delBtn.className = 'se-rm-btn';
-    delBtn.textContent = '✕';
-    delBtn.title = 'Remove';
-    delBtn.addEventListener('click', () => deleteSavedEmail(e.address));
-    actions.appendChild(useBtn);
-    actions.appendChild(delBtn);
-    item.appendChild(addr);
-    item.appendChild(actions);
-    container.appendChild(item);
-  });
 }
 
 async function addPermanentEmail() {
