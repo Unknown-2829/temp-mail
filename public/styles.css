@@ -1407,8 +1407,7 @@ body {
   .logo-icon { font-size: 26px; }
   .logo-text { font-size: 20px; letter-spacing: 1px; }
 
-  /* Hide less-critical buttons to free up space */
-  .about-btn { display: none; }
+  /* Keep about-btn visible on all desktop sizes */
 
   .premium-btn {
     padding: 8px 14px;
@@ -3445,6 +3444,9 @@ button,
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+.pv-price-option:not(.featured) {
+  border: 2px solid #00c853;
 }
 .pv-price-option.featured {
   background: rgba(255,215,0,0.08);

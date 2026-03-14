@@ -667,16 +667,10 @@ function initAuthState() {
   if (!section) return;
 
   if (username) {
-    // Avatar: show first letter, gold if premium
+    // Avatar: hidden after login — Account button is the single account entry point
     if (avatarEl) {
-      avatarEl.textContent = username[0].toUpperCase();
-      avatarEl.title = `@${username}${isPremium ? ' (Premium)' : ''}`;
-      avatarEl.classList.remove('hidden');
-      if (isPremium) {
-        avatarEl.classList.add('premium-avatar');
-      } else {
-        avatarEl.classList.remove('premium-avatar');
-      }
+      avatarEl.classList.add('hidden');
+      avatarEl.classList.remove('premium-avatar');
     }
 
     statusText.textContent = isPremium
@@ -686,15 +680,9 @@ function initAuthState() {
     actionBtn.classList.remove('signout-btn');
     actionBtn.onclick = openProfile;
 
-    // Hide premium button for premium users; update label for non-premium
+    // Hide the dashboard/premium button after login
     if (premBtn) {
-      if (isPremium) {
-        premBtn.classList.remove('hidden');
-        premBtn.textContent = '⭐ Dashboard';
-      } else {
-        premBtn.classList.remove('hidden');
-        premBtn.textContent = '⭐ Get Premium';
-      }
+      premBtn.classList.add('hidden');
     }
 
     // Show/hide premium dashboard
