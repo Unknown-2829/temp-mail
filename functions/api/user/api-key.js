@@ -10,10 +10,10 @@ export async function onRequest(context) {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
     if (!token) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-    const session = await env.SESSIONS.get(token, { type: 'json' });
+    const session = await env.EMAILS.get(`session:${token}`, { type: 'json' });
     if (!session || session.expiresAt < Date.now()) return jsonResponse({ error: 'Session expired' }, 401);
 
-    const user = await env.USERS.get(session.username, { type: 'json' });
+    const user = await env.EMAILS.get(session.username, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
     switch (request.method) {
@@ -29,13 +29,13 @@ async function handleGet(user) {
 }
 
 async function handlePost(user, env, username) {
-    if (user.apiKey) await env.API_KEYS.delete(user.apiKey);
-
+    // API key info (userId, isPremium, rateLimit) is accessible via the user object,
+    // so we store the key alongside the user record rather than a separate KV binding.
     const newKey = generateApiKey();
-    await env.API_KEYS.put(newKey, JSON.stringify({ userId: username, isPremium: user.isPremium, createdAt: Date.now() }));
 
     user.apiKey = newKey;
-    await env.USERS.put(username, JSON.stringify(user));
+    user.apiKeyCreatedAt = Date.now();
+    await env.EMAILS.put(username, JSON.stringify(user));
 
     return jsonResponse({ success: true, apiKey: newKey, isPremium: user.isPremium, rateLimit: user.isPremium ? 10000 : 100 });
 }

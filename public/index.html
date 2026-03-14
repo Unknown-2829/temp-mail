@@ -30,7 +30,11 @@
       <span class="logo-text">Phantom <span class="logo-mail">MAIL</span></span>
     </div>
     <div class="header-actions">
-      <button class="premium-btn" onclick="openPremium()">Premium</button>
+      <button class="premium-btn" id="premium-header-btn" onclick="openPremium()">⭐ Premium</button>
+      <div class="auth-status-section" id="auth-status-section">
+        <span class="auth-status-text" id="auth-status-text"></span>
+        <button class="auth-action-btn" id="auth-action-btn"></button>
+      </div>
       <button class="about-btn" onclick="openAbout()">About</button>
     </div>
   </header>
@@ -149,7 +153,47 @@
     </div>
   </section>
 
-  <!-- Quote Section (After Inbox) -->
+  <!-- Premium Dashboard (shown when logged-in premium user) -->
+  <section class="premium-dashboard hidden" id="premium-dashboard">
+    <div class="container">
+      <div class="pdash-header">
+        <div class="pdash-title">⭐ Premium Dashboard</div>
+        <div class="pdash-user" id="pdash-username"></div>
+      </div>
+
+      <div class="pdash-tabs">
+        <button class="pdash-tab active" onclick="switchPDashTab('saved')">📁 Saved Emails</button>
+        <button class="pdash-tab" onclick="switchPDashTab('apikey')">🔌 API Key</button>
+      </div>
+
+      <!-- Saved Emails Tab -->
+      <div class="pdash-panel" id="pdash-saved">
+        <div class="pdash-section">
+          <div class="pdash-section-title">Permanent Email Addresses <span class="pdash-count" id="saved-email-count">0/8</span></div>
+          <div class="pdash-add-row">
+            <input type="text" id="new-saved-email" class="pdash-input" placeholder="Enter email address (e.g. myname@dropmail.me)">
+            <button class="pdash-add-btn" onclick="addSavedEmail()">+ Save</button>
+          </div>
+          <div id="saved-emails-list" class="saved-emails-list">
+            <div class="pdash-loading">Loading your saved emails…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API Key Tab -->
+      <div class="pdash-panel hidden" id="pdash-apikey">
+        <div class="pdash-section">
+          <div class="pdash-section-title">Developer API Key</div>
+          <p class="pdash-section-sub">Use this key to generate temporary emails via the API. Rate limit: 1,000 requests/day.</p>
+          <div class="apikey-display" id="apikey-display">
+            <div class="pdash-loading">Loading API key…</div>
+          </div>
+          <button class="pdash-gen-btn" onclick="generateApiKey()">🔄 Generate New Key</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="quote-section">
     <div class="container">
       <div class="quote-box">
