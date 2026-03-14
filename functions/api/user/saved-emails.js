@@ -60,6 +60,10 @@ async function handlePost(request, user, env, username) {
     if (savedEmails.length >= 8) return jsonResponse({ error: 'Maximum 8 saved emails allowed' }, 400);
     if (savedEmails.some(e => e.address === address)) return jsonResponse({ error: 'Email already saved' }, 400);
 
+    // Check if this address is already reserved by any other premium user
+    const existing = await env.EMAILS.get(address, { type: 'json' });
+    if (existing && existing.isPermanent) return jsonResponse({ error: 'This email address is already taken by another user' }, 409);
+
     savedEmails.push({ address, customName: customName || address.split('@')[0], savedAt: Date.now(), forwarding: null });
     user.savedEmails = savedEmails;
     await env.EMAILS.put(username, JSON.stringify(user));
