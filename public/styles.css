@@ -307,6 +307,17 @@ body {
   transform: scale(0.95) translateY(0);
 }
 
+/* Save Email button — always visible, tinted green */
+.action-btn-small.save-email-btn {
+  background: rgba(0, 208, 156, 0.1);
+  border-color: rgba(0, 208, 156, 0.3);
+  color: #00d09c;
+}
+.action-btn-small.save-email-btn:hover {
+  background: rgba(0, 208, 156, 0.2);
+  border-color: #00d09c;
+}
+
 .tagline {
   color: #888;
   font-size: 15px;
@@ -2447,7 +2458,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 110px;
+  cursor: pointer;
+  transition: color 0.2s;
 }
+.auth-status-text:hover { color: #fff; }
 
 .auth-action-btn {
   background: transparent;
@@ -2510,9 +2524,14 @@ body {
   flex-shrink: 0;
   letter-spacing: 0;
   text-transform: uppercase;
-  cursor: default;
+  cursor: pointer;
   user-select: none;
+  transition: opacity 0.2s, transform 0.15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
+.user-avatar:hover { opacity: 0.85; transform: scale(1.05); }
+.user-avatar:active { transform: scale(0.95); }
 
 .user-avatar.premium-avatar {
   background: linear-gradient(135deg, #ffd700, #ff8c00);
@@ -2732,6 +2751,31 @@ body {
   color: #ff6b6b;
 }
 
+/* Small ✕ remove button (replaces 🗑️ delete) */
+.se-rm-btn {
+  background: transparent;
+  border: 1px solid rgba(255,107,107,0.2);
+  color: #666;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.se-rm-btn:hover {
+  background: rgba(255,107,107,0.12);
+  border-color: rgba(255,107,107,0.5);
+  color: #ff6b6b;
+}
+
+.se-rm-btn:active { transform: scale(0.94); }
+
 .pdash-loading {
   color: #666;
   font-size: 13px;
@@ -2834,7 +2878,7 @@ body {
     width: 100%;
   }
 
-  .se-use-btn, .se-del-btn {
+  .se-use-btn, .se-del-btn, .se-rm-btn {
     flex: 1;
     text-align: center;
   }
@@ -3280,6 +3324,7 @@ button,
 .profile-btn,
 .se-use-btn,
 .se-del-btn,
+.se-rm-btn,
 .pdash-add-btn,
 .pdash-gen-btn,
 .forwarding-save-btn,
@@ -3292,7 +3337,6 @@ button,
 .pdash-tab:active { transform: scale(0.96); }
 .pdash-add-btn:active { transform: scale(0.96); }
 .se-use-btn:active { transform: scale(0.96); }
-.se-del-btn:active { transform: scale(0.96); }
 .forwarding-save-btn:active { transform: scale(0.96); }
 .pdash-gen-btn:active { transform: scale(0.96); }
 .apikey-copy-btn:active { transform: scale(0.96); }

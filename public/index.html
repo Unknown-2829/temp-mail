@@ -32,9 +32,9 @@
     <div class="header-actions">
       <button class="premium-btn" id="premium-header-btn" onclick="openPremium()">⭐ Premium</button>
       <div class="auth-status-section" id="auth-status-section">
-        <span class="user-avatar hidden" id="user-avatar" title="" onclick="openProfile()" style="cursor:pointer;"></span>
+        <span class="user-avatar hidden" id="user-avatar" title="" onclick="openProfile()"></span>
         <button class="profile-btn hidden" id="profile-btn" onclick="openProfile()">👤 Profile</button>
-        <span class="auth-status-text" id="auth-status-text" onclick="openProfile()" style="cursor:pointer;"></span>
+        <span class="auth-status-text" id="auth-status-text" onclick="openProfile()"></span>
         <button class="auth-action-btn" id="auth-action-btn" onclick="openAuth()">🔐 Sign In</button>
       </div>
       <button class="about-btn" onclick="openAbout()">About</button>
@@ -104,10 +104,7 @@
           <button class="action-btn-small" onclick="regenerateEmail()" title="Regenerate">
             <span>✨</span> New
           </button>
-          <button class="action-btn-small" onclick="deleteEmail()" title="Delete">
-            <span>🗑️</span> Delete
-          </button>
-          <button class="action-btn-small save-email-btn hidden" id="save-email-btn" onclick="saveCurrentEmail()" title="Save to Account">
+          <button class="action-btn-small save-email-btn" id="save-email-btn" onclick="saveCurrentEmail()" title="Save to Account">
             <span>💾</span> Save Email
           </button>
         </div>
@@ -464,6 +461,19 @@
       <div class="confirm-actions">
         <button class="confirm-cancel-btn" onclick="closeSignOutConfirm()">Cancel</button>
         <button class="confirm-ok-btn danger" onclick="doSignOut()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Premium Required Prompt -->
+  <div class="confirm-modal" id="premium-required-modal" onclick="if(event.target===this)closePremiumRequiredPrompt()">
+    <div class="confirm-box">
+      <div class="confirm-icon">⭐</div>
+      <h3 class="confirm-title">Premium Required</h3>
+      <p class="confirm-msg" id="premium-required-msg">Sign in and get Premium to save emails permanently.</p>
+      <div class="confirm-actions">
+        <button class="confirm-cancel-btn" onclick="premiumRequiredSignIn()">🔐 Sign In</button>
+        <button class="confirm-ok-btn" onclick="premiumRequiredGetPremium()">⭐ Get Premium</button>
       </div>
     </div>
   </div>

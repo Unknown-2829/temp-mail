@@ -64,11 +64,12 @@ export async function onRequestPatch(context) {
     const { oldPassword, newPassword } = body;
     if (!oldPassword || !newPassword) return jsonResponse({ error: 'Old and new passwords are required' }, 400);
     if (newPassword.length < 8) return jsonResponse({ error: 'New password must be at least 8 characters' }, 400);
-    if (oldPassword === newPassword) return jsonResponse({ error: 'New password must be different from the current password' }, 400);
 
-    // Verify old password
+    // Verify old password first, then validate new password
     const oldHash = await hashPassword(oldPassword, user.salt);
     if (oldHash !== user.passwordHash) return jsonResponse({ error: 'Incorrect current password' }, 401);
+
+    if (oldPassword === newPassword) return jsonResponse({ error: 'New password must be different from the current password' }, 400);
 
     // Update password with a fresh salt
     const newSalt = crypto.randomUUID().replace(/-/g, '');
@@ -102,9 +103,13 @@ export async function onRequestDelete(context) {
     const hash = await hashPassword(password, user.salt);
     if (hash !== user.passwordHash) return jsonResponse({ error: 'Incorrect password' }, 401);
 
-    // Delete user record and current session
-    await env.EMAILS.delete(session.username);
-    await env.EMAILS.delete(`session:${token}`);
+    // Delete user record, current session, and all standalone email address records
+    const savedEmails = user.savedEmails || [];
+    await Promise.all([
+      env.EMAILS.delete(session.username),
+      env.EMAILS.delete(`session:${token}`),
+      ...savedEmails.map(e => env.EMAILS.delete(e.address))
+    ]);
 
     return jsonResponse({ success: true });
 }

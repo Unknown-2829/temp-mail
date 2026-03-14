@@ -698,9 +698,6 @@ function initAuthState() {
     const profileBtn = document.getElementById('profile-btn');
     if (profileBtn) profileBtn.classList.remove('hidden');
 
-    const saveBtn = document.getElementById('save-email-btn');
-    if (saveBtn) saveBtn.classList.remove('hidden');
-
     // Refresh premium status from server in background (handles admin-granted premium)
     refreshPremiumStatus();
   } else {
@@ -723,9 +720,6 @@ function initAuthState() {
 
     const profileBtn = document.getElementById('profile-btn');
     if (profileBtn) profileBtn.classList.add('hidden');
-
-    const saveBtn = document.getElementById('save-email-btn');
-    if (saveBtn) saveBtn.classList.add('hidden');
 
     // Hide premium dashboard
     const dash = document.getElementById('premium-dashboard');
@@ -843,8 +837,9 @@ function renderSavedEmails(list) {
     useBtn.addEventListener('click', () => useSavedEmail(e.address));
 
     const delBtn = document.createElement('button');
-    delBtn.className = 'se-del-btn';
-    delBtn.textContent = '🗑️';
+    delBtn.className = 'se-rm-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove';
     delBtn.addEventListener('click', () => deleteSavedEmail(e.address));
 
     actions.appendChild(useBtn);
@@ -953,8 +948,6 @@ function copyApiKey() {
     .then(() => showToast('📋 API key copied!'))
     .catch(() => showToast('❌ Copy failed'));
 }
-
-function signOut() { confirmSignOut(); }
 
 function confirmSignOut() {
   const modal = document.getElementById('signout-confirm-modal');
@@ -1320,9 +1313,15 @@ async function deleteAccount() {
 async function saveCurrentEmail() {
   if (!currentEmail) { showToast('❌ No email to save'); return; }
   const token = localStorage.getItem('authToken');
-  if (!token) { showToast('🔐 Sign in first'); openAuth(); return; }
+  if (!token) {
+    showPremiumRequiredPrompt('🔐 Sign in & get Premium to save emails permanently.');
+    return;
+  }
   const isPremium = localStorage.getItem('isPremium') === 'true';
-  if (!isPremium) { showToast('⭐ Premium required to save emails'); openPremium(); return; }
+  if (!isPremium) {
+    showPremiumRequiredPrompt('⭐ Premium required to save emails permanently.');
+    return;
+  }
   try {
     const res = await fetch('/api/user/saved-emails', {
       method: 'POST',
@@ -1333,6 +1332,31 @@ async function saveCurrentEmail() {
     if (res.ok) { showToast('✅ Email saved to your account!'); }
     else showToast('❌ ' + (data.error || 'Could not save'));
   } catch (e) { showToast('❌ Network error'); }
+}
+
+function showPremiumRequiredPrompt(message) {
+  const modal = document.getElementById('premium-required-modal');
+  const msg = document.getElementById('premium-required-msg');
+  if (!modal) { openPremium(); return; }
+  if (msg) msg.textContent = message;
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePremiumRequiredPrompt() {
+  const modal = document.getElementById('premium-required-modal');
+  if (modal) modal.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function premiumRequiredSignIn() {
+  closePremiumRequiredPrompt();
+  openAuth();
+}
+
+function premiumRequiredGetPremium() {
+  closePremiumRequiredPrompt();
+  openPremium();
 }
 
 // ===== Permanent Emails (Premium) =====
@@ -1376,8 +1400,9 @@ function renderPermanentEmails(list) {
     useBtn.textContent = '📥 Use';
     useBtn.addEventListener('click', () => useSavedEmail(e.address));
     const delBtn = document.createElement('button');
-    delBtn.className = 'se-del-btn';
-    delBtn.textContent = '🗑️';
+    delBtn.className = 'se-rm-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove';
     delBtn.addEventListener('click', () => deleteSavedEmail(e.address));
     actions.appendChild(useBtn);
     actions.appendChild(delBtn);
@@ -1536,7 +1561,8 @@ async function clearForwarding(address) {
 // ===== Global Key/Click Listeners =====
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth(); closeProfile(); closeSignOutConfirm();
+    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth(); closeProfile();
+    closeSignOutConfirm(); closePremiumRequiredPrompt();
   }
 });
 
