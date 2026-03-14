@@ -680,7 +680,7 @@ function initAuthState() {
       : `@${username}`;
     actionBtn.textContent = 'Sign Out';
     actionBtn.classList.add('signout-btn');
-    actionBtn.onclick = signOut;
+    actionBtn.onclick = confirmSignOut;
 
     // Hide premium button for premium users; update label for non-premium
     if (premBtn) {
@@ -697,12 +697,6 @@ function initAuthState() {
 
     const profileBtn = document.getElementById('profile-btn');
     if (profileBtn) profileBtn.classList.remove('hidden');
-
-    const saveBtn = document.getElementById('save-email-btn');
-    if (saveBtn) {
-      if (isPremium) saveBtn.classList.remove('hidden');
-      else saveBtn.classList.add('hidden');
-    }
 
     // Refresh premium status from server in background (handles admin-granted premium)
     refreshPremiumStatus();
@@ -726,9 +720,6 @@ function initAuthState() {
 
     const profileBtn = document.getElementById('profile-btn');
     if (profileBtn) profileBtn.classList.add('hidden');
-
-    const saveBtn = document.getElementById('save-email-btn');
-    if (saveBtn) saveBtn.classList.add('hidden');
 
     // Hide premium dashboard
     const dash = document.getElementById('premium-dashboard');
@@ -846,8 +837,9 @@ function renderSavedEmails(list) {
     useBtn.addEventListener('click', () => useSavedEmail(e.address));
 
     const delBtn = document.createElement('button');
-    delBtn.className = 'se-del-btn';
-    delBtn.textContent = '🗑️';
+    delBtn.className = 'se-rm-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove';
     delBtn.addEventListener('click', () => deleteSavedEmail(e.address));
 
     actions.appendChild(useBtn);
@@ -957,7 +949,24 @@ function copyApiKey() {
     .catch(() => showToast('❌ Copy failed'));
 }
 
-function signOut() {
+function confirmSignOut() {
+  const modal = document.getElementById('signout-confirm-modal');
+  if (modal) {
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  } else {
+    doSignOut();
+  }
+}
+
+function closeSignOutConfirm() {
+  const modal = document.getElementById('signout-confirm-modal');
+  if (modal) modal.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function doSignOut() {
+  closeSignOutConfirm();
   localStorage.removeItem('authToken');
   localStorage.removeItem('username');
   localStorage.removeItem('isPremium');
@@ -1162,18 +1171,157 @@ function renderProfileData(data) {
       </div>
       ` : ''}
     </div>
+
+    <!-- Change Password -->
+    <div class="profile-section">
+      <div class="profile-section-title">🔑 Change Password</div>
+      <div class="profile-form" id="change-pw-form">
+        <input type="password" id="pw-old" class="profile-input" placeholder="Current password" autocomplete="current-password">
+        <input type="password" id="pw-new" class="profile-input" placeholder="New password (min 8 chars)" autocomplete="new-password">
+        <input type="password" id="pw-confirm" class="profile-input" placeholder="Confirm new password" autocomplete="new-password">
+        <p class="profile-form-error hidden" id="pw-error"></p>
+        <button class="profile-form-btn" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+
     <div class="profile-actions">
       ${!isPremium ? `<button class="profile-action-btn" onclick="closeProfile();openPremium();">⭐ Upgrade to Premium</button>` : ''}
-      <button class="profile-action-btn danger" onclick="closeProfile();signOut();">Sign Out</button>
+      <button class="profile-action-btn danger" onclick="closeProfile();confirmSignOut();">Sign Out</button>
+    </div>
+
+    <!-- Delete Account -->
+    <div class="profile-section profile-danger-zone">
+      <div class="profile-section-title danger">⚠️ Danger Zone</div>
+      <p class="profile-danger-desc">Deleting your account is permanent and cannot be undone. All saved emails and settings will be removed.</p>
+      <button class="profile-action-btn danger" onclick="showDeleteAccountForm()">🗑️ Delete Account</button>
+      <div class="profile-form hidden" id="delete-account-form">
+        <input type="password" id="del-pw" class="profile-input" placeholder="Enter your password to confirm" autocomplete="current-password">
+        <p class="profile-form-error hidden" id="del-error"></p>
+        <div class="confirm-actions" style="margin-top:10px;">
+          <button class="confirm-cancel-btn" onclick="hideDeleteAccountForm()">Cancel</button>
+          <button class="confirm-ok-btn danger" onclick="deleteAccount()">Delete My Account</button>
+        </div>
+      </div>
     </div>
   `;
 }
 
-// ===== Save Current Email (Premium) =====
+// ===== Change Password =====
+async function changePassword() {
+  const oldPw = document.getElementById('pw-old')?.value || '';
+  const newPw = document.getElementById('pw-new')?.value || '';
+  const confirmPw = document.getElementById('pw-confirm')?.value || '';
+  const errEl = document.getElementById('pw-error');
+
+  if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
+
+  if (!oldPw || !newPw || !confirmPw) {
+    if (errEl) { errEl.textContent = 'All fields are required.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (newPw.length < 8) {
+    if (errEl) { errEl.textContent = 'New password must be at least 8 characters.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (newPw !== confirmPw) {
+    if (errEl) { errEl.textContent = 'New passwords do not match.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+
+  const btn = document.querySelector('#change-pw-form .profile-form-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
+
+  try {
+    const res = await fetch('/api/user/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('pw-old').value = '';
+      document.getElementById('pw-new').value = '';
+      document.getElementById('pw-confirm').value = '';
+      showToast('✅ Password updated!');
+    } else {
+      if (errEl) { errEl.textContent = data.error || 'Failed to update password.'; errEl.classList.remove('hidden'); }
+    }
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Network error. Try again.'; errEl.classList.remove('hidden'); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Update Password'; }
+  }
+}
+
+// ===== Delete Account =====
+function showDeleteAccountForm() {
+  const form = document.getElementById('delete-account-form');
+  if (form) form.classList.remove('hidden');
+}
+
+function hideDeleteAccountForm() {
+  const form = document.getElementById('delete-account-form');
+  if (form) { form.classList.add('hidden'); document.getElementById('del-pw').value = ''; }
+  const errEl = document.getElementById('del-error');
+  if (errEl) errEl.classList.add('hidden');
+}
+
+async function deleteAccount() {
+  const pw = document.getElementById('del-pw')?.value || '';
+  const errEl = document.getElementById('del-error');
+  if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
+
+  if (!pw) {
+    if (errEl) { errEl.textContent = 'Password is required.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+
+  const btn = document.querySelector('#delete-account-form .confirm-ok-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+
+  try {
+    const res = await fetch('/api/user/profile', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ password: pw })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      closeProfile();
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('username');
+      localStorage.removeItem('isPremium');
+      initAuthState();
+      showToast('🗑️ Account deleted.');
+    } else {
+      if (errEl) { errEl.textContent = data.error || 'Failed to delete account.'; errEl.classList.remove('hidden'); }
+    }
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Network error. Try again.'; errEl.classList.remove('hidden'); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete My Account'; }
+  }
+}
+
+
 async function saveCurrentEmail() {
   if (!currentEmail) { showToast('❌ No email to save'); return; }
   const token = localStorage.getItem('authToken');
-  if (!token) { showToast('🔐 Sign in first'); return; }
+  if (!token) {
+    showPremiumRequiredPrompt('🔐 Sign in & get Premium to save emails permanently.');
+    return;
+  }
+  const isPremium = localStorage.getItem('isPremium') === 'true';
+  if (!isPremium) {
+    showPremiumRequiredPrompt('⭐ Premium required to save emails permanently.');
+    return;
+  }
   try {
     const res = await fetch('/api/user/saved-emails', {
       method: 'POST',
@@ -1184,6 +1332,31 @@ async function saveCurrentEmail() {
     if (res.ok) { showToast('✅ Email saved to your account!'); }
     else showToast('❌ ' + (data.error || 'Could not save'));
   } catch (e) { showToast('❌ Network error'); }
+}
+
+function showPremiumRequiredPrompt(message) {
+  const modal = document.getElementById('premium-required-modal');
+  const msg = document.getElementById('premium-required-msg');
+  if (!modal) { openPremium(); return; }
+  if (msg) msg.textContent = message;
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePremiumRequiredPrompt() {
+  const modal = document.getElementById('premium-required-modal');
+  if (modal) modal.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function premiumRequiredSignIn() {
+  closePremiumRequiredPrompt();
+  openAuth();
+}
+
+function premiumRequiredGetPremium() {
+  closePremiumRequiredPrompt();
+  openPremium();
 }
 
 // ===== Permanent Emails (Premium) =====
@@ -1227,8 +1400,9 @@ function renderPermanentEmails(list) {
     useBtn.textContent = '📥 Use';
     useBtn.addEventListener('click', () => useSavedEmail(e.address));
     const delBtn = document.createElement('button');
-    delBtn.className = 'se-del-btn';
-    delBtn.textContent = '🗑️';
+    delBtn.className = 'se-rm-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove';
     delBtn.addEventListener('click', () => deleteSavedEmail(e.address));
     actions.appendChild(useBtn);
     actions.appendChild(delBtn);
@@ -1388,6 +1562,7 @@ async function clearForwarding(address) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth(); closeProfile();
+    closeSignOutConfirm(); closePremiumRequiredPrompt();
   }
 });
 

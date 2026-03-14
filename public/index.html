@@ -32,9 +32,9 @@
     <div class="header-actions">
       <button class="premium-btn" id="premium-header-btn" onclick="openPremium()">⭐ Premium</button>
       <div class="auth-status-section" id="auth-status-section">
-        <span class="user-avatar hidden" id="user-avatar" title=""></span>
+        <span class="user-avatar hidden" id="user-avatar" title="" onclick="openProfile()"></span>
         <button class="profile-btn hidden" id="profile-btn" onclick="openProfile()">👤 Profile</button>
-        <span class="auth-status-text" id="auth-status-text"></span>
+        <span class="auth-status-text" id="auth-status-text" onclick="openProfile()"></span>
         <button class="auth-action-btn" id="auth-action-btn" onclick="openAuth()">🔐 Sign In</button>
       </div>
       <button class="about-btn" onclick="openAbout()">About</button>
@@ -104,10 +104,7 @@
           <button class="action-btn-small" onclick="regenerateEmail()" title="Regenerate">
             <span>✨</span> New
           </button>
-          <button class="action-btn-small" onclick="deleteEmail()" title="Delete">
-            <span>🗑️</span> Delete
-          </button>
-          <button class="action-btn-small save-email-btn hidden" id="save-email-btn" onclick="saveCurrentEmail()" title="Save to Account">
+          <button class="action-btn-small save-email-btn" id="save-email-btn" onclick="saveCurrentEmail()" title="Save to Account">
             <span>💾</span> Save Email
           </button>
         </div>
@@ -252,6 +249,7 @@
         <a href="https://t.me/unknownlll2829" target="_blank" class="footer-btn primary">📩 Contact Developer</a>
         <a href="https://buymeacoffee.com/unknownlll2829" target="_blank" class="footer-btn coffee">☕ Buy me a
           Coffee</a>
+        <a href="/api-docs.html" target="_blank" class="footer-btn api-docs">🔌 API Docs</a>
       </div>
       <p class="footer-copy">© 2026 Phantom Mail. All rights reserved.</p>
     </div>
@@ -292,9 +290,16 @@
       </ul>
 
       <div class="pv-pricing">
-        <span class="pv-price-tag">From <strong>$3</strong><small>/mo</small></span>
-        <span class="pv-price-or">·</span>
-        <span class="pv-price-tag"><strong>$20</strong><small>/yr</small> <span class="pv-save">Save 45%</span></span>
+        <div class="pv-price-option">
+          <div class="pv-price-label">Monthly</div>
+          <div class="pv-price-amount"><strong>$3</strong><small>/mo</small></div>
+        </div>
+        <div class="pv-price-divider">or</div>
+        <div class="pv-price-option featured">
+          <div class="pv-price-label">Yearly <span class="pv-save">Save 45%</span></div>
+          <div class="pv-price-amount"><strong>$20</strong><small>/yr</small></div>
+          <div class="pv-price-sub">~$1.67/mo</div>
+        </div>
       </div>
 
       <a class="pv-cta" href="/premium.html" target="_blank" rel="noopener" onclick="closePremiumPreview()">
@@ -443,6 +448,32 @@
       </div>
       <div class="profile-body" id="profile-body">
         <div class="profile-loading">Loading profile…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign-out Confirm Modal -->
+  <div class="confirm-modal" id="signout-confirm-modal" onclick="if(event.target===this)closeSignOutConfirm()">
+    <div class="confirm-box">
+      <div class="confirm-icon">👋</div>
+      <h3 class="confirm-title">Sign Out?</h3>
+      <p class="confirm-msg">Are you sure you want to sign out of your account?</p>
+      <div class="confirm-actions">
+        <button class="confirm-cancel-btn" onclick="closeSignOutConfirm()">Cancel</button>
+        <button class="confirm-ok-btn danger" onclick="doSignOut()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Premium Required Prompt -->
+  <div class="confirm-modal" id="premium-required-modal" onclick="if(event.target===this)closePremiumRequiredPrompt()">
+    <div class="confirm-box">
+      <div class="confirm-icon">⭐</div>
+      <h3 class="confirm-title">Premium Required</h3>
+      <p class="confirm-msg" id="premium-required-msg">Sign in and get Premium to save emails permanently.</p>
+      <div class="confirm-actions">
+        <button class="confirm-cancel-btn" onclick="premiumRequiredSignIn()">🔐 Sign In</button>
+        <button class="confirm-ok-btn" onclick="premiumRequiredGetPremium()">⭐ Get Premium</button>
       </div>
     </div>
   </div>
