@@ -802,7 +802,7 @@
           <div class="price-name">Monthly</div>
           <div class="price-amount">$3<sub>/mo</sub></div>
         </div>
-        <div class="prem-price-card featured selected" id="pp-yearly" onclick="ppSelectPlan('yearly')">
+        <div class="prem-price-card featured" id="pp-yearly" onclick="ppSelectPlan('yearly')">
           <div class="price-badge">Best Value — Save 45%</div>
           <div class="price-name">Yearly</div>
           <div class="price-amount">$20<sub>/yr</sub></div>
@@ -935,7 +935,7 @@
       sol: 'Network: Solana (SOL)'
     };
 
-    let ppState = { plan: 'yearly', price: 20, step: 1, coin: 'btc' };
+    let ppState = { plan: null, price: 0, step: 1, coin: 'btc' };
 
     /* ---- Init on load ---- */
     document.addEventListener('DOMContentLoaded', () => {
@@ -955,9 +955,7 @@
         return;
       }
 
-      // Ensure yearly plan is visually selected by default
-      ppSelectPlan('yearly');
-
+      // No plan pre-selected — user must choose
       // Start at step 1 (plan selection)
       ppGoStep(1);
     });
