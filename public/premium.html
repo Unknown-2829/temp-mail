@@ -811,6 +811,7 @@
       </div>
 
       <button class="prem-cta-btn" onclick="ppContinueFromPlan()">Continue →</button>
+      <p id="pp-plan-err" style="color:#ff6b6b;font-size:13px;margin-top:10px;text-align:center;display:none;">Please select a plan to continue.</p>
     </div>
 
     <!-- STEP 2: Account -->
@@ -990,13 +991,18 @@
 
       document.getElementById('pp-monthly').classList.toggle('selected', plan === 'monthly');
       document.getElementById('pp-yearly').classList.toggle('selected', plan === 'yearly');
+
+      // Clear any plan selection error when user picks a plan
+      const errEl = document.getElementById('pp-plan-err');
+      if (errEl) errEl.style.display = 'none';
     }
 
     function ppContinueFromPlan() {
       if (!ppState.plan) {
-        alert('Please select a plan to continue.');
+        document.getElementById('pp-plan-err').style.display = 'block';
         return;
       }
+      document.getElementById('pp-plan-err').style.display = 'none';
       if (localStorage.getItem('authToken')) {
         ppUpdateCheckout();
         ppGoStep(3);
