@@ -14,6 +14,9 @@ export async function onRequestGet(context) {
     }
 
     // Validate API key
+    if (!env.API_KEYS) {
+        return jsonResponse({ error: 'Service unavailable' }, 503);
+    }
     const keyData = await env.API_KEYS.get(apiKey, { type: 'json' });
     if (!keyData) {
         return jsonResponse({ error: 'Invalid API key' }, 401);
@@ -25,6 +28,11 @@ export async function onRequestGet(context) {
 
         if (!address) {
             return jsonResponse({ error: 'Address parameter required' }, 400);
+        }
+
+        // Validate address format
+        if (address.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+            return jsonResponse({ error: 'Invalid email address format' }, 400);
         }
 
         // Verify email exists

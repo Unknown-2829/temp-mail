@@ -15,12 +15,18 @@ export async function onRequestPost(context) {
     }
 
     // Validate API key
+    if (!env.API_KEYS) {
+        return jsonResponse({ error: 'Service unavailable' }, 503);
+    }
     const keyData = await env.API_KEYS.get(apiKey, { type: 'json' });
     if (!keyData) {
         return jsonResponse({ error: 'Invalid API key' }, 401);
     }
 
     // Check rate limit (100/day free)
+    if (!env.API_USAGE) {
+        return jsonResponse({ error: 'Service unavailable' }, 503);
+    }
     const today = new Date().toISOString().split('T')[0];
     const usageKey = `usage:${apiKey}:${today}`;
     let usage = parseInt(await env.API_USAGE.get(usageKey) || '0');
@@ -32,7 +38,12 @@ export async function onRequestPost(context) {
 
     try {
         let email;
-        const body = await request.json().catch(() => ({}));
+        let body = {};
+        try {
+            body = await request.json();
+        } catch {
+            body = {};
+        }
 
         // Custom username (premium only)
         if (body.username) {
