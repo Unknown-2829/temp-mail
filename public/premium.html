@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Get Phantom Mail Premium</title>
+  <meta name="description" content="Upgrade to Phantom Mail Premium for permanent emails, custom usernames, API access and more.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📬</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0d0d1a;
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    /* ---- Top Nav ---- */
+    .prem-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(13,13,26,0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .prem-nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .prem-nav-logo span { color: #00d09c; }
+
+    .prem-nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-back-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #ccc;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .nav-back-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+    .nav-user-badge {
+      background: rgba(0,208,156,0.12);
+      border: 1px solid rgba(0,208,156,0.3);
+      color: #00d09c;
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      display: none;
+    }
+    .nav-user-badge.show { display: inline-flex; align-items: center; gap: 6px; }
+
+    /* ---- Hero ---- */
+    .prem-hero {
+      text-align: center;
+      padding: 60px 20px 40px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(255,215,0,0.06) 0%, transparent 70%);
+    }
+
+    .prem-hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,215,0,0.1);
+      border: 1px solid rgba(255,215,0,0.3);
+      color: #ffd700;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .prem-hero h1 {
+      font-size: clamp(28px, 6vw, 48px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 14px;
+      line-height: 1.15;
+    }
+
+    .prem-hero h1 .gold {
+      background: linear-gradient(to right, #ffd700, #ff8c00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .prem-hero p {
+      color: #8b8baf;
+      font-size: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ---- Progress Steps ---- */
+    .prem-steps-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 24px 20px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .prem-step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      position: relative;
+    }
+
+    .prem-step-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      right: -50%;
+      height: 2px;
+      background: rgba(255,255,255,0.1);
+      transition: background 0.4s;
+    }
+
+    .prem-step-item.done:not(:last-child)::after,
+    .prem-step-item.active:not(:last-child)::after {
+      background: rgba(0,208,156,0.4);
+    }
+
+    .prem-step-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #555;
+      background: #1a1a2e;
+      transition: all 0.3s;
+      position: relative;
+      z-index: 1;
+    }
+
+    .prem-step-item.active .prem-step-circle {
+      border-color: #00d09c;
+      color: #00d09c;
+      box-shadow: 0 0 12px rgba(0,208,156,0.35);
+    }
+
+    .prem-step-item.done .prem-step-circle {
+      border-color: #00d09c;
+      background: #00d09c;
+      color: #fff;
+    }
+
+    .prem-step-label {
+      font-size: 11px;
+      color: #555;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .prem-step-item.active .prem-step-label { color: #00d09c; }
+    .prem-step-item.done .prem-step-label { color: #00d09c; }
+
+    /* ---- Content ---- */
+    .prem-content {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+    }
+
+    /* ---- Step Panels ---- */
+    .prem-panel { display: none; }
+    .prem-panel.active { display: block; animation: fadeUp 0.4s ease forwards; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Glass card */
+    .glass-card {
+      background: rgba(26,26,46,0.8);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* ---- Features Grid (Step 1) ---- */
+    .prem-features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .prem-feat {
+      background: rgba(26,26,46,0.6);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .prem-feat:hover {
+      border-color: rgba(0,208,156,0.3);
+      transform: translateY(-2px);
+    }
+
+    .prem-feat-ico { font-size: 26px; flex-shrink: 0; }
+
+    .prem-feat-text strong {
+      display: block;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    .prem-feat-text span { color: #888; font-size: 12px; }
+
+    /* ---- Compare table ---- */
+    .prem-compare {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 28px;
+    }
+
+    .comp-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      padding: 14px 20px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      align-items: center;
+    }
+
+    .comp-row:last-child { border-bottom: none; }
+
+    .comp-head {
+      background: rgba(0,0,0,0.3);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .comp-head .c-prem { color: #ffd700; }
+    .comp-head .c-free { color: #666; }
+    .comp-head .c-feat { color: #888; }
+
+    .c-feat { color: #ccc; }
+    .c-free { text-align: center; color: #666; }
+    .c-prem { text-align: center; color: #fff; font-weight: 600; }
+    .c-check { color: #00d09c; margin-right: 4px; }
+
+    /* ---- Pricing Cards ---- */
+    .prem-pricing {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .prem-price-card {
+      flex: 1;
+      background: rgba(20,20,35,0.7);
+      border: 2px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .prem-price-card:hover {
+      border-color: rgba(255,255,255,0.2);
+      transform: translateY(-4px);
+    }
+
+    .prem-price-card.featured {
+      border-color: rgba(255,215,0,0.25);
+      background: linear-gradient(160deg, rgba(20,20,35,0.9) 0%, rgba(255,215,0,0.04) 100%);
+    }
+
+    .prem-price-card.selected {
+      border-color: #00d09c !important;
+      box-shadow: 0 0 0 1px #00d09c, 0 12px 30px rgba(0,208,156,0.2);
+    }
+
+    .prem-price-card.featured.selected {
+      border-color: #ffd700 !important;
+      box-shadow: 0 0 0 2px #ffd700, 0 15px 35px rgba(255,215,0,0.2);
+    }
+
+    .price-badge {
+      position: absolute;
+      top: -13px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, #ffd700, #ffa500);
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 5px 14px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+    }
+
+    .price-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #aaa;
+      margin-bottom: 10px;
+    }
+
+    .prem-price-card.featured .price-name { color: #ffd700; }
+
+    .price-amount {
+      font-size: 38px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .price-amount sub {
+      font-size: 15px;
+      font-weight: 400;
+      color: #666;
+      vertical-align: baseline;
+    }
+
+    .price-save {
+      margin-top: 8px;
+      color: #00d09c;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ---- Primary CTA ---- */
+    .prem-cta-btn {
+      display: block;
+      width: 100%;
+      background: linear-gradient(135deg, #00d09c 0%, #00b386 100%);
+      color: #fff;
+      border: none;
+      padding: 17px;
+      border-radius: 14px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(0,208,156,0.3);
+      text-align: center;
+    }
+
+    .prem-cta-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 30px rgba(0,208,156,0.45);
+    }
+
+    .prem-cta-btn:active { transform: scale(0.98); }
+
+    /* ---- Auth Box (Step 2) ---- */
+    .prem-auth-box {
+      padding: 32px;
+    }
+
+    .prem-auth-tabs {
+      display: flex;
+      background: #131320;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 24px;
+    }
+
+    .prem-auth-tab {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #666;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .prem-auth-tab.active {
+      background: #00d09c;
+      color: #fff;
+    }
+
+    .auth-field {
+      width: 100%;
+      background: #131320;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 13px 16px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .auth-field:focus { border-color: #00d09c; }
+    .auth-field::placeholder { color: #444; }
+
+    .auth-warn {
+      background: rgba(255,193,7,0.08);
+      border: 1px solid rgba(255,193,7,0.25);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #ffc107;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .auth-warn strong { color: #ffdd57; }
+
+    .auth-err {
+      color: #ff6b6b;
+      font-size: 13px;
+      text-align: center;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .auth-err.show { display: block; }
+
+    /* ---- Checkout (Step 3) ---- */
+    .prem-checkout {
+      padding: 32px;
+    }
+
+    .checkout-summary {
+      background: rgba(255,215,0,0.08);
+      border: 1px solid rgba(255,215,0,0.25);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .checkout-summary .cs-label { color: #aaa; font-size: 13px; }
+    .checkout-summary .cs-plan { color: #ffd700; font-size: 16px; font-weight: 700; }
+    .checkout-summary .cs-amount { color: #fff; font-size: 20px; font-weight: 800; }
+
+    .checkout-step-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #ddd;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .checkout-step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(0,208,156,0.15);
+      border: 1px solid rgba(0,208,156,0.4);
+      color: #00d09c;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .crypto-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .crypto-tab {
+      flex: 1;
+      background: rgba(37,37,64,0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #888;
+      padding: 10px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .crypto-tab.active {
+      background: rgba(0,208,156,0.15);
+      border-color: #00d09c;
+      color: #00d09c;
+    }
+
+    .crypto-addr-box {
+      background: #0d0d1a;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+    }
+
+    .crypto-addr-box code {
+      display: block;
+      color: #ffd700;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      word-break: break-all;
+      margin-bottom: 10px;
+    }
+
+    .crypto-copy-btn {
+      background: rgba(255,215,0,0.1);
+      border: 1px solid rgba(255,215,0,0.3);
+      color: #ffd700;
+      padding: 7px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .crypto-copy-btn:hover { background: #ffd700; color: #000; }
+
+    .crypto-network {
+      font-size: 11px;
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    .co-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 20px 0;
+    }
+
+    .telegram-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      background: linear-gradient(135deg, #0088cc, #0099dd);
+      color: #fff;
+      text-decoration: none;
+      padding: 16px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      margin-top: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(0,136,204,0.3);
+    }
+
+    .telegram-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,136,204,0.4);
+    }
+
+    .checkout-note {
+      text-align: center;
+      color: #555;
+      font-size: 12px;
+      margin-top: 14px;
+      line-height: 1.5;
+    }
+
+    /* ---- Separator ---- */
+    .section-sep {
+      border: none;
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 32px 0;
+    }
+
+    /* ---- Success Screen ---- */
+    .prem-success {
+      text-align: center;
+      padding: 48px 20px;
+    }
+
+    .success-ico { font-size: 60px; margin-bottom: 20px; }
+
+    .success-title {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .success-sub {
+      color: #8b8baf;
+      font-size: 15px;
+      margin-bottom: 28px;
+    }
+
+    /* ---- Back Button ---- */
+    .prem-back-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #888;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .prem-back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 600px) {
+      .prem-hero { padding: 40px 20px 30px; }
+      .prem-features { grid-template-columns: 1fr; }
+      .prem-pricing { flex-direction: column; }
+      .prem-auth-box { padding: 20px; }
+      .prem-checkout { padding: 20px; }
+      .crypto-tabs { flex-wrap: wrap; }
+      .checkout-summary { flex-direction: column; text-align: center; }
+      .prem-nav { padding: 12px 16px; }
+      .prem-nav-logo { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="prem-nav">
+    <a href="/" class="prem-nav-logo">
+      📬 Phantom <span>MAIL</span>
+    </a>
+    <div class="prem-nav-right">
+      <span class="nav-user-badge" id="nav-user-badge"></span>
+      <a href="/" class="nav-back-btn">← Back to Inbox</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <div class="prem-hero">
+    <div class="prem-hero-badge">⭐ Phantom Mail Premium</div>
+    <h1>Privacy without<br><span class="gold">limits.</span></h1>
+    <p>Permanent email addresses, custom usernames, email forwarding, and full API access.</p>
+  </div>
+
+  <!-- Step Progress Bar -->
+  <div class="prem-steps-bar">
+    <div class="prem-step-item active" id="si-1">
+      <div class="prem-step-circle">1</div>
+      <div class="prem-step-label">Choose Plan</div>
+    </div>
+    <div class="prem-step-item" id="si-2">
+      <div class="prem-step-circle">2</div>
+      <div class="prem-step-label">Account</div>
+    </div>
+    <div class="prem-step-item" id="si-3">
+      <div class="prem-step-circle">3</div>
+      <div class="prem-step-label">Payment</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="prem-content">
+
+    <!-- STEP 1: Choose Plan -->
+    <div class="prem-panel active" id="pp-step-1">
+
+      <!-- Features Grid -->
+      <div class="prem-features">
+        <div class="prem-feat">
+          <span class="prem-feat-ico">💾</span>
+          <div class="prem-feat-text">
+            <strong>8 Permanent Emails</strong>
+            <span>Addresses that never expire</span>
+          </div>
+        </div>
+        <div class="prem-feat">
+          <span class="prem-feat-ico">🎯</span>
+          <div class="prem-feat-text">
+            <strong>Custom Usernames</strong>
+            <span>Pick your own address handle</span>
+          </div>
+        </div>
+        <div class="prem-feat">
+          <span class="prem-feat-ico">📨</span>
+          <div class="prem-feat-text">
+            <strong>Email Forwarding</strong>
+            <span>Auto-forward to your real inbox</span>
+          </div>
+        </div>
+        <div class="prem-feat">
+          <span class="prem-feat-ico">🔌</span>
+          <div class="prem-feat-text">
+            <strong>Developer API</strong>
+            <span>1,000 requests/day</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compare -->
+      <div class="prem-compare glass-card">
+        <div class="comp-row comp-head">
+          <div class="c-feat">Feature</div>
+          <div class="c-free">Basic</div>
+          <div class="c-prem">Premium</div>
+        </div>
+        <div class="comp-row">
+          <div class="c-feat">Temporary Addresses</div>
+          <div class="c-free">1 hr only</div>
+          <div class="c-prem"><span class="c-check">✓</span> Unlimited</div>
+        </div>
+        <div class="comp-row">
+          <div class="c-feat">Permanent Addresses</div>
+          <div class="c-free">❌</div>
+          <div class="c-prem"><span class="c-check">✓</span> Up to 8</div>
+        </div>
+        <div class="comp-row">
+          <div class="c-feat">Custom Usernames</div>
+          <div class="c-free">❌</div>
+          <div class="c-prem"><span class="c-check">✓</span> Yes</div>
+        </div>
+        <div class="comp-row">
+          <div class="c-feat">Email Forwarding</div>
+          <div class="c-free">❌</div>
+          <div class="c-prem"><span class="c-check">✓</span> Yes</div>
+        </div>
+        <div class="comp-row">
+          <div class="c-feat">API Access</div>
+          <div class="c-free">❌</div>
+          <div class="c-prem"><span class="c-check">✓</span> 1,000 req/day</div>
+        </div>
+        <div class="comp-row">
+          <div class="c-feat">Priority Support</div>
+          <div class="c-free">❌</div>
+          <div class="c-prem"><span class="c-check">✓</span> Yes</div>
+        </div>
+      </div>
+
+      <!-- Pricing Cards -->
+      <div class="prem-pricing">
+        <div class="prem-price-card" id="pp-monthly" onclick="ppSelectPlan('monthly')">
+          <div class="price-name">Monthly</div>
+          <div class="price-amount">$3<sub>/mo</sub></div>
+        </div>
+        <div class="prem-price-card featured selected" id="pp-yearly" onclick="ppSelectPlan('yearly')">
+          <div class="price-badge">Best Value — Save 45%</div>
+          <div class="price-name">Yearly</div>
+          <div class="price-amount">$20<sub>/yr</sub></div>
+          <div class="price-save">~$1.67/mo</div>
+        </div>
+      </div>
+
+      <button class="prem-cta-btn" onclick="ppContinueFromPlan()">Continue →</button>
+    </div>
+
+    <!-- STEP 2: Account -->
+    <div class="prem-panel" id="pp-step-2">
+      <div class="glass-card">
+        <div class="prem-auth-box">
+          <h2 style="font-size:22px;font-weight:800;margin-bottom:6px;">Create or Sign In</h2>
+          <p style="color:#8b8baf;font-size:14px;margin-bottom:20px;">An account is required to link your Premium subscription.</p>
+
+          <div class="prem-auth-tabs">
+            <button class="prem-auth-tab active" id="pp-tab-signup" onclick="ppSwitchTab('signup')">Create Account</button>
+            <button class="prem-auth-tab" id="pp-tab-signin" onclick="ppSwitchTab('signin')">Sign In</button>
+          </div>
+
+          <!-- Sign Up -->
+          <div id="pp-signup">
+            <input type="text" id="pp-su-username" class="auth-field" placeholder="Username (3–20 chars, a-z 0-9 _)" autocomplete="username">
+            <input type="password" id="pp-su-password" class="auth-field" placeholder="Password (min 8 chars)" autocomplete="new-password">
+            <input type="email" id="pp-su-email" class="auth-field" placeholder="Email (optional)" autocomplete="email">
+            <div class="auth-warn">
+              ⚠️ <strong>Save your credentials.</strong> There is no password recovery option.
+            </div>
+            <button class="prem-cta-btn" onclick="ppSignUp()">Create Account & Continue →</button>
+          </div>
+
+          <!-- Sign In -->
+          <div id="pp-signin" style="display:none">
+            <input type="text" id="pp-si-username" class="auth-field" placeholder="Username" autocomplete="username">
+            <input type="password" id="pp-si-password" class="auth-field" placeholder="Password" autocomplete="current-password">
+            <button class="prem-cta-btn" onclick="ppSignIn()">Sign In & Continue →</button>
+          </div>
+
+          <p class="auth-err" id="pp-auth-err"></p>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button class="prem-back-btn" onclick="ppGoStep(1)">← Back to Plans</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Payment -->
+    <div class="prem-panel" id="pp-step-3">
+      <div class="glass-card">
+        <div class="prem-checkout">
+
+          <div class="checkout-summary">
+            <div>
+              <div class="cs-label">Selected Plan</div>
+              <div class="cs-plan" id="pp-plan-name">Yearly Premium</div>
+            </div>
+            <div class="cs-amount" id="pp-plan-price">$20</div>
+          </div>
+
+          <!-- Step 1: Send Crypto -->
+          <div class="checkout-step-label">
+            <span class="checkout-step-num">1</span>
+            Send payment to one of these addresses:
+          </div>
+
+          <div class="crypto-tabs">
+            <div class="crypto-tab active" onclick="ppShowCoin('btc')">₿ Bitcoin</div>
+            <div class="crypto-tab" onclick="ppShowCoin('eth')">Ξ ETH / USDT</div>
+            <div class="crypto-tab" onclick="ppShowCoin('sol')">◎ Solana</div>
+          </div>
+
+          <div class="crypto-addr-box">
+            <code id="pp-addr">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</code>
+            <button class="crypto-copy-btn" onclick="ppCopyAddr()">📋 Copy Address</button>
+          </div>
+          <p class="crypto-network" id="pp-network">Network: Bitcoin (BTC)</p>
+
+          <div class="co-divider"></div>
+
+          <!-- Step 2: Copy TX -->
+          <div class="checkout-step-label">
+            <span class="checkout-step-num">2</span>
+            Copy your transaction hash / ID after sending.
+          </div>
+
+          <div class="co-divider"></div>
+
+          <!-- Step 3: Contact -->
+          <div class="checkout-step-label">
+            <span class="checkout-step-num">3</span>
+            Contact us on Telegram — Premium activated within minutes!
+          </div>
+
+          <a class="telegram-btn" id="pp-tg-link" href="https://t.me/unknownlll2829" target="_blank" rel="noopener">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.196 13.26l-2.99-.932c-.65-.204-.664-.65.136-.961l11.678-4.503c.543-.196 1.018.119.874.357z"/></svg>
+            I have paid — Activate Premium
+          </a>
+
+          <p class="checkout-note">
+            After sending payment, DM <strong style="color:#0088cc">@unknownlll2829</strong> on Telegram with your<br>
+            <strong>username</strong> and <strong>transaction hash</strong>. Premium is activated manually by the admin.
+          </p>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button class="prem-back-btn" id="pp-back-from-checkout" onclick="ppGoStep(2)">← Back</button>
+      </div>
+    </div>
+
+  </div><!-- /prem-content -->
+
+  <script>
+    /* ========================================
+       Phantom Mail — Premium Purchase Page
+       ======================================== */
+
+    const ppAddrs = {
+      btc: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+      eth: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+      sol: 'HN7cABqLq46Es1jh92dQQisAq662SmxELLTPRdnQdYvS'
+    };
+    const ppNetworks = {
+      btc: 'Network: Bitcoin (BTC)',
+      eth: 'Network: ERC20, BEP20, Polygon, Arbitrum, Optimism',
+      sol: 'Network: Solana (SOL)'
+    };
+
+    let ppState = { plan: 'yearly', price: 20, step: 1, coin: 'btc' };
+
+    /* ---- Init on load ---- */
+    document.addEventListener('DOMContentLoaded', () => {
+      // Show username badge if logged in
+      const username = localStorage.getItem('username');
+      const isPremium = localStorage.getItem('isPremium') === 'true';
+      const badge = document.getElementById('nav-user-badge');
+
+      if (username) {
+        badge.textContent = isPremium ? `⭐ @${username}` : `👤 @${username}`;
+        badge.classList.add('show');
+      }
+
+      // If already premium, redirect back to home
+      if (isPremium) {
+        window.location.href = '/?premium=already';
+        return;
+      }
+
+      // If logged in, start from step 1 (plan selection) — they'll skip step 2 automatically
+      ppGoStep(1);
+    });
+
+    /* ---- Step Navigation ---- */
+    function ppGoStep(step) {
+      ppState.step = step;
+
+      // Update panels
+      [1, 2, 3].forEach(s => {
+        const panel = document.getElementById(`pp-step-${s}`);
+        if (panel) panel.classList.toggle('active', s === step);
+      });
+
+      // Update step indicators
+      [1, 2, 3].forEach(s => {
+        const item = document.getElementById(`si-${s}`);
+        if (!item) return;
+        item.classList.remove('active', 'done');
+        if (s < step) item.classList.add('done');
+        else if (s === step) item.classList.add('active');
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ---- Plan Selection ---- */
+    function ppSelectPlan(plan) {
+      ppState.plan = plan;
+      ppState.price = plan === 'yearly' ? 20 : 3;
+
+      document.getElementById('pp-monthly').classList.toggle('selected', plan === 'monthly');
+      document.getElementById('pp-yearly').classList.toggle('selected', plan === 'yearly');
+    }
+
+    function ppContinueFromPlan() {
+      if (localStorage.getItem('authToken')) {
+        ppUpdateCheckout();
+        ppGoStep(3);
+      } else {
+        ppGoStep(2);
+      }
+    }
+
+    /* ---- Auth Tab ---- */
+    function ppSwitchTab(tab) {
+      const isSignup = tab === 'signup';
+      document.getElementById('pp-signup').style.display = isSignup ? '' : 'none';
+      document.getElementById('pp-signin').style.display = isSignup ? 'none' : '';
+      document.getElementById('pp-tab-signup').classList.toggle('active', isSignup);
+      document.getElementById('pp-tab-signin').classList.toggle('active', !isSignup);
+      ppClearErr();
+    }
+
+    function ppShowErr(msg) {
+      const el = document.getElementById('pp-auth-err');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    function ppClearErr() {
+      const el = document.getElementById('pp-auth-err');
+      el.classList.remove('show');
+    }
+
+    /* ---- Sign Up ---- */
+    async function ppSignUp() {
+      const username = document.getElementById('pp-su-username').value.trim();
+      const password = document.getElementById('pp-su-password').value;
+      const email    = document.getElementById('pp-su-email').value.trim();
+      if (!username || !password) return ppShowErr('Username and password are required.');
+
+      try {
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, email: email || '' })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('username', data.username);
+          localStorage.setItem('isPremium', 'false');
+          ppUpdateCheckout();
+          ppGoStep(3);
+        } else {
+          ppShowErr(data.error || 'Sign up failed. Try a different username.');
+        }
+      } catch { ppShowErr('Network error. Please try again.'); }
+    }
+
+    /* ---- Sign In ---- */
+    async function ppSignIn() {
+      const username = document.getElementById('pp-si-username').value.trim();
+      const password = document.getElementById('pp-si-password').value;
+      if (!username || !password) return ppShowErr('Enter your username and password.');
+
+      try {
+        const res = await fetch('/api/auth/signin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('username', data.username);
+          localStorage.setItem('isPremium', data.isPremium ? 'true' : 'false');
+          if (data.isPremium) {
+            window.location.href = '/?premium=already';
+            return;
+          }
+          ppUpdateCheckout();
+          ppGoStep(3);
+        } else {
+          ppShowErr(data.error || 'Sign in failed. Check your credentials.');
+        }
+      } catch { ppShowErr('Network error. Please try again.'); }
+    }
+
+    /* ---- Checkout Helpers ---- */
+    function ppUpdateCheckout() {
+      const planLabel = ppState.plan === 'yearly' ? 'Yearly Premium' : 'Monthly Premium';
+      document.getElementById('pp-plan-name').textContent = planLabel;
+      document.getElementById('pp-plan-price').textContent = `$${ppState.price}`;
+
+      const username = localStorage.getItem('username') || '[your-username]';
+      const tgText = encodeURIComponent(
+        `Hello! I want to activate ${ppState.plan} Premium for username: ${username}. My Tx hash: `
+      );
+      document.getElementById('pp-tg-link').href = `https://t.me/unknownlll2829?text=${tgText}`;
+
+      // Hide "Back" on step 3 when user is already logged in (skipped step 2)
+      const backBtn = document.getElementById('pp-back-from-checkout');
+      if (backBtn) {
+        backBtn.style.display = localStorage.getItem('authToken') ? 'none' : '';
+      }
+
+      // Show username in nav badge
+      const badge = document.getElementById('nav-user-badge');
+      const uname = localStorage.getItem('username');
+      if (uname && badge) {
+        badge.textContent = `👤 @${uname}`;
+        badge.classList.add('show');
+      }
+    }
+
+    /* ---- Crypto Coin ---- */
+    function ppShowCoin(coin) {
+      ppState.coin = coin;
+      document.querySelectorAll('.crypto-tab').forEach((t, i) => {
+        t.classList.toggle('active', ['btc','eth','sol'][i] === coin);
+      });
+      document.getElementById('pp-addr').textContent = ppAddrs[coin];
+      document.getElementById('pp-network').textContent = ppNetworks[coin];
+    }
+
+    function ppCopyAddr() {
+      const addr = document.getElementById('pp-addr').textContent;
+      navigator.clipboard.writeText(addr)
+        .then(() => {
+          const btn = document.querySelector('.crypto-copy-btn');
+          btn.textContent = '✅ Copied!';
+          setTimeout(() => { btn.textContent = '📋 Copy Address'; }, 2000);
+        })
+        .catch(() => alert('Please copy manually: ' + addr));
+    }
+  </script>
+</body>
+</html>
