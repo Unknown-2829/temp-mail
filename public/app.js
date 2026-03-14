@@ -13,6 +13,9 @@ const originalTitle = document.title;
 // Reusable SVG markup for the Sign-In account icon button
 const SIGN_IN_BTN_HTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><title>Account icon</title><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Sign In';
 
+// Reusable SVG markup for the logged-in Account button
+const ACCOUNT_BTN_HTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><title>Account icon</title><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Account';
+
 // Domain used for permanent / custom email addresses
 const PERM_EMAIL_DOMAIN = '@unknownlll2829.qzz.io';
 // Allowed characters for permanent email usernames
@@ -682,9 +685,9 @@ function initAuthState() {
     statusText.textContent = isPremium
       ? `⭐ @${username}`
       : `@${username}`;
-    actionBtn.textContent = 'Sign Out';
-    actionBtn.classList.add('signout-btn');
-    actionBtn.onclick = confirmSignOut;
+    actionBtn.innerHTML = ACCOUNT_BTN_HTML;
+    actionBtn.classList.remove('signout-btn');
+    actionBtn.onclick = openProfile;
 
     // Hide premium button for premium users; update label for non-premium
     if (premBtn) {
@@ -1335,8 +1338,14 @@ async function saveCurrentEmail() {
 function showPremiumRequiredPrompt(message) {
   const modal = document.getElementById('premium-required-modal');
   const msg = document.getElementById('premium-required-msg');
+  const signInBtn = document.getElementById('premium-prompt-signin-btn');
   if (!modal) { openPremium(); return; }
   if (msg) msg.textContent = message;
+  // Hide "Sign In" button when the user is already signed in (non-premium)
+  if (signInBtn) {
+    const isLoggedIn = !!localStorage.getItem('authToken');
+    signInBtn.style.display = isLoggedIn ? 'none' : '';
+  }
   modal.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
