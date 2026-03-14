@@ -811,6 +811,7 @@
       </div>
 
       <button class="prem-cta-btn" onclick="ppContinueFromPlan()">Continue →</button>
+      <p id="pp-plan-err" style="color:#ff6b6b;font-size:13px;margin-top:10px;text-align:center;display:none;">Please select a plan to continue.</p>
     </div>
 
     <!-- STEP 2: Account -->
@@ -954,7 +955,10 @@
         return;
       }
 
-      // If logged in, start from step 1 (plan selection) — they'll skip step 2 automatically
+      // Ensure yearly plan is visually selected by default
+      ppSelectPlan('yearly');
+
+      // Start at step 1 (plan selection)
       ppGoStep(1);
     });
 
@@ -987,9 +991,18 @@
 
       document.getElementById('pp-monthly').classList.toggle('selected', plan === 'monthly');
       document.getElementById('pp-yearly').classList.toggle('selected', plan === 'yearly');
+
+      // Clear any plan selection error when user picks a plan
+      const errEl = document.getElementById('pp-plan-err');
+      if (errEl) errEl.style.display = 'none';
     }
 
     function ppContinueFromPlan() {
+      if (!ppState.plan) {
+        document.getElementById('pp-plan-err').style.display = 'block';
+        return;
+      }
+      document.getElementById('pp-plan-err').style.display = 'none';
       if (localStorage.getItem('authToken')) {
         ppUpdateCheckout();
         ppGoStep(3);
