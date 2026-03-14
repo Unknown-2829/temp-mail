@@ -43,6 +43,7 @@
       color: #fff;
       font-size: 18px;
       font-weight: 700;
+      flex-shrink: 0;
     }
 
     .prem-nav-logo span { color: #00d09c; }
@@ -51,6 +52,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      min-width: 0;
     }
 
     .nav-back-btn {
@@ -74,13 +76,33 @@
       background: rgba(0,208,156,0.12);
       border: 1px solid rgba(0,208,156,0.3);
       color: #00d09c;
-      padding: 7px 14px;
+      padding: 7px 10px;
       border-radius: 20px;
       font-size: 12px;
       font-weight: 600;
       display: none;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 1;
     }
-    .nav-user-badge.show { display: inline-flex; align-items: center; gap: 6px; }
+    .nav-user-badge.show { display: inline-flex; align-items: center; gap: 5px; }
+
+    /* Avatar circle for the user badge — always compact regardless of username length */
+    .nav-user-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #00d09c;
+      color: #0d0d1a;
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
 
     /* ---- Hero ---- */
     .prem-hero {
@@ -317,9 +339,19 @@
       transition: all 0.3s;
     }
 
+    /* Monthly plan gets a default green outline */
+    .prem-price-card.monthly-card {
+      border-color: rgba(0,208,156,0.45);
+      background: rgba(0,208,156,0.04);
+    }
+
     .prem-price-card:hover {
       border-color: rgba(255,255,255,0.2);
       transform: translateY(-4px);
+    }
+
+    .prem-price-card.monthly-card:hover {
+      border-color: #00d09c;
     }
 
     .prem-price-card.featured {
@@ -798,7 +830,7 @@
 
       <!-- Pricing Cards -->
       <div class="prem-pricing">
-        <div class="prem-price-card" id="pp-monthly" onclick="ppSelectPlan('monthly')">
+        <div class="prem-price-card monthly-card" id="pp-monthly" onclick="ppSelectPlan('monthly')">
           <div class="price-name">Monthly</div>
           <div class="price-amount">$3<sub>/mo</sub></div>
         </div>
@@ -945,7 +977,16 @@
       const badge = document.getElementById('nav-user-badge');
 
       if (username) {
-        badge.textContent = isPremium ? `⭐ @${username}` : `👤 @${username}`;
+        // Truncate long usernames: show avatar letter + up to 10 chars
+        // Escape to prevent any HTML-special chars from localStorage being interpreted as markup
+        const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const MAX_DISPLAY = 10;
+        const displayName = username.length > MAX_DISPLAY
+          ? username.slice(0, MAX_DISPLAY) + '…'
+          : username;
+        const avatarLetter = username[0].toUpperCase();
+        badge.innerHTML = `<span class="nav-user-avatar">${esc(avatarLetter)}</span>@${esc(displayName)}`;
+        badge.title = `@${username}`;
         badge.classList.add('show');
       }
 

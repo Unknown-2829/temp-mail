@@ -30,7 +30,7 @@
       <span class="logo-text">Phantom <span class="logo-mail">MAIL</span></span>
     </div>
     <div class="header-actions">
-      <button class="premium-btn" id="premium-header-btn" onclick="openPremium()">⭐ Premium</button>
+      <button class="premium-btn" id="premium-header-btn" onclick="openPremium()">⭐ Premium</button><script>(function(){if(localStorage.getItem('username')){document.getElementById('premium-header-btn').classList.add('hidden');}})();</script>
       <div class="auth-status-section" id="auth-status-section">
         <span class="user-avatar hidden" id="user-avatar" title="" onclick="openProfile()"></span>
         <span class="auth-status-text" id="auth-status-text" onclick="openProfile()"></span>
@@ -106,6 +106,11 @@
           <button class="action-btn-small save-email-btn" id="save-email-btn" onclick="saveCurrentEmail()" title="Save to Account">
             <span>💾</span> Save Email
           </button>
+        </div>
+
+        <!-- Mobile-only sign in / account button (shown below actions on small screens) -->
+        <div class="mobile-signin-row" id="mobile-signin-row">
+          <button class="mobile-signin-btn" id="mobile-signin-btn" onclick="openAuth()"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><title>Account icon</title><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Sign In</button>
         </div>
       </div>
 
