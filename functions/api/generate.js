@@ -19,7 +19,7 @@ const firstNames = [
     'leo', 'mila', 'max', 'nina', 'felix', 'anna', 'oscar', 'elena', 'hugo', 'clara',
     'kai', 'hana', 'yuki', 'sakura', 'ren', 'mei', 'jin', 'sora', 'ryu', 'akira',
     // Modern/Trendy names
-    'nova', 'phoenix', 'river', 'sage', 'sky', 'storm', 'winter', 'aurora', 'luna', 'ivy',
+    'nova', 'phoenix', 'river', 'sage', 'sky', 'storm', 'winter', 'aurora', 'violet', 'ivy',
     'axel', 'zane', 'cole', 'dane', 'finn', 'gray', 'jace', 'knox', 'reid', 'theo',
     // Tech-inspired names
     'dev', 'code', 'byte', 'pixel', 'cyber', 'neo', 'tech', 'data', 'cloud', 'crypto'

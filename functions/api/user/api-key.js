@@ -16,6 +16,13 @@ export async function onRequest(context) {
     const user = await env.EMAILS.get(session.username, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
+    // Auto-revoke expired premium
+    if (user.isPremium && user.premiumExpiry && user.premiumExpiry < Date.now()) {
+        user.isPremium = false;
+        user.premiumExpiry = null;
+        await env.EMAILS.put(session.username, JSON.stringify(user));
+    }
+
     switch (request.method) {
         case 'GET': return handleGet(user, env);
         case 'POST': return handlePost(user, env, session.username);
@@ -64,10 +71,11 @@ async function handlePost(user, env, username) {
 }
 
 function generateApiKey() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let key = 'pm_'; // pm = Phantom Mail
-    for (let i = 0; i < 32; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
-    return key;
+    // Use CSPRNG — 32 random bytes mapped to a URL-safe Base64 string, prefixed with 'pm_'
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const b64 = btoa(String.fromCharCode(...bytes))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    return `pm_${b64}`;
 }
 
 function jsonResponse(data, status = 200) {

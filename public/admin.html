@@ -309,7 +309,7 @@
             const container = document.getElementById('users-list-container');
             if (reset) container.innerHTML = '<div class="loading-row">Loading…</div>';
             try {
-                let url = `/api/admin/list-users?filter=${usersFilter}&adminToken=${adminToken}`;
+                let url = `/api/admin/list-users?filter=${usersFilter}`;
                 if (usersCursor) url += '&cursor=' + encodeURIComponent(usersCursor);
                 const res = await fetch(url, { headers: {'X-Admin-Token': adminToken} });
                 const data = await res.json();
@@ -371,7 +371,7 @@
                 const res = await fetch('/api/admin/grant-premium', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
-                    body: JSON.stringify({ username: grantModalUsername, adminToken, days })
+                    body: JSON.stringify({ username: grantModalUsername, days })
                 });
                 const data = await res.json();
                 if (res.ok) {
@@ -391,7 +391,7 @@
                 const res = await fetch('/api/admin/revoke-premium', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
-                    body: JSON.stringify({ username, adminToken })
+                    body: JSON.stringify({ username })
                 });
                 const data = await res.json();
                 if (res.ok) { showToast('✅ ' + data.message); loadUsers(true); loadStats(); }
@@ -405,7 +405,7 @@
             const card = document.getElementById('user-card');
             card.classList.remove('visible');
             try {
-                const res = await fetch(`/api/admin/user?username=${encodeURIComponent(username)}&adminToken=${adminToken}`, { headers: {'X-Admin-Token': adminToken} });
+                const res = await fetch(`/api/admin/user?username=${encodeURIComponent(username)}`, { headers: {'X-Admin-Token': adminToken} });
                 const data = await res.json();
                 if (!res.ok) { showActionMsg('error', data.error||'User not found'); card.classList.add('visible'); return; }
                 currentUser = data;
@@ -443,7 +443,7 @@
                 const res = await fetch('/api/admin/grant-premium', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
-                    body: JSON.stringify({ username: currentUser.username, adminToken, days })
+                    body: JSON.stringify({ username: currentUser.username, days })
                 });
                 const data = await res.json();
                 if (res.ok) { showActionMsg('success', data.message); currentUser.isPremium = true; currentUser.premiumExpiry = Date.now() + days*86400000; renderUserCard(currentUser); loadStats(); }
@@ -457,7 +457,7 @@
                 const res = await fetch('/api/admin/revoke-premium', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
-                    body: JSON.stringify({ username: currentUser.username, adminToken })
+                    body: JSON.stringify({ username: currentUser.username })
                 });
                 const data = await res.json();
                 if (res.ok) { showActionMsg('success', data.message); currentUser.isPremium = false; currentUser.premiumExpiry = null; renderUserCard(currentUser); loadStats(); }
