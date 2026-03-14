@@ -94,7 +94,8 @@ Go to Pages project → Settings → Environment variables and add:
 | Variable | Required | Description |
 |---|---|---|
 | `ADMIN_SECRET` | **Yes** | Password for `/api/admin/login`. Without this, the admin panel is inaccessible. |
-| `SENDGRID_API_KEY` | No | Enables the email forwarding feature (premium). Leave unset to disable forwarding. |
+
+> ℹ️ No `SENDGRID_API_KEY` or any other email API key is needed. Email forwarding is handled entirely by Cloudflare's built-in `message.forward()` API in the Email Worker — it is free and requires no third-party service.
 
 ### 6. Connect Custom Domain
 
@@ -111,7 +112,13 @@ The `email-handler/worker.js` is a separate **Cloudflare Worker** that receives 
 3. Bind the **same** KV namespaces to the worker:
    - Variable name `EMAILS` → `EMAILS` KV namespace
    - Variable name `TEMP_EMAILS` → `TEMP_EMAILS` KV namespace
-4. *(Optional)* Add the `SENDGRID_API_KEY` secret to the worker as well if you want forwarding
+4. *(No API keys or secrets are needed.)* Forwarding uses Cloudflare's native `message.forward()`.
+
+> ⚠️ **Forwarding destination addresses must be verified in Cloudflare Email Routing.**  
+> When a premium user sets a forwarding address (e.g. `their-inbox@gmail.com`), that address must appear in  
+> **Email → Email Routing → Destination addresses** as a verified address. Cloudflare will send a one-time  
+> verification email — the user clicks the link, then forwarding works.  
+> Without this, `message.forward()` will silently fail for unverified destinations.
 
 ### 8. Configure Email Routing
 

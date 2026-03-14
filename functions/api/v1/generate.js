@@ -40,7 +40,7 @@ export async function onRequestPost(context) {
     }
     const today = new Date().toISOString().split('T')[0];
     const usageKey = `usage:${apiKey}:${today}`;
-    let usage = parseInt(await env.API_USAGE.get(usageKey) || '0') || 0;
+    let usage = parseInt(await env.API_USAGE.get(usageKey)) || 0;
 
     const limit = keyData.isPremium ? 10000 : 100;
     if (usage >= limit) {
