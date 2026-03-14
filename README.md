@@ -5,7 +5,7 @@ A temporary email service built for Cloudflare Pages with Email Workers.
 ## Architecture
 
 ```
-User Browser (unknownlll2829.qzz.io)
+User Browser (mail.unknowns.app)
     ↓
 Cloudflare Pages (Frontend + API)
     ↓
@@ -62,7 +62,7 @@ git push -u origin main
 ### 4. Connect Custom Domain
 
 1. Pages project → Custom domains
-2. Add: `unknownlll2829.qzz.io`
+2. Add: `mail.unknowns.app`
 
 ## Email Worker
 
