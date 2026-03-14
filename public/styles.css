@@ -2905,11 +2905,9 @@ body {
     display: none;
   }
 
+  /* Hide sign-in / account button from the header on mobile — it moves below the email area */
   .auth-action-btn {
-    font-size: 11px;
-    padding: 6px 12px;
-    max-width: 90px;
-    border-radius: 18px;
+    display: none !important;
   }
 
   .pdash-add-row {
@@ -3655,4 +3653,43 @@ button,
 }
 .profile-form-error.hidden { display: none; }
 
+/* ===== Mobile Sign-In Row (below email area on small screens only) ===== */
+/* Hidden on desktop */
+.mobile-signin-row {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .mobile-signin-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+  }
+
+  .mobile-signin-btn {
+    background: rgba(0, 208, 156, 0.12);
+    border: 1px solid rgba(0, 208, 156, 0.35);
+    color: #00d09c;
+    padding: 10px 22px;
+    border-radius: 22px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.2s, transform 0.15s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-signin-btn:hover,
+  .mobile-signin-btn:focus-visible {
+    background: rgba(0, 208, 156, 0.22);
+  }
+
+  .mobile-signin-btn:active {
+    transform: scale(0.95);
+  }
+}
 

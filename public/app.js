@@ -664,6 +664,8 @@ function initAuthState() {
   const actionBtn = document.getElementById('auth-action-btn');
   const premBtn = document.getElementById('premium-header-btn');
   const avatarEl = document.getElementById('user-avatar');
+  const mobileSigninBtn = document.getElementById('mobile-signin-btn');
+  const mobileSigninRow = document.getElementById('mobile-signin-row');
   if (!section) return;
 
   if (username) {
@@ -679,6 +681,13 @@ function initAuthState() {
     actionBtn.innerHTML = ACCOUNT_BTN_HTML;
     actionBtn.classList.remove('signout-btn');
     actionBtn.onclick = openProfile;
+
+    // Mobile sign-in button → becomes Account button when logged in
+    if (mobileSigninBtn) {
+      mobileSigninBtn.innerHTML = ACCOUNT_BTN_HTML;
+      mobileSigninBtn.onclick = openProfile;
+    }
+    if (mobileSigninRow) mobileSigninRow.classList.remove('hidden');
 
     // Hide the dashboard/premium button after login
     if (premBtn) {
@@ -701,6 +710,13 @@ function initAuthState() {
     actionBtn.innerHTML = SIGN_IN_BTN_HTML;
     actionBtn.classList.remove('signout-btn');
     actionBtn.onclick = openAuth;
+
+    // Mobile sign-in button → Sign In
+    if (mobileSigninBtn) {
+      mobileSigninBtn.innerHTML = SIGN_IN_BTN_HTML;
+      mobileSigninBtn.onclick = openAuth;
+    }
+    if (mobileSigninRow) mobileSigninRow.classList.remove('hidden');
 
     // Not logged in: show the premium button
     if (premBtn) {
@@ -856,6 +872,8 @@ function useSavedEmail(address) {
   const emailDisplay = document.getElementById('email-display');
   if (emailDisplay) emailDisplay.value = address;
   emailsList = [];
+  previousEmailCount = 0;
+  startAutoRefresh();
   scheduleRender();
   refreshEmails();
   showToast('✅ Now using ' + address);
