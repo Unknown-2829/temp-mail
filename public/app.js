@@ -628,6 +628,7 @@ function openPremium() {
   if (localStorage.getItem('isPremium') === 'true') {
     const dash = document.getElementById('premium-dashboard');
     if (dash) {
+      dash.classList.remove('hidden');
       dash.scrollIntoView({ behavior: 'smooth', block: 'start' });
       showToast('⭐ You already have Premium!');
     }
@@ -685,7 +686,8 @@ function initAuthState() {
     // Hide premium button for premium users; update label for non-premium
     if (premBtn) {
       if (isPremium) {
-        premBtn.classList.add('hidden');
+        premBtn.classList.remove('hidden');
+        premBtn.textContent = '⭐ Dashboard';
       } else {
         premBtn.classList.remove('hidden');
         premBtn.textContent = '⭐ Get Premium';
@@ -780,16 +782,15 @@ function updatePremiumDashboard(username, isPremium) {
 }
 
 function switchPDashTab(tab) {
-  const panels = { saved: 'pdash-saved', permanent: 'pdash-permanent', forwarding: 'pdash-forwarding', apikey: 'pdash-apikey' };
+  const panels = { saved: 'pdash-saved', forwarding: 'pdash-forwarding', apikey: 'pdash-apikey' };
   Object.entries(panels).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('hidden', key !== tab);
   });
-  const tabOrder = ['saved', 'permanent', 'forwarding', 'apikey'];
+  const tabOrder = ['saved', 'forwarding', 'apikey'];
   document.querySelectorAll('.pdash-tab').forEach((t, i) => {
     t.classList.toggle('active', tabOrder[i] === tab);
   });
-  if (tab === 'permanent') loadPermanentEmails();
   if (tab === 'forwarding') loadForwardingSettings();
 }
 
@@ -1329,7 +1330,7 @@ async function saveCurrentEmail() {
       body: JSON.stringify({ address: currentEmail })
     });
     const data = await res.json();
-    if (res.ok) { showToast('✅ Email saved to your account!'); }
+    if (res.ok) { showToast('✅ Email saved to your account!'); loadSavedEmails(); }
     else showToast('❌ ' + (data.error || 'Could not save'));
   } catch (e) { showToast('❌ Network error'); }
 }
@@ -1438,7 +1439,7 @@ async function addPermanentEmail() {
     if (res.ok) {
       if (input) input.value = '';
       showToast('✅ Permanent email created!');
-      loadPermanentEmails();
+      loadSavedEmails();
     } else {
       if (errEl) { errEl.textContent = data.error || 'Error creating email'; errEl.classList.remove('hidden'); }
     }

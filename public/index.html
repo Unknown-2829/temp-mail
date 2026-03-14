@@ -165,7 +165,6 @@
 
       <div class="pdash-tabs">
         <button class="pdash-tab active" onclick="switchPDashTab('saved')">📁 Saved Emails</button>
-        <button class="pdash-tab" onclick="switchPDashTab('permanent')">🔒 Permanent Email</button>
         <button class="pdash-tab" onclick="switchPDashTab('forwarding')">📨 Forwarding</button>
         <button class="pdash-tab" onclick="switchPDashTab('apikey')">🔌 API Key</button>
       </div>
@@ -173,11 +172,19 @@
       <!-- Saved Emails Tab -->
       <div class="pdash-panel" id="pdash-saved">
         <div class="pdash-section">
-          <div class="pdash-section-title">Permanent Email Addresses <span class="pdash-count" id="saved-email-count">0/8</span></div>
+          <div class="pdash-section-title">Saved Emails <span class="pdash-count" id="saved-email-count">0/8</span></div>
+
+          <!-- Create permanent email -->
+          <p class="pdash-section-sub">Create a permanent address on <strong style="color:#00d09c">@unknownlll2829.qzz.io</strong> — it never expires.</p>
           <div class="pdash-add-row">
-            <input type="text" id="new-saved-email" class="pdash-input" placeholder="Enter email address (e.g. myname@dropmail.me)">
-            <button class="pdash-add-btn" onclick="addSavedEmail()">+ Save</button>
+            <div class="perm-email-input-wrap">
+              <input type="text" id="perm-username-input" class="pdash-input perm-username-field" placeholder="yourname" pattern="[a-z0-9._-]+" maxlength="30">
+              <span class="perm-domain-label">@unknownlll2829.qzz.io</span>
+            </div>
+            <button class="pdash-add-btn" onclick="addPermanentEmail()">✨ New</button>
           </div>
+          <p id="perm-email-error" class="pdash-perm-error hidden"></p>
+
           <div id="saved-emails-list" class="saved-emails-list">
             <div class="pdash-loading">Loading your saved emails…</div>
           </div>
@@ -193,25 +200,6 @@
             <div class="pdash-loading">Loading API key…</div>
           </div>
           <button class="pdash-gen-btn" onclick="generateApiKey()">🔄 Generate New Key</button>
-        </div>
-      </div>
-
-      <!-- Permanent Email Tab -->
-      <div class="pdash-panel hidden" id="pdash-permanent">
-        <div class="pdash-section">
-          <div class="pdash-section-title">Permanent Email Address</div>
-          <p class="pdash-section-sub">Create a permanent email address with your custom name on <strong style="color:#00d09c">@unknownlll2829.qzz.io</strong>. This address never expires.</p>
-          <div class="pdash-add-row">
-            <div class="perm-email-input-wrap">
-              <input type="text" id="perm-username-input" class="pdash-input perm-username-field" placeholder="yourname" pattern="[a-z0-9._-]+" maxlength="30">
-              <span class="perm-domain-label">@unknownlll2829.qzz.io</span>
-            </div>
-            <button class="pdash-add-btn" onclick="addPermanentEmail()">✨ Create</button>
-          </div>
-          <p id="perm-email-error" class="pdash-perm-error hidden"></p>
-          <div id="perm-emails-list" class="saved-emails-list">
-            <div class="pdash-loading">Loading permanent emails…</div>
-          </div>
         </div>
       </div>
 
@@ -246,10 +234,13 @@
         <span class="footer-tagline">— Invisible. Anonymous. Free.</span>
       </div>
       <div class="footer-links">
-        <a href="https://t.me/unknownlll2829" target="_blank" class="footer-btn primary">📩 Contact Developer</a>
-        <a href="https://buymeacoffee.com/unknownlll2829" target="_blank" class="footer-btn coffee">☕ Buy me a
-          Coffee</a>
-        <a href="/api-docs.html" target="_blank" class="footer-btn api-docs">🔌 API Docs</a>
+        <div class="footer-links-row">
+          <a href="https://t.me/unknownlll2829" target="_blank" class="footer-btn primary">📩 Contact Developer</a>
+          <a href="https://buymeacoffee.com/unknownlll2829" target="_blank" class="footer-btn coffee">☕ Buy me a Coffee</a>
+        </div>
+        <div class="footer-links-row">
+          <a href="/api-docs.html" target="_blank" class="footer-btn api-docs">🔌 API Docs</a>
+        </div>
       </div>
       <p class="footer-copy">© 2026 Phantom Mail. All rights reserved.</p>
     </div>
