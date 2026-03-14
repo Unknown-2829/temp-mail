@@ -10,6 +10,11 @@ let currentViewIndex = -1;
 let previousEmailCount = 0;
 const originalTitle = document.title;
 
+// Domain used for permanent / custom email addresses
+const PERM_EMAIL_DOMAIN = '@unknownlll2829.qzz.io';
+// Allowed characters for permanent email usernames
+const PERM_USERNAME_RE = /^[a-z0-9._-]+$/;
+
 // Persistent state (loaded once at startup)
 let deletedIds = JSON.parse(localStorage.getItem('deletedIds') || '[]');
 let readIds = JSON.parse(localStorage.getItem('readIds') || '[]');
@@ -630,29 +635,16 @@ function openPremium() {
   }
   const overlay = document.getElementById('pv-overlay');
   if (overlay) {
-    overlay.style.display = 'flex';
-    // Allow display:flex to render before triggering the CSS transition
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => overlay.classList.add('show'));
-    });
+    overlay.classList.add('show');
     document.body.style.overflow = 'hidden';
   }
 }
-
-// Duration matches the CSS `transition: opacity 0.25s ease` on .pv-overlay (+ 10 ms buffer)
-const PV_CLOSE_DELAY_MS = 260;
 
 function closePremiumPreview() {
   const overlay = document.getElementById('pv-overlay');
   if (overlay) {
     overlay.classList.remove('show');
     document.body.style.overflow = '';
-    // Hide overlay after the CSS opacity fade-out transition completes
-    setTimeout(() => {
-      if (!overlay.classList.contains('show')) {
-        overlay.style.display = 'none';
-      }
-    }, PV_CLOSE_DELAY_MS);
   }
 }
 
@@ -703,6 +695,15 @@ function initAuthState() {
     // Show/hide premium dashboard
     updatePremiumDashboard(username, isPremium);
 
+    const profileBtn = document.getElementById('profile-btn');
+    if (profileBtn) profileBtn.classList.remove('hidden');
+
+    const saveBtn = document.getElementById('save-email-btn');
+    if (saveBtn) {
+      if (isPremium) saveBtn.classList.remove('hidden');
+      else saveBtn.classList.add('hidden');
+    }
+
     // Refresh premium status from server in background (handles admin-granted premium)
     refreshPremiumStatus();
   } else {
@@ -722,6 +723,12 @@ function initAuthState() {
       premBtn.classList.remove('hidden');
       premBtn.textContent = '⭐ Premium';
     }
+
+    const profileBtn = document.getElementById('profile-btn');
+    if (profileBtn) profileBtn.classList.add('hidden');
+
+    const saveBtn = document.getElementById('save-email-btn');
+    if (saveBtn) saveBtn.classList.add('hidden');
 
     // Hide premium dashboard
     const dash = document.getElementById('premium-dashboard');
@@ -782,11 +789,17 @@ function updatePremiumDashboard(username, isPremium) {
 }
 
 function switchPDashTab(tab) {
-  document.getElementById('pdash-saved').classList.toggle('hidden', tab !== 'saved');
-  document.getElementById('pdash-apikey').classList.toggle('hidden', tab !== 'apikey');
-  document.querySelectorAll('.pdash-tab').forEach((t, i) => {
-    t.classList.toggle('active', (i === 0 && tab === 'saved') || (i === 1 && tab === 'apikey'));
+  const panels = { saved: 'pdash-saved', permanent: 'pdash-permanent', forwarding: 'pdash-forwarding', apikey: 'pdash-apikey' };
+  Object.entries(panels).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', key !== tab);
   });
+  const tabOrder = ['saved', 'permanent', 'forwarding', 'apikey'];
+  document.querySelectorAll('.pdash-tab').forEach((t, i) => {
+    t.classList.toggle('active', tabOrder[i] === tab);
+  });
+  if (tab === 'permanent') loadPermanentEmails();
+  if (tab === 'forwarding') loadForwardingSettings();
 }
 
 async function loadSavedEmails() {
@@ -1060,10 +1073,321 @@ function closeAbout() {
   document.body.style.overflow = '';
 }
 
+// ===== Profile Modal =====
+async function openProfile() {
+  const modal = document.getElementById('profile-modal');
+  if (!modal) return;
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  await loadProfileData();
+}
+
+function closeProfile() {
+  const modal = document.getElementById('profile-modal');
+  if (modal) modal.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+async function loadProfileData() {
+  const bodyEl = document.getElementById('profile-body');
+  if (!bodyEl) return;
+  const token = localStorage.getItem('authToken');
+  const username = localStorage.getItem('username');
+  if (!token || !username) {
+    bodyEl.innerHTML = '<div class="profile-loading">Not signed in.</div>';
+    return;
+  }
+  try {
+    const res = await fetch('/api/user/profile', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) { bodyEl.innerHTML = `<div class="profile-loading">${escapeHtml(data.error || 'Error')}</div>`; return; }
+    renderProfileData(data);
+  } catch (e) {
+    bodyEl.innerHTML = '<div class="profile-loading">Failed to load profile.</div>';
+  }
+}
+
+function renderProfileData(data) {
+  const bodyEl = document.getElementById('profile-body');
+  if (!bodyEl) return;
+  const { username, isPremium, premiumExpiry } = data;
+  const avatarLetter = username ? username[0].toUpperCase() : '?';
+
+  let remainingStr = 'N/A';
+  let expiryStr = 'N/A';
+  if (isPremium && premiumExpiry) {
+    const now = Date.now();
+    const diff = premiumExpiry - now;
+    if (diff > 0) {
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      remainingStr = days > 0 ? `${days} day${days !== 1 ? 's' : ''} left` : `${hours}h left`;
+      expiryStr = new Date(premiumExpiry).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } else {
+      remainingStr = 'Expired';
+      expiryStr = 'Expired';
+    }
+  }
+
+  const planLabel = isPremium ? '⭐ Premium' : 'Free';
+  const planClass = isPremium ? 'premium' : '';
+
+  bodyEl.innerHTML = `
+    <div class="profile-avatar-row">
+      <div class="profile-big-avatar ${planClass}">${escapeHtml(avatarLetter)}</div>
+      <div>
+        <div class="profile-username">@${escapeHtml(username)}</div>
+        <div class="profile-plan-badge ${planClass}">${planLabel}</div>
+      </div>
+    </div>
+    <div class="profile-info-grid">
+      <div class="profile-info-card">
+        <div class="profile-info-label">Plan</div>
+        <div class="profile-info-value ${planClass}">${planLabel}</div>
+      </div>
+      <div class="profile-info-card">
+        <div class="profile-info-label">Status</div>
+        <div class="profile-info-value ${isPremium ? 'green' : ''}">${isPremium ? 'Active' : 'Free'}</div>
+      </div>
+      ${isPremium ? `
+      <div class="profile-info-card">
+        <div class="profile-info-label">Expires</div>
+        <div class="profile-info-value">${escapeHtml(expiryStr)}</div>
+      </div>
+      <div class="profile-info-card">
+        <div class="profile-info-label">Remaining</div>
+        <div class="profile-info-value gold">${escapeHtml(remainingStr)}</div>
+      </div>
+      ` : ''}
+    </div>
+    <div class="profile-actions">
+      ${!isPremium ? `<button class="profile-action-btn" onclick="closeProfile();openPremium();">⭐ Upgrade to Premium</button>` : ''}
+      <button class="profile-action-btn danger" onclick="closeProfile();signOut();">Sign Out</button>
+    </div>
+  `;
+}
+
+// ===== Save Current Email (Premium) =====
+async function saveCurrentEmail() {
+  if (!currentEmail) { showToast('❌ No email to save'); return; }
+  const token = localStorage.getItem('authToken');
+  if (!token) { showToast('🔐 Sign in first'); return; }
+  try {
+    const res = await fetch('/api/user/saved-emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ address: currentEmail })
+    });
+    const data = await res.json();
+    if (res.ok) { showToast('✅ Email saved to your account!'); }
+    else showToast('❌ ' + (data.error || 'Could not save'));
+  } catch (e) { showToast('❌ Network error'); }
+}
+
+// ===== Permanent Emails (Premium) =====
+async function loadPermanentEmails() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const container = document.getElementById('perm-emails-list');
+  if (!container) return;
+  container.innerHTML = '<div class="pdash-loading">Loading…</div>';
+  try {
+    const res = await fetch('/api/user/saved-emails', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) { container.innerHTML = `<div class="pdash-loading">${escapeHtml(data.error || 'Error')}</div>`; return; }
+    const permEmails = (data.savedEmails || []).filter(e => e.address && e.address.endsWith(PERM_EMAIL_DOMAIN));
+    renderPermanentEmails(permEmails);
+  } catch (e) {
+    container.innerHTML = '<div class="pdash-loading">Failed to load.</div>';
+  }
+}
+
+function renderPermanentEmails(list) {
+  const container = document.getElementById('perm-emails-list');
+  if (!container) return;
+  if (list.length === 0) {
+    container.innerHTML = '<div class="pdash-loading">No permanent addresses yet. Create one above.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  list.forEach(e => {
+    const item = document.createElement('div');
+    item.className = 'saved-email-item';
+    const addr = document.createElement('div');
+    addr.className = 'saved-email-addr';
+    addr.textContent = e.address;
+    const actions = document.createElement('div');
+    actions.className = 'saved-email-actions';
+    const useBtn = document.createElement('button');
+    useBtn.className = 'se-use-btn';
+    useBtn.textContent = '📥 Use';
+    useBtn.addEventListener('click', () => useSavedEmail(e.address));
+    const delBtn = document.createElement('button');
+    delBtn.className = 'se-del-btn';
+    delBtn.textContent = '🗑️';
+    delBtn.addEventListener('click', () => deleteSavedEmail(e.address));
+    actions.appendChild(useBtn);
+    actions.appendChild(delBtn);
+    item.appendChild(addr);
+    item.appendChild(actions);
+    container.appendChild(item);
+  });
+}
+
+async function addPermanentEmail() {
+  const input = document.getElementById('perm-username-input');
+  const errEl = document.getElementById('perm-email-error');
+  const username = (input?.value || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+  if (errEl) errEl.classList.add('hidden');
+  if (!username || username.length < 3) {
+    if (errEl) { errEl.textContent = 'Username must be at least 3 characters.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (username.length > 30) {
+    if (errEl) { errEl.textContent = 'Username must be 30 characters or less.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  const address = `${username}${PERM_EMAIL_DOMAIN}`;
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/user/saved-emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ address })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (input) input.value = '';
+      showToast('✅ Permanent email created!');
+      loadPermanentEmails();
+    } else {
+      if (errEl) { errEl.textContent = data.error || 'Error creating email'; errEl.classList.remove('hidden'); }
+    }
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Network error. Try again.'; errEl.classList.remove('hidden'); }
+  }
+}
+
+// ===== Email Forwarding (Premium) =====
+async function loadForwardingSettings() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const container = document.getElementById('forwarding-list');
+  if (!container) return;
+  container.innerHTML = '<div class="pdash-loading">Loading…</div>';
+  try {
+    const res = await fetch('/api/user/saved-emails', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) { container.innerHTML = `<div class="pdash-loading">${escapeHtml(data.error || 'Error')}</div>`; return; }
+    const savedEmails = (data.savedEmails || []).filter(e => e.address && e.address.endsWith(PERM_EMAIL_DOMAIN));
+    renderForwardingSettings(savedEmails);
+  } catch (e) {
+    container.innerHTML = '<div class="pdash-loading">Failed to load.</div>';
+  }
+}
+
+function renderForwardingSettings(list) {
+  const container = document.getElementById('forwarding-list');
+  if (!container) return;
+  if (list.length === 0) {
+    container.innerHTML = '<div class="pdash-loading">No permanent addresses found. Create one in the Permanent Email tab first.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  list.forEach(e => {
+    const item = document.createElement('div');
+    item.className = 'forwarding-item';
+
+    const addrDiv = document.createElement('div');
+    addrDiv.className = 'forwarding-item-addr';
+    addrDiv.textContent = e.address;
+
+    const row = document.createElement('div');
+    row.className = 'forwarding-row';
+
+    const fwdInput = document.createElement('input');
+    fwdInput.type = 'email';
+    fwdInput.className = 'forwarding-input';
+    fwdInput.placeholder = 'Forward to: you@gmail.com';
+    fwdInput.value = e.forwarding || '';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'forwarding-save-btn';
+    saveBtn.textContent = '💾 Save';
+    saveBtn.addEventListener('click', () => saveForwarding(e.address, fwdInput));
+
+    row.appendChild(fwdInput);
+    row.appendChild(saveBtn);
+
+    if (e.forwarding) {
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'forwarding-clear-btn';
+      clearBtn.textContent = '✕';
+      clearBtn.addEventListener('click', () => clearForwarding(e.address));
+      row.appendChild(clearBtn);
+    }
+
+    item.appendChild(addrDiv);
+    item.appendChild(row);
+
+    if (e.forwarding) {
+      const statusDiv = document.createElement('div');
+      statusDiv.style.cssText = 'font-size:12px;color:#00d09c;margin-top:6px;';
+      statusDiv.textContent = `✓ Forwarding to ${e.forwarding}`;
+      item.appendChild(statusDiv);
+    }
+
+    container.appendChild(item);
+  });
+}
+
+async function saveForwarding(address, input) {
+  const forwardTo = input?.value?.trim() || '';
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  if (forwardTo && !forwardTo.includes('@')) { showToast('❌ Enter a valid email address'); return; }
+  try {
+    const res = await fetch('/api/user/forwarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ address, forwardTo: forwardTo || null })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(forwardTo ? `✅ Forwarding enabled!` : '✅ Forwarding disabled');
+      loadForwardingSettings();
+    } else {
+      showToast('❌ ' + (data.error || 'Error'));
+    }
+  } catch (e) { showToast('❌ Network error'); }
+}
+
+async function clearForwarding(address) {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/user/forwarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ address, forwardTo: null })
+    });
+    const data = await res.json();
+    if (res.ok) { showToast('✅ Forwarding removed'); loadForwardingSettings(); }
+    else showToast('❌ ' + (data.error || 'Error'));
+  } catch (e) { showToast('❌ Network error'); }
+}
+
 // ===== Global Key/Click Listeners =====
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth();
+    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth(); closeProfile();
   }
 });
 
@@ -1071,6 +1395,7 @@ document.getElementById('email-modal')?.addEventListener('click', e => { if (e.t
 document.getElementById('about-modal')?.addEventListener('click', e => { if (e.target.id === 'about-modal') closeAbout(); });
 document.getElementById('qr-modal')?.addEventListener('click', e => { if (e.target.id === 'qr-modal') closeQR(); });
 document.getElementById('auth-modal')?.addEventListener('click', e => { if (e.target.id === 'auth-modal') closeAuth(); });
+document.getElementById('profile-modal')?.addEventListener('click', e => { if (e.target.id === 'profile-modal') closeProfile(); });
 
 // Initialize auth state on load
 document.addEventListener('DOMContentLoaded', initAuthState);
