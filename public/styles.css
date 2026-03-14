@@ -631,7 +631,8 @@ body {
 }
 
 /* ========== Modals (Smooth Animate-in) ========== */
-/* Base overlay — always rendered as flex, toggled via opacity + pointer-events */
+/* Base overlay — hidden via visibility + opacity so content is removed from
+   the accessibility tree and keyboard focus cannot reach it while closed */
 .modal,
 .about-modal,
 .qr-modal,
@@ -648,10 +649,12 @@ body {
   justify-content: center;
   padding: 20px;
   overflow-y: auto;
-  /* hidden state */
+  /* hidden state — visibility:hidden removes element from accessibility tree */
+  visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.22s ease;
+  /* delay visibility change until after opacity fade completes (0.22s) */
+  transition: opacity 0.22s ease, visibility 0s linear 0.22s;
   will-change: opacity;
 }
 
@@ -679,8 +682,11 @@ body {
 .about-modal.show,
 .qr-modal.show,
 .auth-modal.show {
+  visibility: visible;
   opacity: 1;
   pointer-events: all;
+  /* show visibility immediately, then fade in opacity */
+  transition: opacity 0.22s ease, visibility 0s linear 0s;
 }
 
 /* Inner card animation */
@@ -3388,11 +3394,12 @@ button,
   color: #00d09c;
 }
 
-/* ===== Premium Popup Pricing (improved) ===== */
+/* ===== Premium Popup Pricing ===== */
 .pv-pricing {
   display: flex;
   gap: 12px;
   margin-bottom: 18px;
+  align-items: stretch;
 }
 .pv-price-option {
   flex: 1;
@@ -3401,10 +3408,15 @@ button,
   border-radius: 12px;
   padding: 12px 14px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 .pv-price-option.featured {
   background: rgba(255,215,0,0.08);
-  border-color: rgba(255,215,0,0.3);
+  border-color: rgba(255,215,0,0.45);
+  box-shadow: 0 0 0 1px rgba(255,215,0,0.15);
 }
 .pv-price-label {
   font-size: 11px;
@@ -3423,21 +3435,38 @@ button,
 .pv-price-amount strong { color: #fff; }
 .pv-price-amount small { font-size: 12px; color: #666; font-weight: 400; }
 .pv-price-sub { font-size: 11px; color: #00d09c; margin-top: 3px; font-weight: 600; }
+
+/* Divider — vertical separator lines on desktop, horizontal on mobile */
 .pv-price-divider {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #444;
-  font-size: 13px;
-  font-weight: 500;
+  gap: 6px;
+  color: #555;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
   flex-shrink: 0;
+  padding: 0 2px;
+}
+.pv-price-divider::before,
+.pv-price-divider::after {
+  content: '';
+  width: 1px;
+  flex: 1;
+  background: rgba(255,255,255,0.08);
 }
 @media (max-width: 600px) {
   .pv-pricing { flex-direction: column; }
-  .pv-price-divider { flex-direction: row; gap: 10px; }
+  .pv-price-divider {
+    flex-direction: row;
+    gap: 10px;
+    padding: 0;
+  }
   .pv-price-divider::before,
   .pv-price-divider::after {
-    content: '';
+    width: auto;
     flex: 1;
     height: 1px;
     background: rgba(255,255,255,0.07);
