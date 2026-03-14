@@ -1349,6 +1349,19 @@ body {
   flex-shrink: 0;
 }
 
+/* Desktop: ensure logo doesn't push header-actions off-screen */
+.logo {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.logo-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .premium-btn {
   background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
   border: none;
@@ -2808,23 +2821,28 @@ body {
    =================================================== */
 .pv-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 20px;
   z-index: 1000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
 }
 
 .pv-overlay.show {
-  opacity: 1;
-  pointer-events: all;
+  display: flex;
+  animation: pvFadeIn 0.25s ease forwards;
+}
+
+@keyframes pvFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .pv-box {

@@ -689,6 +689,9 @@ function initAuthState() {
 
     // Show/hide premium dashboard
     updatePremiumDashboard(username, isPremium);
+
+    // Refresh premium status from server in background (handles admin-granted premium)
+    refreshPremiumStatus();
   } else {
     // Logged out: hide avatar
     if (avatarEl) {
@@ -710,6 +713,42 @@ function initAuthState() {
     // Hide premium dashboard
     const dash = document.getElementById('premium-dashboard');
     if (dash) dash.classList.add('hidden');
+  }
+}
+
+// ===== Refresh Premium Status from Server =====
+// Called after sign-in and on page load to sync premium status with server
+// (handles the case where admin grants/revokes premium without a fresh sign-in)
+let _premiumRefreshPending = false;
+async function refreshPremiumStatus() {
+  if (_premiumRefreshPending) return;
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  _premiumRefreshPending = true;
+  try {
+    const res = await fetch('/api/user/profile', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const prevPremium = localStorage.getItem('isPremium') === 'true';
+      const newPremium = !!data.isPremium;
+      if (prevPremium !== newPremium) {
+        localStorage.setItem('isPremium', newPremium ? 'true' : 'false');
+        initAuthState();
+        if (newPremium) showToast('⭐ Premium activated!');
+      }
+    } else if (res.status === 401) {
+      // Session expired — sign out silently
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('username');
+      localStorage.removeItem('isPremium');
+      initAuthState();
+      showToast('🔒 Session expired. Please sign in again.');
+    }
+  } catch (_) { /* network error; ignore silently */ }
+  finally {
+    _premiumRefreshPending = false;
   }
 }
 
@@ -933,6 +972,9 @@ async function signIn() {
   const password = document.getElementById('signin-password').value;
   if (!username || !password) { showAuthError('Please enter username and password'); return; }
 
+  const btn = document.querySelector('#signin-section .auth-verify-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+
   try {
     const res = await fetch('/api/auth/signin', {
       method: 'POST',
@@ -952,6 +994,9 @@ async function signIn() {
       showAuthError(data.error || 'Sign in failed');
     }
   } catch (e) { showAuthError('Network error. Try again.'); }
+  finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
+  }
 }
 
 async function signUp() {
@@ -959,6 +1004,9 @@ async function signUp() {
   const password = document.getElementById('signup-password').value;
   const email = document.getElementById('signup-email').value.trim();
   if (!username || !password) { showAuthError('Username and password are required'); return; }
+
+  const btn = document.querySelector('#signup-section .auth-verify-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
 
   try {
     const res = await fetch('/api/auth/signup', {
@@ -978,6 +1026,9 @@ async function signUp() {
       showAuthError(data.error || 'Signup failed');
     }
   } catch (e) { showAuthError('Network error. Try again.'); }
+  finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Create Account'; }
+  }
 }
 
 function showAuthError(msg) {

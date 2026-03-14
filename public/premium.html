@@ -954,7 +954,10 @@
         return;
       }
 
-      // If logged in, start from step 1 (plan selection) — they'll skip step 2 automatically
+      // Ensure yearly plan is visually selected by default
+      ppSelectPlan('yearly');
+
+      // Start at step 1 (plan selection)
       ppGoStep(1);
     });
 
@@ -990,6 +993,10 @@
     }
 
     function ppContinueFromPlan() {
+      if (!ppState.plan) {
+        alert('Please select a plan to continue.');
+        return;
+      }
       if (localStorage.getItem('authToken')) {
         ppUpdateCheckout();
         ppGoStep(3);
