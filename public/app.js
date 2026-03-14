@@ -630,16 +630,29 @@ function openPremium() {
   }
   const overlay = document.getElementById('pv-overlay');
   if (overlay) {
-    overlay.classList.add('show');
+    overlay.style.display = 'flex';
+    // Allow display:flex to render before triggering the CSS transition
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => overlay.classList.add('show'));
+    });
     document.body.style.overflow = 'hidden';
   }
 }
+
+// Duration matches the CSS `transition: opacity 0.25s ease` on .pv-overlay (+ 10 ms buffer)
+const PV_CLOSE_DELAY_MS = 260;
 
 function closePremiumPreview() {
   const overlay = document.getElementById('pv-overlay');
   if (overlay) {
     overlay.classList.remove('show');
     document.body.style.overflow = '';
+    // Hide overlay after the CSS opacity fade-out transition completes
+    setTimeout(() => {
+      if (!overlay.classList.contains('show')) {
+        overlay.style.display = 'none';
+      }
+    }, PV_CLOSE_DELAY_MS);
   }
 }
 

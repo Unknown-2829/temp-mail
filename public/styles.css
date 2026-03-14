@@ -1349,10 +1349,10 @@ body {
   flex-shrink: 0;
 }
 
-/* Desktop: ensure logo doesn't push header-actions off-screen */
+/* Desktop: ensure logo can shrink to accommodate header-actions */
 .logo {
   flex-shrink: 1;
-  min-width: 0;
+  min-width: 48px; /* Never collapse below the logo icon */
   overflow: hidden;
 }
 
@@ -1360,6 +1360,33 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Medium screens (601px – 900px): compact header to prevent overflow */
+@media (min-width: 601px) and (max-width: 900px) {
+  .logo-icon { font-size: 26px; }
+  .logo-text { font-size: 20px; letter-spacing: 1px; }
+
+  /* Hide less-critical buttons to free up space */
+  .about-btn { display: none; }
+
+  .premium-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+    border-radius: 20px;
+    animation: none;
+  }
+
+  .auth-action-btn {
+    font-size: 12px;
+    padding: 7px 13px;
+    max-width: 100px;
+  }
+
+  .auth-status-text {
+    max-width: 80px;
+    font-size: 12px;
+  }
 }
 
 .premium-btn {
@@ -2423,36 +2450,49 @@ body {
 }
 
 .auth-action-btn {
-  background: #252540;
-  border: 1px solid #3a3a5c;
-  color: #ccc;
-  padding: 7px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  background: transparent;
+  border: 1.5px solid rgba(0, 208, 156, 0.5);
+  color: #00d09c;
+  padding: 9px 18px;
+  border-radius: 22px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   white-space: nowrap;
   flex-shrink: 0;
-  max-width: 120px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: 0 0 12px rgba(0, 208, 156, 0.12), inset 0 0 12px rgba(0, 208, 156, 0.04);
+  letter-spacing: 0.3px;
 }
 
 .auth-action-btn:hover {
-  border-color: #00d09c;
+  background: linear-gradient(135deg, #00d09c 0%, #00b386 100%);
+  border-color: transparent;
   color: #fff;
+  box-shadow: 0 4px 20px rgba(0, 208, 156, 0.45), 0 0 0 1px rgba(0, 208, 156, 0.3);
+  transform: translateY(-2px) scale(1.04);
+}
+
+.auth-action-btn:active {
+  transform: scale(0.96);
+  box-shadow: none;
 }
 
 .auth-action-btn.signout-btn {
   border-color: rgba(255, 107, 107, 0.4);
   color: #ff9999;
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.08);
 }
 
 .auth-action-btn.signout-btn:hover {
   background: rgba(255, 107, 107, 0.15);
   border-color: #ff6b6b;
   color: #ff6b6b;
+  box-shadow: 0 4px 14px rgba(255, 107, 107, 0.25);
+  transform: translateY(-2px) scale(1.04);
 }
 
 /* User avatar circle — shows username initial when logged in */
@@ -2772,8 +2812,9 @@ body {
 
   .auth-action-btn {
     font-size: 11px;
-    padding: 6px 10px;
-    max-width: 80px;
+    padding: 6px 12px;
+    max-width: 90px;
+    border-radius: 18px;
   }
 
   .pdash-add-row {
@@ -2857,11 +2898,16 @@ body {
   width: 100%;
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,215,0,0.08);
-  animation: pvSlideUp 0.3s ease forwards;
+  /* animation triggered only when overlay is visible */
+}
+
+/* Run slide-up animation only when overlay is opened */
+.pv-overlay.show .pv-box {
+  animation: pvSlideUp 0.35s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
 }
 
 @keyframes pvSlideUp {
-  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  from { opacity: 0; transform: translateY(28px) scale(0.95); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
