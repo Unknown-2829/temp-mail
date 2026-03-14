@@ -621,9 +621,23 @@ function closeQR() {
 let pfState = { step: 1, plan: 'yearly', price: 20 };
 
 function openPremium() {
+  // If already premium, scroll to the dashboard instead
+  if (localStorage.getItem('isPremium') === 'true') {
+    const dash = document.getElementById('premium-dashboard');
+    if (dash) {
+      dash.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showToast('⭐ You already have Premium!');
+    }
+    return;
+  }
   document.getElementById('premium-flow-overlay').classList.add('show');
   document.body.style.overflow = 'hidden';
-  goToPremiumStep(1);
+  // If already logged in, skip auth step and go to payment
+  if (localStorage.getItem('authToken')) {
+    goToPremiumStep(3);
+  } else {
+    goToPremiumStep(1);
+  }
 }
 
 function closePremiumFlow() {
@@ -789,9 +803,14 @@ function initAuthState() {
     actionBtn.classList.add('signout-btn');
     actionBtn.onclick = signOut;
 
-    // Update premium button label
+    // Hide premium button for premium users; update label for non-premium
     if (premBtn) {
-      premBtn.textContent = isPremium ? '⭐ Premium' : '⭐ Get Premium';
+      if (isPremium) {
+        premBtn.classList.add('hidden');
+      } else {
+        premBtn.classList.remove('hidden');
+        premBtn.textContent = '⭐ Get Premium';
+      }
     }
 
     // Show/hide premium dashboard
@@ -802,7 +821,11 @@ function initAuthState() {
     actionBtn.classList.remove('signout-btn');
     actionBtn.onclick = openAuth;
 
-    if (premBtn) premBtn.textContent = '⭐ Premium';
+    // Not logged in: show the premium button
+    if (premBtn) {
+      premBtn.classList.remove('hidden');
+      premBtn.textContent = '⭐ Premium';
+    }
 
     // Hide premium dashboard
     const dash = document.getElementById('premium-dashboard');
