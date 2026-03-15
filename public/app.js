@@ -427,16 +427,24 @@ function viewEmail(index) {
     // Inject responsive reset CSS (first in <head> so email styles can override)
     const resetStyle = doc.createElement('style');
     resetStyle.textContent = [
-      'html,body{margin:0;padding:0;word-break:break-word;}',
+      'html,body{margin:0;padding:0;word-break:break-word;max-width:100%!important;overflow-x:hidden!important;}',
       'body{padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;',
       'line-height:1.6;color:#333;}',
       'img{max-width:100%!important;height:auto!important;}',
       'table{max-width:100%!important;border-collapse:collapse;}',
-      'td,th{word-break:break-word;max-width:100%;}',
+      'td,th{word-break:break-word;max-width:100%;overflow-wrap:break-word;}',
       'pre,code{white-space:pre-wrap;word-break:break-all;overflow-x:auto;}',
-      '*{box-sizing:border-box;}'
+      '*{box-sizing:border-box;max-width:100%;}'
     ].join('');
     doc.head.insertBefore(resetStyle, doc.head.firstChild);
+
+    // Ensure viewport meta is present so mobile browsers scale the iframe content correctly
+    if (!doc.querySelector('meta[name="viewport"]')) {
+      const vp = doc.createElement('meta');
+      vp.setAttribute('name', 'viewport');
+      vp.setAttribute('content', 'width=device-width, initial-scale=1.0');
+      doc.head.insertBefore(vp, doc.head.firstChild);
+    }
 
     // Render in a sandboxed iframe for complete style isolation and proper centering
     body.innerHTML = '';
