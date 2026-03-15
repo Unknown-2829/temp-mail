@@ -393,6 +393,20 @@ function viewEmail(index) {
       a.setAttribute('target', '_blank');
       a.setAttribute('rel', 'noopener');
     });
+    // On mobile, force all images and tables to be responsive
+    if (isMobile()) {
+      body.querySelectorAll('img').forEach(img => {
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+      });
+      body.querySelectorAll('table').forEach(tbl => {
+        tbl.style.maxWidth = '100%';
+        tbl.removeAttribute('width');
+      });
+      body.querySelectorAll('td, th').forEach(cell => {
+        cell.style.wordBreak = 'break-word';
+      });
+    }
   } else if (email.body) {
     let text = cleanBrokenChars(email.body);
     body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;">${linkify(escapeHtml(text))}</div>`;
@@ -876,13 +890,8 @@ function useSavedEmail(address) {
   scheduleRender();
   refreshEmails();
   showToast('✅ Now using ' + address);
-  // Scroll to the inbox section so the user can see incoming emails
-  const inboxSection = document.querySelector('.inbox-section');
-  if (inboxSection) {
-    inboxSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } else {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+  // Scroll to the absolute top so the user can see the email address and inbox
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function loadApiKey() {
