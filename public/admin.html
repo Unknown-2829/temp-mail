@@ -94,6 +94,10 @@
         .tbl-grant:hover { background: #ffd700; color: #1a1a2e; }
         .tbl-revoke { background: rgba(255,107,107,.1); border: 1px solid rgba(255,107,107,.3); color: #ff6b6b; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all .2s; white-space: nowrap; }
         .tbl-revoke:hover { background: #ff6b6b; color: #fff; }
+        .tbl-delete { background: rgba(255,107,107,.1); border: 1px solid rgba(255,107,107,.3); color: #ff6b6b; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+        .tbl-delete:hover { background: #ff6b6b; color: #fff; }
+        .delete-user-btn { background: rgba(255,107,107,.1); border: 1px solid rgba(255,107,107,.4); color: #ff6b6b; padding: 10px 14px; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all .2s; }
+        .delete-user-btn:hover { background: #ff6b6b; color: #fff; }
         .load-more-btn { width: 100%; margin-top: 14px; padding: 10px; background: #252540; border: 1px solid #3a3a5c; border-radius: 10px; color: #888; font-size: 13px; cursor: pointer; transition: all .2s; }
         .load-more-btn:hover { color: #fff; border-color: #ff6b35; }
         .empty-list { text-align: center; color: #666; padding: 30px 0; font-size: 14px; }
@@ -203,6 +207,7 @@
                             <input type="number" id="days-input" class="days-input" value="365" min="1" max="3650" title="Days of premium">
                             <button class="grant-btn" onclick="grantPremium()">&#11088; Grant Premium</button>
                             <button class="revoke-btn" onclick="revokePremium()">&#10005; Revoke</button>
+                            <button class="delete-user-btn" onclick="deleteSearchedUser()">&#128465; Delete Account</button>
                         </div>
                         <div class="action-msg" id="action-msg"></div>
                     </div>
@@ -225,6 +230,19 @@
                 <button class="modal-confirm" onclick="confirmGrant()">Grant</button>
             </div>
             <div class="modal-msg" id="grant-modal-msg"></div>
+        </div>
+    </div>
+
+    <!-- Delete User Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal-box">
+            <div class="modal-title" style="color:#ff6b6b;">&#128465; Delete Account</div>
+            <div class="modal-sub">Permanently delete <strong id="delete-modal-user" style="color:#fff;"></strong>? This cannot be undone.</div>
+            <div class="modal-btns">
+                <button class="modal-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <button class="modal-confirm" style="background:linear-gradient(135deg,#ff6b6b,#cc3333);" onclick="confirmDeleteUser()">Delete</button>
+            </div>
+            <div class="modal-msg" id="delete-modal-msg"></div>
         </div>
     </div>
 
@@ -343,12 +361,17 @@
                     if (u.isPremium) quickRevoke(u.username);
                     else openGrantModal(u.username);
                 });
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'tbl-delete';
+                deleteBtn.textContent = '🗑️ Delete';
+                deleteBtn.addEventListener('click', function() { openDeleteModal(u.username); });
                 row.innerHTML = '<td><div class="tbl-username">' + esc(u.username) + '</div><div class="tbl-email">' + esc(u.email||'') + '</div></td>' +
                     '<td><span class="tbl-badge ' + (u.isPremium ? 'premium' : 'free') + '">' + (u.isPremium ? '\u2b50 Premium' : 'Free') + '</span>' +
                     (u.isPremium && expiry ? '<div style="font-size:11px;color:#888;margin-top:2px;">Until ' + expiry + '</div>' : '') + '</td>' +
                     '<td class="tbl-date">' + joined + '</td>' +
                     '<td><div class="tbl-actions"></div></td>';
                 row.querySelector('.tbl-actions').appendChild(actionBtn);
+                row.querySelector('.tbl-actions').appendChild(deleteBtn);
                 tbody.appendChild(row);
             });
         }
@@ -397,6 +420,42 @@
                 if (res.ok) { showToast('✅ ' + data.message); loadUsers(true); loadStats(); }
                 else showToast('❌ ' + (data.error||'Error'));
             } catch(e) { showToast('❌ Network error'); }
+        }
+
+        let deleteModalUsername = null;
+
+        function openDeleteModal(username) {
+            deleteModalUsername = username;
+            document.getElementById('delete-modal-user').textContent = '@' + username;
+            document.getElementById('delete-modal-msg').style.display = 'none';
+            document.getElementById('delete-modal').classList.add('show');
+        }
+        function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('show'); deleteModalUsername = null; }
+
+        async function confirmDeleteUser() {
+            if (!deleteModalUsername) return;
+            const msgEl = document.getElementById('delete-modal-msg');
+            try {
+                const res = await fetch('/api/admin/delete-user', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
+                    body: JSON.stringify({ username: deleteModalUsername })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    msgEl.textContent = '✅ ' + data.message;
+                    msgEl.style.cssText = 'display:block;color:#00d09c;';
+                    setTimeout(() => { closeDeleteModal(); loadUsers(true); loadStats(); }, 1200);
+                } else {
+                    msgEl.textContent = '❌ ' + (data.error||'Error');
+                    msgEl.style.cssText = 'display:block;color:#ff6b6b;';
+                }
+            } catch(e) { msgEl.textContent = '❌ Network error'; msgEl.style.cssText = 'display:block;color:#ff6b6b;'; }
+        }
+
+        function deleteSearchedUser() {
+            if (!currentUser) return;
+            openDeleteModal(currentUser.username);
         }
 
         async function searchUser() {
