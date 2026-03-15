@@ -386,27 +386,81 @@ function viewEmail(index) {
   const body = document.getElementById('modal-body');
 
   if (email.htmlBody) {
-    let html = sanitizeHtml(email.htmlBody);
-    html = cleanBrokenChars(html);
-    body.innerHTML = html;
-    body.querySelectorAll('a').forEach(a => {
-      a.setAttribute('target', '_blank');
-      a.setAttribute('rel', 'noopener');
+    // Parse and sanitize the email HTML
+    const doc = new DOMParser().parseFromString(email.htmlBody, 'text/html');
+
+    // Remove dangerous elements (keep <style> — it will be safely isolated in iframe)
+    doc.querySelectorAll(
+      'script, iframe, object, embed, form, input, button, meta, link[rel="stylesheet"]'
+    ).forEach(el => el.remove());
+
+    // Neutralize dangerous attributes
+    doc.querySelectorAll('*').forEach(el => {
+      [...el.attributes].forEach(attr => {
+        if (/^on\w+$/i.test(attr.name)) {
+          el.removeAttribute(attr.name);
+        } else if ((attr.name === 'href' || attr.name === 'src' || attr.name === 'action') &&
+                   /^\s*javascript:/i.test(attr.value)) {
+          attr.name === 'href' ? el.setAttribute('href', '#') : el.removeAttribute(attr.name);
+        }
+      });
     });
-    // On mobile, force all images and tables to be responsive
-    if (isMobile()) {
-      body.querySelectorAll('img').forEach(img => {
-        img.style.maxWidth = '100%';
-        img.style.height = 'auto';
-      });
-      body.querySelectorAll('table').forEach(tbl => {
-        tbl.style.maxWidth = '100%';
-        tbl.removeAttribute('width');
-      });
-      body.querySelectorAll('td, th').forEach(cell => {
-        cell.style.wordBreak = 'break-word';
-      });
+
+    // Fix broken characters in the body text
+    doc.body.innerHTML = cleanBrokenChars(doc.body.innerHTML);
+
+    // Ensure charset meta is present
+    if (!doc.querySelector('meta[charset]')) {
+      const m = doc.createElement('meta');
+      m.setAttribute('charset', 'utf-8');
+      doc.head.insertBefore(m, doc.head.firstChild);
     }
+
+    // Open all links in new tab
+    if (!doc.querySelector('base')) {
+      const base = doc.createElement('base');
+      base.target = '_blank';
+      base.setAttribute('rel', 'noopener');
+      doc.head.insertBefore(base, doc.head.firstChild);
+    }
+
+    // Inject responsive reset CSS (first in <head> so email styles can override)
+    const resetStyle = doc.createElement('style');
+    resetStyle.textContent = [
+      'html,body{margin:0;padding:0;word-break:break-word;}',
+      'body{padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;',
+      'line-height:1.6;color:#333;}',
+      'img{max-width:100%!important;height:auto!important;}',
+      'table{max-width:100%!important;border-collapse:collapse;}',
+      'td,th{word-break:break-word;max-width:100%;}',
+      'pre,code{white-space:pre-wrap;word-break:break-all;overflow-x:auto;}',
+      '*{box-sizing:border-box;}'
+    ].join('');
+    doc.head.insertBefore(resetStyle, doc.head.firstChild);
+
+    // Render in a sandboxed iframe for complete style isolation and proper centering
+    body.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.title = 'Email content';
+    // allow-same-origin lets parent resize the iframe; scripts are blocked (no allow-scripts)
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+    iframe.style.cssText = 'width:100%;border:none;display:block;min-height:200px;';
+    iframe.srcdoc = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+    body.appendChild(iframe);
+
+    // Auto-resize iframe to its content height
+    const resizeIframe = () => {
+      try {
+        const h = iframe.contentDocument.documentElement.scrollHeight;
+        if (h > 0) iframe.style.height = h + 'px';
+      } catch (e) {}
+    };
+    iframe.addEventListener('load', () => {
+      resizeIframe();
+      // Re-check after images and web fonts may have finished loading
+      setTimeout(resizeIframe, 300);
+      setTimeout(resizeIframe, 1000);
+    });
   } else if (email.body) {
     let text = cleanBrokenChars(email.body);
     body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;">${linkify(escapeHtml(text))}</div>`;
@@ -434,18 +488,57 @@ function viewEmail(index) {
   document.body.style.overflow = 'hidden';
 }
 
-// ===== Clean broken UTF-8 =====
+// ===== Clean broken UTF-8 / Latin-1 mojibake =====
 function cleanBrokenChars(text) {
   if (!text) return '';
   return text
+    // Common double-encoding artifacts
+    .replace(/Â /g, ' ')
+    .replace(/Â\u00a0/g, '\u00a0')
     .replace(/Â\s*/g, '')
-    .replace(/Ã¢/g, 'â')
-    .replace(/Ã©/g, 'é')
-    .replace(/â€™/g, "'")
-    .replace(/â€"/g, "-")
-    .replace(/â€œ/g, '"')
-    .replace(/â€/g, '"')
+    // Accented Latin letters (Ã-prefix mojibake → correct UTF-8)
+    .replace(/Ã€/g, 'À').replace(/Ã‚/g, 'Â').replace(/Ãƒ/g, 'Ã')
+    .replace(/Ã„/g, 'Ä').replace(/Ã…/g, 'Å').replace(/Ã†/g, 'Æ')
+    .replace(/Ã‡/g, 'Ç').replace(/Ãˆ/g, 'È').replace(/Ã‰/g, 'É')
+    .replace(/ÃŠ/g, 'Ê').replace(/Ã‹/g, 'Ë').replace(/ÃŒ/g, 'Ì')
+    .replace(/ÃŽ/g, 'Î').replace(/Ã'/g, 'Ñ').replace(/Ã'/g, 'Ò')
+    .replace(/Ã"/g, 'Ó').replace(/Ã"/g, 'Ô').replace(/Ã•/g, 'Õ')
+    .replace(/Ã–/g, 'Ö').replace(/Ã˜/g, 'Ø').replace(/Ã™/g, 'Ù')
+    .replace(/Ãš/g, 'Ú').replace(/Ã›/g, 'Û').replace(/Ãœ/g, 'Ü')
+    .replace(/Ãž/g, 'Þ').replace(/ÃŸ/g, 'ß')
+    .replace(/Ã /g, 'à').replace(/Ã¡/g, 'á').replace(/Ã¢/g, 'â')
+    .replace(/Ã£/g, 'ã').replace(/Ã¤/g, 'ä').replace(/Ã¥/g, 'å')
+    .replace(/Ã¦/g, 'æ').replace(/Ã§/g, 'ç').replace(/Ã¨/g, 'è')
+    .replace(/Ã©/g, 'é').replace(/Ãª/g, 'ê').replace(/Ã«/g, 'ë')
+    .replace(/Ã¬/g, 'ì').replace(/Ã­/g, 'í').replace(/Ã®/g, 'î')
+    .replace(/Ã¯/g, 'ï').replace(/Ã°/g, 'ð').replace(/Ã±/g, 'ñ')
+    .replace(/Ã²/g, 'ò').replace(/Ã³/g, 'ó').replace(/Ã´/g, 'ô')
+    .replace(/Ãµ/g, 'õ').replace(/Ã¶/g, 'ö').replace(/Ã¸/g, 'ø')
+    .replace(/Ã¹/g, 'ù').replace(/Ãº/g, 'ú').replace(/Ã»/g, 'û')
+    .replace(/Ã¼/g, 'ü').replace(/Ã½/g, 'ý').replace(/Ã¾/g, 'þ')
+    .replace(/Ã¿/g, 'ÿ')
+    // Smart punctuation (â€-prefix mojibake → correct UTF-8)
+    // IMPORTANT: longer/specific patterns must come before the short â€ catch-all.
+    // UTF-8 byte interpretation through Windows-1252 (third byte → Windows-1252 char):
+    //   0x98 → U+02DC (˜),  0x99 → U+2122 (™)  for single quotes
+    //   0x93 → U+201C ("),  0x94 → U+201D (")  for en/em dashes
+    //   0x9C → U+0153 (œ)                        for left double quote
+    .replace(/â€˜/g, '\u2018').replace(/â€™/g, '\u2019')    // ' '
+    .replace(/\u00e2\u20ac\u201c/g, '\u2013')                // en dash –
+    .replace(/\u00e2\u20ac\u201d/g, '\u2014')                // em dash —
+    .replace(/â€¦/g, '\u2026')                                // …
+    .replace(/â€¢/g, '\u2022')                                // •
+    .replace(/â€°/g, '\u2030')                                // ‰
+    .replace(/â€œ/g, '\u201C').replace(/â€/g, '\u201D')      // " "
+    // Symbols
+    .replace(/Â©/g, '©').replace(/Â®/g, '®').replace(/â„¢/g, '™')
+    .replace(/Â°/g, '°').replace(/Â±/g, '±').replace(/Â·/g, '·')
+    .replace(/Â½/g, '½').replace(/Â¼/g, '¼').replace(/Â¾/g, '¾')
+    .replace(/Â£/g, '£').replace(/â‚¬/g, '€').replace(/Â¥/g, '¥')
+    .replace(/Â¢/g, '¢').replace(/Â§/g, '§').replace(/Âµ/g, 'µ')
+    // Non-breaking space → regular space
     .replace(/\u00A0/g, ' ')
+    // Strip C1 control characters that serve no display purpose
     .replace(/[\u0080-\u009F]/g, '');
 }
 
@@ -527,9 +620,9 @@ function sanitizeHtml(html) {
   if (!html) return '';
   // Parse with the browser's own HTML parser — handles all edge cases regex cannot
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  // Remove dangerous element types entirely
+  // Remove dangerous element types entirely (<style> is kept — it is isolated in the iframe)
   doc.querySelectorAll(
-    'script, style, iframe, object, embed, form, input, button, meta, link[rel="stylesheet"]'
+    'script, iframe, object, embed, form, input, button, meta, link[rel="stylesheet"]'
   ).forEach(el => el.remove());
   // Neutralize dangerous attributes on every remaining element
   doc.querySelectorAll('*').forEach(el => {

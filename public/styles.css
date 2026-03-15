@@ -719,7 +719,7 @@ body {
   background: #fff;
   border-radius: 16px;
   width: 100%;
-  max-width: 700px;
+  max-width: 860px;
   margin-top: 50px;
   overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -844,11 +844,21 @@ body {
 }
 
 .modal-body {
-  padding: 30px 24px;
+  padding: 24px;
   color: #444;
   line-height: 1.6;
   font-size: 15px;
   min-height: 200px;
+  overflow-x: auto;
+}
+
+/* Email iframe rendered inside the modal body */
+.modal-body iframe {
+  width: 100%;
+  border: none;
+  display: block;
+  min-height: 200px;
+  border-radius: 4px;
 }
 
 .modal-attachments {
