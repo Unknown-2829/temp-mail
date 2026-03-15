@@ -48,6 +48,8 @@ export async function onRequest(context) {
             return handleGrantPremium(request, env);
         case 'revoke-premium':
             return handleRevokePremium(request, env);
+        case 'delete-user':
+            return handleDeleteUser(request, env);
         case 'stats':
             return handleStats(env);
         default:
@@ -183,6 +185,38 @@ async function handleRevokePremium(request, env) {
     }
 
     return jsonResponse({ success: true, message: `Premium revoked from @${username.toLowerCase()}` });
+}
+
+// ===== Delete User =====
+async function handleDeleteUser(request, env) {
+    const { username } = await request.json();
+    if (!username) return jsonResponse({ error: 'username required' }, 400);
+
+    const userKey = `user:${username.toLowerCase()}`;
+    const user = await env.EMAILS.get(userKey, { type: 'json' });
+    if (!user) return jsonResponse({ error: 'User not found' }, 404);
+
+    // Delete saved email KV entries (best-effort; log any failures)
+    const cleanupErrors = [];
+    if (Array.isArray(user.savedEmails)) {
+        await Promise.all(
+            user.savedEmails.map(addr =>
+                env.EMAILS.delete(addr).catch(e => cleanupErrors.push(`saved-email:${addr}: ${e.message}`))
+            )
+        );
+    }
+
+    // Delete API key entry (best-effort)
+    if (user.apiKey && env.API_KEYS) {
+        await env.API_KEYS.delete(user.apiKey).catch(e => cleanupErrors.push(`api-key: ${e.message}`));
+    }
+
+    // Delete the user record
+    await env.EMAILS.delete(userKey);
+
+    const response = { success: true, message: `Account @${username.toLowerCase()} deleted` };
+    if (cleanupErrors.length > 0) response.warnings = cleanupErrors;
+    return jsonResponse(response);
 }
 
 // ===== Stats =====

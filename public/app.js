@@ -872,13 +872,17 @@ function useSavedEmail(address) {
   const emailDisplay = document.getElementById('email-display');
   if (emailDisplay) emailDisplay.value = address;
   emailsList = [];
-  // Close the premium dashboard so the inbox is visible
-  closePremiumDashboard();
   startAutoRefresh();
   scheduleRender();
   refreshEmails();
   showToast('✅ Now using ' + address);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Scroll to the inbox section so the user can see incoming emails
+  const inboxSection = document.querySelector('.inbox-section');
+  if (inboxSection) {
+    inboxSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 async function loadApiKey() {
