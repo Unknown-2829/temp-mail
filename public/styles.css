@@ -1485,6 +1485,15 @@ body {
     overflow-x: hidden;
     padding: 14px;
     font-size: 14px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Constrain the iframe to the modal body width on mobile */
+  .modal-body iframe {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
   }
 
   /* Constrain HTML email content to viewport on mobile */
@@ -1502,11 +1511,18 @@ body {
   .modal-body td,
   .modal-body th {
     word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   .modal-body * {
     max-width: 100%;
     box-sizing: border-box;
+  }
+
+  /* Prevent the modal content from overflowing the screen horizontally */
+  .modal-content {
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   .footer {
