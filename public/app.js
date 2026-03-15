@@ -28,6 +28,14 @@ let readIds = JSON.parse(localStorage.getItem('readIds') || '[]');
 let isGenerating = false;
 let renderPending = false;
 
+// ResizeObserver used to keep the email iframe height in sync with its content.
+// Stored here so closeModal() can disconnect it and prevent memory leaks.
+let _iframeResizeObserver = null;
+
+// Regex constants reused during HTML email pre-processing
+const _NUMERIC_ATTR_RE = /^\d+$/;          // matches bare integer attribute values like "600"
+const _PIXEL_STYLE_RE  = /^\d+(\.\d+)?px$/i; // matches inline pixel values like "600px", "12.5px"
+
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
 
@@ -406,6 +414,40 @@ function viewEmail(index) {
       });
     });
 
+    // ── Strip fixed-pixel dimension attributes ───────────────────────────────
+    // HTML width/height attributes (e.g. <table width="600">) map to CSS intrinsic
+    // sizes that resist max-width overrides on many browsers; removing them lets our
+    // injected CSS (table-layout:fixed + width:100%) properly constrain the layout.
+    doc.querySelectorAll('table, td, th, img, div, center, p, h1, h2, h3, h4, h5, h6').forEach(el => {
+      const tag = el.tagName.toLowerCase();
+
+      // Remove numeric width attribute
+      if (el.hasAttribute('width') && _NUMERIC_ATTR_RE.test((el.getAttribute('width') || '').trim())) {
+        el.removeAttribute('width');
+      }
+      // Remove numeric height attribute (preserve natural aspect ratio)
+      if (el.hasAttribute('height') && _NUMERIC_ATTR_RE.test((el.getAttribute('height') || '').trim())) {
+        el.removeAttribute('height');
+      }
+
+      // Clear inline pixel widths so CSS max-width:100%!important can cap them cleanly
+      if (el.style.width && _PIXEL_STYLE_RE.test(el.style.width.trim())) {
+        el.style.width = '';
+      }
+      // Clear inline pixel heights on non-images (avoids clipped content)
+      if (tag !== 'img' && el.style.height && _PIXEL_STYLE_RE.test(el.style.height.trim())) {
+        el.style.height = '';
+      }
+      // Zero out inline min-width so elements can shrink to fit the viewport
+      if (el.style.minWidth && _PIXEL_STYLE_RE.test(el.style.minWidth.trim())) {
+        el.style.minWidth = '0';
+      }
+      // Remove inline max-width overrides that would fight our reset rules
+      if (/^(none|initial|unset)$/i.test((el.style.maxWidth || '').trim())) {
+        el.style.maxWidth = '';
+      }
+    });
+
     // Fix broken characters in the body text
     doc.body.innerHTML = cleanBrokenChars(doc.body.innerHTML);
 
@@ -424,26 +466,60 @@ function viewEmail(index) {
       doc.head.insertBefore(base, doc.head.firstChild);
     }
 
-    // Inject responsive reset CSS (first in <head> so email styles can override)
+    // ── Inject comprehensive responsive reset CSS ────────────────────────────
+    // Placed FIRST in <head> so email author <style> blocks load after and can
+    // still adjust colours/spacing — but our !important rules on structural
+    // layout always win, preventing any fixed-width element from overflowing.
     const resetStyle = doc.createElement('style');
-    resetStyle.textContent = [
-      'html,body{margin:0;padding:0;word-break:break-word;max-width:100%!important;overflow-x:hidden!important;}',
-      'body{padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;',
-      'line-height:1.6;color:#333;}',
-      'img{max-width:100%!important;height:auto!important;}',
-      'table{max-width:100%!important;border-collapse:collapse;}',
-      'td,th{word-break:break-word;max-width:100%;overflow-wrap:break-word;}',
-      'pre,code{white-space:pre-wrap;word-break:break-all;overflow-x:auto;}',
-      '*{box-sizing:border-box;max-width:100%;}'
-    ].join('');
+    resetStyle.textContent =
+      // 1. Root — block horizontal scroll at the document level
+      'html,body{margin:0!important;padding:0!important;' +
+        'width:100%!important;max-width:100%!important;overflow-x:hidden!important;}' +
+      // 2. Body defaults (email author styles can still override colour/font)
+      'body{padding:12px!important;font-family:Arial,Helvetica,sans-serif;' +
+        'font-size:14px;line-height:1.6;color:#333;word-break:break-word;}' +
+      // 3. Images — never wider than container, maintain aspect ratio
+      'img{max-width:100%!important;height:auto!important;}' +
+      // 4. Tables — THE critical rule: fixed layout + full width so they
+      //    never exceed the viewport regardless of width="600" attributes
+      //    or inline style="width:600px" (stripped in pre-processing above,
+      //    but this acts as a final safety net).
+      'table{max-width:100%!important;width:100%!important;' +
+        'table-layout:fixed!important;border-collapse:collapse!important;' +
+        'min-width:0!important;}' +
+      // 5. Table cells — allow shrinking, force text wrapping
+      'td,th{word-break:break-word!important;overflow-wrap:break-word!important;' +
+        'max-width:100%!important;min-width:0!important;}' +
+      // 6. Legacy <center> tag used by many HTML email templates (e.g. Crunchyroll)
+      'center{display:block!important;width:100%!important;max-width:100%!important;}' +
+      // 7. Generic block wrappers — cap max-width, allow shrinking
+      'div,p,section,article,header,footer,aside,main,nav{' +
+        'max-width:100%!important;min-width:0!important;}' +
+      // 8. Pre / code / blockquote — wrap instead of causing horizontal overflow
+      'pre,code,blockquote{white-space:pre-wrap!important;' +
+        'word-break:break-word!important;overflow-x:auto!important;' +
+        'max-width:100%!important;}' +
+      // 9. Universal box model + width cap (catches any element not covered above)
+      '*{box-sizing:border-box!important;max-width:100%!important;}' +
+      // 10. In-iframe media query: extra tweaks when the iframe itself is narrow
+      '@media screen and (max-width:600px){' +
+        'body{padding:8px!important;font-size:13px!important;}' +
+        'td,th{padding:4px 6px!important;}' +
+        'img{display:block!important;}' +
+      '}';
     doc.head.insertBefore(resetStyle, doc.head.firstChild);
 
     // Ensure viewport meta is present so mobile browsers scale the iframe content correctly
     if (!doc.querySelector('meta[name="viewport"]')) {
       const vp = doc.createElement('meta');
       vp.setAttribute('name', 'viewport');
-      vp.setAttribute('content', 'width=device-width, initial-scale=1.0');
+      vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0');
       doc.head.insertBefore(vp, doc.head.firstChild);
+    } else {
+      // Normalise any existing viewport meta — some emails set width=600 which would
+      // force the iframe to render at 600px and cause horizontal overflow.
+      const existingVp = doc.querySelector('meta[name="viewport"]');
+      existingVp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0');
     }
 
     // Render in a sandboxed iframe for complete style isolation and proper centering
@@ -456,22 +532,37 @@ function viewEmail(index) {
     iframe.srcdoc = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
     body.appendChild(iframe);
 
-    // Auto-resize iframe to its content height
+    // Auto-resize iframe to its content height.
+    // scrollHeight is read from both documentElement and body for cross-browser accuracy.
     const resizeIframe = () => {
       try {
-        const h = iframe.contentDocument.documentElement.scrollHeight;
+        const cd = iframe.contentDocument;
+        if (!cd) return;
+        const h = Math.max(
+          cd.documentElement.scrollHeight || 0,
+          cd.body ? cd.body.scrollHeight : 0
+        );
         if (h > 0) iframe.style.height = h + 'px';
       } catch (e) {}
     };
     iframe.addEventListener('load', () => {
       resizeIframe();
-      // Re-check after images and web fonts may have finished loading
+      // Re-measure after images, web fonts, and background images finish loading
       setTimeout(resizeIframe, 300);
       setTimeout(resizeIframe, 1000);
+      setTimeout(resizeIframe, 2500);
+      // ResizeObserver gives live accurate re-sizing as any late-loading content settles
+      try {
+        if (typeof ResizeObserver !== 'undefined' && iframe.contentDocument.body) {
+          if (_iframeResizeObserver) _iframeResizeObserver.disconnect();
+          _iframeResizeObserver = new ResizeObserver(resizeIframe);
+          _iframeResizeObserver.observe(iframe.contentDocument.body);
+        }
+      } catch (e) {}
     });
   } else if (email.body) {
     let text = cleanBrokenChars(email.body);
-    body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;">${linkify(escapeHtml(text))}</div>`;
+    body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;overflow-x:hidden;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#333;">${linkify(escapeHtml(text))}</div>`;
   } else {
     body.innerHTML = '<p style="color:#888;">No content</p>';
   }
@@ -554,6 +645,11 @@ function closeModal() {
   document.getElementById('email-modal').classList.remove('show');
   document.body.style.overflow = '';
   currentViewIndex = -1;
+  // Disconnect the ResizeObserver that keeps the email iframe sized to its content
+  if (_iframeResizeObserver) {
+    _iframeResizeObserver.disconnect();
+    _iframeResizeObserver = null;
+  }
 }
 
 function deleteCurrentEmail() {
