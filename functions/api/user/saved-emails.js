@@ -84,6 +84,8 @@ async function handleDelete(request, user, env, username) {
     user.savedEmails = savedEmails;
     await env.EMAILS.put(username, JSON.stringify(user));
     await env.EMAILS.delete(address);
+    // Clean up any forwarding rule associated with this address
+    await env.EMAILS.delete(`forward:${address}`);
 
     return jsonResponse({ success: true, savedEmails });
 }

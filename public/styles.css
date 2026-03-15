@@ -1117,6 +1117,12 @@ body {
 
 /* Mobile Responsive */
 @media (max-width: 600px) {
+  /* Email modal: remove container padding so the card fills the screen */
+  .modal {
+    padding: 0;
+    align-items: flex-start;
+  }
+
   .header {
     padding: 12px 15px;
     gap: 8px;
@@ -1389,15 +1395,108 @@ body {
   }
 
   .modal-content {
-    margin-top: 20px;
-    height: 90vh;
+    margin-top: 0;
+    height: 100dvh;
+    height: 100vh; /* fallback for older browsers */
+    max-height: 100vh;
+    border-radius: 0;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
+  }
+
+  .modal-top-header {
+    padding: 12px 14px;
+    flex-shrink: 0;
+  }
+
+  .modal-sender-section {
+    padding: 12px 14px;
+    flex-shrink: 0;
+  }
+
+  .sender-info-row {
+    gap: 10px;
+  }
+
+  .sender-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .sender-details {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .sender-name-full {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sender-email {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .email-date {
+    font-size: 11px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .modal-subject-section {
+    padding: 10px 14px;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .subject-label {
+    font-size: 11px;
+  }
+
+  .subject-value {
+    font-size: 13px;
+    word-break: break-word;
   }
 
   .modal-body {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
+    padding: 14px;
+    font-size: 14px;
+  }
+
+  /* Constrain HTML email content to viewport on mobile */
+  .modal-body img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  .modal-body table {
+    max-width: 100% !important;
+    width: 100% !important;
+    table-layout: fixed;
+  }
+
+  .modal-body td,
+  .modal-body th {
+    word-break: break-word;
+  }
+
+  .modal-body * {
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .footer {
