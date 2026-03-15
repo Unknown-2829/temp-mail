@@ -1487,13 +1487,17 @@ body {
     font-size: 14px;
     width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
+    overscroll-behavior: contain;
   }
 
   /* Constrain the iframe to the modal body width on mobile */
   .modal-body iframe {
     width: 100% !important;
     max-width: 100% !important;
-    overflow-x: hidden;
+    min-width: 0 !important;
+    overflow: hidden;
+    display: block;
   }
 
   /* Constrain HTML email content to viewport on mobile */
@@ -1505,18 +1509,20 @@ body {
   .modal-body table {
     max-width: 100% !important;
     width: 100% !important;
-    table-layout: fixed;
+    table-layout: fixed !important;
+    min-width: 0 !important;
   }
 
   .modal-body td,
   .modal-body th {
-    word-break: break-word;
-    overflow-wrap: break-word;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    min-width: 0 !important;
   }
 
   .modal-body * {
-    max-width: 100%;
-    box-sizing: border-box;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   /* Prevent the modal content from overflowing the screen horizontally */
