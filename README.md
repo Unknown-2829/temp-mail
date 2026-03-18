@@ -1,3 +1,5 @@
+<a id="top"></a>
+
 # 📬 Phantom Mail - Disposable Email Service
 
 <div align="center">
@@ -21,7 +23,7 @@ Deploy your own Phantom Mail instance in minutes:
 
 [![Deploy to Cloudflare Pages](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Unknown-2829/Phantom-mail)
 
-Or follow the [detailed setup guide](#-cloudflare-setup-guide) below.
+Or follow the [detailed setup guide](#cloudflare-setup-guide) below.
 
 ---
 
@@ -80,47 +82,17 @@ Or follow the [detailed setup guide](#-cloudflare-setup-guide) below.
 
 </div>
 
-> 📝 **Note:** Replace these placeholder images with actual screenshots of your live application at mail.unknowns.app
-
 ---
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    User Browser                             │
-│              (mail.unknowns.app)                            │
-└──────────────────┬──────────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│          Cloudflare Pages (Frontend + API)                  │
-│  ┌─────────────────┐  ┌──────────────────────────────┐     │
-│  │   Static Site   │  │  Functions (/api/*)          │     │
-│  │  (HTML/CSS/JS)  │  │  - Auth (signin/signup)      │     │
-│  └─────────────────┘  │  - User (profile, API keys)  │     │
-│                       │  - Admin (user management)    │     │
-│                       │  - Developer API (v1/*)       │     │
-│                       └──────────────────────────────┘     │
-└──────────────────┬──────────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│                Cloudflare KV (Storage)                      │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
-│  │    EMAILS    │ │ TEMP_EMAILS  │ │  API_KEYS    │        │
-│  │  (Users,     │ │  (1hr TTL)   │ │  (Dev Keys)  │        │
-│  │   Emails)    │ └──────────────┘ └──────────────┘        │
-│  └──────────────┘                                           │
-└──────────────────┬──────────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│         Cloudflare Email Worker (Separate Worker)           │
-│  - Receives inbound emails for @unknownlll2829.qzz.io      │
-│  - Stores emails in KV                                      │
-│  - Handles email forwarding (Premium)                       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[User Browser<br/>mail.unknowns.app] --> B[Cloudflare Pages<br/>Static UI + Functions (/api/*)]
+    B --> C[Cloudflare KV<br/>EMAILS · TEMP_EMAILS · API_KEYS · API_USAGE]
+    D[Cloudflare Email Worker<br/>Inbound mail + forwarding] --> C
+    B -.->|API responses + UI| A
+    D -->|Forwarding (premium)| E[Verified destination inbox]
 ```
 
 ---
@@ -164,6 +136,8 @@ phantom-mail/
 ```
 
 ---
+
+<a id="cloudflare-setup-guide"></a>
 
 ## 🛠️ Cloudflare Setup Guide
 
@@ -380,6 +354,6 @@ If you find this project useful, please consider giving it a ⭐ on GitHub!
 
 **Made with ❤️ by [Unknown](https://github.com/Unknown-2829)**
 
-[⬆ Back to Top](#-phantom-mail---disposable-email-service)
+[⬆ Back to Top](#top)
 
 </div>
