@@ -84,41 +84,44 @@ Or follow the [detailed setup guide](#cloudflare-setup-guide) below.
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    User Browser                             │
-│              (mail.unknowns.app)                            │
-└──────────────────┬──────────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│          Cloudflare Pages (Frontend + API)                  │
-│  ┌─────────────────┐  ┌──────────────────────────────┐     │
-│  │   Static Site   │  │  Functions (/api/*)          │     │
-│  │  (HTML/CSS/JS)  │  │  - Auth (signin/signup)      │     │
-│  └─────────────────┘  │  - User (profile, API keys)  │     │
-│                       │  - Admin (user management)    │     │
-│                       │  - Developer API (v1/*)       │     │
-│                       └──────────────────────────────┘     │
-└──────────────────┬──────────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│                Cloudflare KV (Storage)                      │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
-│  │    EMAILS    │ │ TEMP_EMAILS  │ │  API_KEYS    │        │
-│  │  (Users,     │ │  (1hr TTL)   │ │  (Dev Keys)  │        │
-│  │   Emails)    │ └──────────────┘ └──────────────┘        │
-│  └──────────────┘                                           │
-└──────────────────┬──────────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│         Cloudflare Email Worker (Separate Worker)           │
-│  - Receives inbound emails for @unknownlll2829.qzz.io      │
-│  - Stores emails in KV                                      │
-│  - Handles email forwarding (Premium)                       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[🌐 User Browser\nmail.unknowns.app] --> B
+
+    subgraph CF_PAGES["☁️ Cloudflare Pages"]
+        B["📄 Static Site\nHTML / CSS / JS"]
+        C["⚡ Functions /api/*"]
+        C1["🔐 Auth\nsignin · signup"]
+        C2["👤 User\nprofile · API keys · forwarding"]
+        C3["🛡️ Admin\nuser management"]
+        C4["🔌 Developer API\nv1/generate · v1/emails"]
+        C --> C1 & C2 & C3 & C4
+    end
+
+    B --> C
+
+    subgraph CF_KV["🗄️ Cloudflare KV (Storage)"]
+        K1["📬 EMAILS\nUsers · Saved Emails\nForwarding Rules"]
+        K2["⏱️ TEMP_EMAILS\n1hr TTL"]
+        K3["🔑 API_KEYS\nDev Keys · Usage"]
+        K4["📊 API_USAGE\nRate Limiting"]
+    end
+
+    C --> CF_KV
+
+    subgraph CF_WORKER["📨 Email Worker (Separate)"]
+        E1["Receives inbound emails\n@unknownlll2829.qzz.io"]
+        E2["Stores in KV\n1hr free · 30d premium"]
+        E3["Forwards emails\nPremium feature"]
+        E1 --> E2 --> E3
+    end
+
+    CF_KV --> CF_WORKER
+    CF_WORKER --> K1
+
+    style CF_PAGES fill:#f6821f,color:#fff,stroke:#f6821f
+    style CF_KV fill:#faad3f,color:#000,stroke:#faad3f
+    style CF_WORKER fill:#0051c3,color:#fff,stroke:#0051c3
 ```
 
 ---
