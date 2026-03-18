@@ -364,7 +364,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - [Terms of Service](https://mail.unknowns.app/terms.html)
 - [Acceptable Use Policy](https://mail.unknowns.app/acceptable-use.html)
 
-**Important:** This service is for legitimate privacy protection. Do not use for spam, phishing, fraud, or illegal activities. Violations will result in immediate termination and may be reported to authorities.
+**Important:** This service is for legitimate privacy protection. Do not use for spam, phishing, fraud, or illegal activites.
 
 ---
 
