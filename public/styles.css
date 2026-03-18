@@ -1002,6 +1002,33 @@ body {
   font-size: 11px;
 }
 
+.footer-policy-links {
+  gap: 6px;
+}
+
+.footer-btn.footer-policy {
+  padding: 8px 16px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #999;
+}
+
+.footer-btn.footer-policy:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .footer-policy-links {
+    gap: 4px;
+  }
+
+  .footer-btn.footer-policy {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+}
+
 /* About Modal */
 .about-content {
   background: #14142a;
