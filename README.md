@@ -1,4 +1,4 @@
-# 📬 Phantom Mail - Disposable Email Service
+ # 📬 Phantom Mail - Disposable Email Service
 
 <div align="center">
 
@@ -68,16 +68,9 @@ Or follow the [detailed setup guide](#cloudflare-setup-guide) below.
 ## 📸 Screenshots
 
 <div align="center">
-
-### Inbox View
-![Phantom Mail Inbox](https://via.placeholder.com/800x450/1a1a2e/00d09c?text=Inbox+View+-+Real-time+Email+Updates)
-
-### Email Reader
-![Email Reader](https://via.placeholder.com/800x450/1a1a2e/00d09c?text=Email+Reader+-+Clean+Layout)
-
-### Premium Dashboard
-![Premium Dashboard](https://via.placeholder.com/800x450/1a1a2e/00d09c?text=Premium+Dashboard+-+8+Permanent+Addresses)
-
+  <img src="https://raw.githubusercontent.com/Unknown-2829/Phantom-mail/screenshots/inbox.png" width="32%" />
+  <img src="https://raw.githubusercontent.com/Unknown-2829/Phantom-mail/screenshots/email-view.png" width="32%" />
+  <img src="https://raw.githubusercontent.com/Unknown-2829/Phantom-mail/screenshots/premium.png" width="32%" />
 </div>
 
 ---
