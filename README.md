@@ -84,13 +84,41 @@ Or follow the [detailed setup guide](#cloudflare-setup-guide) below.
 
 ## 🏗️ Architecture
 
-```mermaid
-flowchart TD
-    A[User Browser<br/>mail.unknowns.app] --> B[Cloudflare Pages<br/>Static UI + Functions (/api/*)]
-    B --> C[Cloudflare KV<br/>EMAILS · TEMP_EMAILS · API_KEYS · API_USAGE]
-    D[Cloudflare Email Worker<br/>Inbound mail + forwarding] --> C
-    B -.->|API responses + UI| A
-    D -->|Forwarding (premium)| E[Verified destination inbox]
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    User Browser                             │
+│              (mail.unknowns.app)                            │
+└──────────────────┬──────────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│          Cloudflare Pages (Frontend + API)                  │
+│  ┌─────────────────┐  ┌──────────────────────────────┐     │
+│  │   Static Site   │  │  Functions (/api/*)          │     │
+│  │  (HTML/CSS/JS)  │  │  - Auth (signin/signup)      │     │
+│  └─────────────────┘  │  - User (profile, API keys)  │     │
+│                       │  - Admin (user management)    │     │
+│                       │  - Developer API (v1/*)       │     │
+│                       └──────────────────────────────┘     │
+└──────────────────┬──────────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│                Cloudflare KV (Storage)                      │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
+│  │    EMAILS    │ │ TEMP_EMAILS  │ │  API_KEYS    │        │
+│  │  (Users,     │ │  (1hr TTL)   │ │  (Dev Keys)  │        │
+│  │   Emails)    │ └──────────────┘ └──────────────┘        │
+│  └──────────────┘                                           │
+└──────────────────┬──────────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│         Cloudflare Email Worker (Separate Worker)           │
+│  - Receives inbound emails for @unknownlll2829.qzz.io      │
+│  - Stores emails in KV                                      │
+│  - Handles email forwarding (Premium)                       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
