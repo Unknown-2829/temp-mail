@@ -1,5 +1,3 @@
-<a id="top"></a>
-
 # 📬 Phantom Mail - Disposable Email Service
 
 <div align="center">
@@ -342,18 +340,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a ⭐ on GitHub!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=Unknown-2829/Phantom-mail&type=Date)](https://star-history.com/#Unknown-2829/Phantom-mail&Date)
-
----
-
 <div align="center">
 
 **Made with ❤️ by [Unknown](https://github.com/Unknown-2829)**
-
-[⬆ Back to Top](#top)
 
 </div>
