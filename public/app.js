@@ -170,18 +170,36 @@ function copyEmail() {
 }
 
 // ===== Refresh Emails =====
+let _refreshErrorCount = 0;
+
 async function refreshEmails() {
   if (!currentEmail) return;
 
   try {
-    const response = await fetch(`/api/emails?address=${encodeURIComponent(currentEmail)}`);
+    const since = emailsList.length > 0 ? Math.max(...emailsList.map(e => e.timestamp || 0)) : 0;
+    const url = `/api/emails?address=${encodeURIComponent(currentEmail)}${since ? `&since=${since}` : ''}`;
+    const response = await fetch(url);
     const data = await response.json();
 
+    _refreshErrorCount = 0; // Reset on success
+
     const rawEmails = data.emails || [];
-    const validEmails = rawEmails.filter(e => !deletedIds.includes(e.id || e.timestamp));
+    // When using since= we get only new emails — merge with existing list
+    let merged;
+    if (since > 0 && rawEmails.length > 0) {
+      const existingKeys = new Set(emailsList.map(e => e._key || e.timestamp));
+      const newOnly = rawEmails.filter(e => !existingKeys.has(e._key || e.timestamp));
+      merged = [...newOnly, ...emailsList];
+    } else if (since > 0) {
+      merged = emailsList; // nothing new
+    } else {
+      merged = rawEmails;
+    }
+
+    const validEmails = merged.filter(e => !deletedIds.includes(e._key || e.id || e.timestamp));
 
     validEmails.forEach(e => {
-      if (readIds.includes(e.id || e.timestamp)) e.read = true;
+      if (readIds.includes(e._key || e.id || e.timestamp)) e.read = true;
     });
 
     const oldCount = emailsList.length;
@@ -199,7 +217,19 @@ async function refreshEmails() {
 
     scheduleRender();
   } catch (e) {
-    console.error(e);
+    _refreshErrorCount++;
+    console.error('Refresh error #' + _refreshErrorCount, e);
+    // Back off: 5s → 10s → 20s → 60s cap
+    if (_refreshErrorCount > 1) {
+      stopAutoRefresh();
+      const delay = Math.min(5000 * Math.pow(2, _refreshErrorCount - 1), 60000);
+      autoRefreshInterval = setTimeout(() => {
+        autoRefreshInterval = setInterval(() => {
+          if (!document.hidden) refreshEmails();
+        }, 5000);
+        refreshEmails();
+      }, delay);
+    }
   }
 }
 
@@ -262,6 +292,20 @@ function renderInbox() {
 // ===== Parse Sender =====
 function parseSender(from, emailObj) {
   if (!from) return { name: 'Unknown', email: '' };
+
+  // If email object has stored RFC headers, prefer those (set by CHANGE 15 / worker fix)
+  if (emailObj?.headers?.from) {
+    from = emailObj.headers.from;
+  }
+
+  // Decode SES/SendGrid bounce routing: bounces+TOKEN-ORIG=domain@bounce.host
+  // The original sender is encoded as: localpart=originaldomain inside the bounce local part
+  const bounceMatch = from.match(/bounces\+[^@]*?[=+]([a-zA-Z0-9._%-]+=([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}))@/i);
+  if (bounceMatch) {
+    // bounceMatch[1] is like "alert=uptimerobot.com" → decode to "alert@uptimerobot.com"
+    const recovered = bounceMatch[1].replace(/=([^=]+)$/, '@$1');
+    from = recovered;
+  }
 
   let emailAddr = from;
   let name = '';
@@ -374,7 +418,7 @@ function viewEmail(index) {
   currentViewIndex = index;
   email.read = true;
 
-  const id = email.id || email.timestamp;
+  const id = email._key || email.id || email.timestamp;
   if (!readIds.includes(id)) {
     readIds.push(id);
     localStorage.setItem('readIds', JSON.stringify(readIds));
@@ -394,8 +438,10 @@ function viewEmail(index) {
   const body = document.getElementById('modal-body');
 
   if (email.htmlBody) {
+    // Clean broken chars on raw string BEFORE parsing (avoids corrupting HTML attributes)
+    const cleanedHtml = cleanBrokenChars(email.htmlBody);
     // Parse and sanitize the email HTML
-    const doc = new DOMParser().parseFromString(email.htmlBody, 'text/html');
+    const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
 
     // Remove dangerous elements (keep <style> — it will be safely isolated in iframe)
     doc.querySelectorAll(
@@ -448,9 +494,6 @@ function viewEmail(index) {
       }
     });
 
-    // Fix broken characters in the body text
-    doc.body.innerHTML = cleanBrokenChars(doc.body.innerHTML);
-
     // Ensure charset meta is present
     if (!doc.querySelector('meta[charset]')) {
       const m = doc.createElement('meta');
@@ -476,7 +519,7 @@ function viewEmail(index) {
       'html,body{margin:0!important;padding:0!important;' +
         'width:100%!important;max-width:100%!important;overflow-x:hidden!important;}' +
       // 2. Body defaults (email author styles can still override colour/font)
-      'body{padding:12px!important;font-family:Arial,Helvetica,sans-serif;' +
+      'body{padding:12px!important;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",Arial,Helvetica,sans-serif;' +
         'font-size:14px;line-height:1.6;color:#333;word-break:break-word;}' +
       // 3. Images — never wider than container, maintain aspect ratio
       'img{max-width:100%!important;height:auto!important;}' +
@@ -547,15 +590,18 @@ function viewEmail(index) {
     };
     iframe.addEventListener('load', () => {
       resizeIframe();
-      // Re-measure after images, web fonts, and background images finish loading
-      setTimeout(resizeIframe, 300);
-      setTimeout(resizeIframe, 1000);
-      setTimeout(resizeIframe, 2500);
-      // ResizeObserver gives live accurate re-sizing as any late-loading content settles
+      // One fallback for late-loading images/fonts
+      const fallback = setTimeout(resizeIframe, 800);
+
+      // ResizeObserver for live accurate sizing (debounced 100ms)
       try {
-        if (typeof ResizeObserver !== 'undefined' && iframe.contentDocument.body) {
+        if (typeof ResizeObserver !== 'undefined' && iframe.contentDocument?.body) {
           if (_iframeResizeObserver) _iframeResizeObserver.disconnect();
-          _iframeResizeObserver = new ResizeObserver(resizeIframe);
+          let _roTimer = null;
+          _iframeResizeObserver = new ResizeObserver(() => {
+            clearTimeout(_roTimer);
+            _roTimer = setTimeout(resizeIframe, 100);
+          });
           _iframeResizeObserver.observe(iframe.contentDocument.body);
         }
       } catch (e) {}
@@ -652,22 +698,38 @@ function closeModal() {
   }
 }
 
-function deleteCurrentEmail() {
-  if (currentViewIndex >= 0) {
-    const email = emailsList[currentViewIndex];
-    if (email) {
-      const id = email.id || email.timestamp;
-      if (!deletedIds.includes(id)) {
-        deletedIds.push(id);
-        localStorage.setItem('deletedIds', JSON.stringify(deletedIds));
+async function deleteCurrentEmail() {
+  if (currentViewIndex < 0) return;
+  const email = emailsList[currentViewIndex];
+  if (!email) return;
+
+  // Server-side delete
+  if (email._key) {
+    try {
+      const params = new URLSearchParams({ key: email._key, address: email.to || currentEmail });
+      // Attach any R2 attachment keys for cleanup
+      if (email.attachments) {
+        email.attachments.forEach(att => {
+          if (att.r2Key) params.append('r2key', att.r2Key);
+        });
       }
-      emailsList.splice(currentViewIndex, 1);
-      updateTabTitle(emailsList.filter(e => !e.read).length);
-      scheduleRender();
-      closeModal();
-      showToast('🗑️ Email deleted');
+      await fetch(`/api/delete?${params}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Server delete failed:', e);
     }
   }
+
+  // Local state cleanup
+  const id = email._key || email.id || email.timestamp;
+  if (!deletedIds.includes(id)) {
+    deletedIds.push(id);
+    localStorage.setItem('deletedIds', JSON.stringify(deletedIds));
+  }
+  emailsList.splice(currentViewIndex, 1);
+  updateTabTitle(emailsList.filter(e => !e.read).length);
+  scheduleRender();
+  closeModal();
+  showToast('🗑️ Email deleted');
 }
 
 function viewSource() {
@@ -679,20 +741,34 @@ function viewSource() {
   }
 }
 
-function downloadAttachment(ei, ai) {
+async function downloadAttachment(ei, ai) {
   const att = emailsList[ei]?.attachments?.[ai];
-  if (!att?.data) { showToast('❌ Not available'); return; }
+  if (!att) { showToast('❌ Not available'); return; }
+
   try {
-    const bytes = atob(att.data);
-    const arr = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    const blob = new Blob([arr], { type: att.contentType || 'application/octet-stream' });
+    // R2-backed attachment: fetch from server
+    if (att.r2Key) {
+      showToast('📥 Downloading...');
+      const res = await fetch(`/api/attachment?key=${encodeURIComponent(att.r2Key)}`);
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = att.filename; a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    // Legacy in-memory base64 attachment
+    if (!att.data) { showToast('❌ No data'); return; }
+    const bytes = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: att.contentType || 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = att.filename; a.click();
     URL.revokeObjectURL(url);
     showToast('📥 Downloading...');
-  } catch (e) { showToast('❌ Failed'); }
+  } catch (e) { showToast('❌ Download failed'); }
 }
 
 // ===== Auto Refresh (Visibility-Aware) =====
