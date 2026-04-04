@@ -950,41 +950,156 @@ body {
   box-shadow: 0 2px 8px rgba(0, 208, 156, 0.2);
 }
 
-.att-preview {
+/* ── Attachment Grid ───────────────────────────────────── */
+#modal-attachments h4 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #888;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.att-image-grid {
+  display: grid;
+  gap: 6px;
   margin-bottom: 12px;
-  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 10px;
   overflow: hidden;
-  background: rgba(255,255,255,0.03);
 }
-.att-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  flex-wrap: wrap;
-  font-size: 13px;
-}
-.att-dl-btn {
-  background: rgba(0,208,156,0.15);
-  color: #00d09c;
-  border: 1px solid rgba(0,208,156,0.3);
+.att-cols-1 { grid-template-columns: 1fr; }
+.att-cols-2 { grid-template-columns: 1fr 1fr; }
+.att-cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+.att-img-cell {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #111;
   border-radius: 6px;
-  padding: 4px 10px;
-  cursor: pointer;
-  font-size: 12px;
-  margin-left: auto;
 }
-.att-dl-btn:hover { background: rgba(0,208,156,0.25); }
-.att-text-content { margin: 0; }
-.att-download {
-  padding: 14px;
+.att-cols-1 .att-img-cell {
+  aspect-ratio: unset;
+  max-height: 400px;
+}
+.att-cols-1 .att-img-cell img {
+  object-fit: contain !important;
+  max-height: 400px;
+}
+.att-img-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 6px;
+  background: rgba(0,0,0,0.55);
+  font-size: 10px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 0 0 6px 6px;
+}
+
+/* ── Attachment Cards ──────────────────────────────────── */
+.att-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+  transition: background 0.15s;
+}
+.att-card-clickable {
+  cursor: pointer;
+}
+.att-card-clickable:hover {
+  background: rgba(255,255,255,0.08);
+}
+.att-card-info {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.att-card-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.att-card-meta {
+  flex: 1;
+  min-width: 0;
+}
+.att-card-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.att-card-size {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+.att-card-action {
+  font-size: 18px;
+  color: #00d09c;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+/* ── Attachment Lightbox ───────────────────────────────── */
+.att-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.att-lightbox.show {
+  display: flex;
+}
+.att-lb-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: rgba(255,255,255,0.12);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
   transition: background 0.2s;
 }
-.att-download:hover { background: rgba(255,255,255,0.06); }
+.att-lb-close:hover { background: rgba(255,255,255,0.25); }
+.att-lb-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 95vw;
+  max-height: 90vh;
+}
+.att-lb-filename {
+  position: absolute;
+  bottom: 20px;
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  max-width: 80vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .hidden {
   display: none !important;

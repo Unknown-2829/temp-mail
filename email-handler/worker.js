@@ -174,62 +174,33 @@ export default {
         };
 
         const contentType = message.headers.get("content-type") || "";
+        const inlineParts = {}; // cid → data URI map for inline images
 
-        // Check if multipart
         if (contentType.toLowerCase().includes("multipart")) {
             const boundary = this.extractBoundary(contentType);
             if (boundary) {
-                const parts = this.parseMultipart(rawEmail, boundary);
-
-                for (const part of parts) {
-                    const partContentType = part.headers["content-type"] || "";
-                    const contentDisposition = part.headers["content-disposition"] || "";
-
-                    // Check if attachment
-                    if (contentDisposition.includes("attachment") ||
-                        (contentDisposition.includes("filename") && !partContentType.includes("text/"))) {
-                        const attachment = this.parseAttachment(part);
-                        if (attachment && attachment.size <= 50 * 1024 * 1024) { // 50MB limit
-                            result.attachments.push(attachment);
-                        }
-                    }
-                    // HTML content
-                    else if (partContentType.includes("text/html")) {
-                        result.htmlBody = this.decodeContent(part.body, part.headers["content-transfer-encoding"]);
-                    }
-                    // Plain text
-                    else if (partContentType.includes("text/plain")) {
-                        result.textBody = this.decodeContent(part.body, part.headers["content-transfer-encoding"]);
-                    }
-                    // Nested multipart
-                    else if (partContentType.includes("multipart")) {
-                        const nestedBoundary = this.extractBoundary(partContentType);
-                        if (nestedBoundary) {
-                            const nestedParts = this.parseMultipart(part.body, nestedBoundary);
-                            for (const nestedPart of nestedParts) {
-                                const nestedType = nestedPart.headers["content-type"] || "";
-                                if (nestedType.includes("text/html") && !result.htmlBody) {
-                                    result.htmlBody = this.decodeContent(nestedPart.body, nestedPart.headers["content-transfer-encoding"]);
-                                } else if (nestedType.includes("text/plain") && !result.textBody) {
-                                    result.textBody = this.decodeContent(nestedPart.body, nestedPart.headers["content-transfer-encoding"]);
-                                }
-                            }
-                        }
-                    }
-                }
+                this._processMultipart(rawEmail, boundary, result, inlineParts);
             }
         } else {
-            // Simple email
             const parts = rawEmail.split(/\r?\n\r?\n/);
             if (parts.length >= 2) {
                 const body = parts.slice(1).join("\n\n");
                 const encoding = message.headers.get("content-transfer-encoding");
-
                 if (contentType.includes("text/html")) {
                     result.htmlBody = this.decodeContent(body, encoding);
                 } else {
                     result.textBody = this.decodeContent(body, encoding);
                 }
+            }
+        }
+
+        // Replace all cid: references in HTML with resolved data URIs
+        if (result.htmlBody && Object.keys(inlineParts).length > 0) {
+            for (const [cid, dataUri] of Object.entries(inlineParts)) {
+                const escaped = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                result.htmlBody = result.htmlBody.replace(
+                    new RegExp(`cid:${escaped}`, 'gi'), dataUri
+                );
             }
         }
 
@@ -242,11 +213,68 @@ export default {
         if (result.textBody.length > 50000) {
             result.textBody = result.textBody.substring(0, 50000) + "\n\n[Truncated]";
         }
-        if (result.htmlBody.length > 100000) {
-            result.htmlBody = result.htmlBody.substring(0, 100000);
+        if (result.htmlBody.length > 200000) {
+            result.htmlBody = result.htmlBody.substring(0, 200000);
         }
 
         return result;
+    },
+
+    // Recursive multipart processor — handles nested multipart/alternative,
+    // multipart/related, multipart/mixed at any depth
+    _processMultipart(content, boundary, result, inlineParts) {
+        const parts = this.parseMultipart(content, boundary);
+
+        for (const part of parts) {
+            const partContentType = (part.headers["content-type"] || "").toLowerCase();
+            const contentDisposition = (part.headers["content-disposition"] || "").toLowerCase();
+            const contentId = (part.headers["content-id"] || "").replace(/[<>]/g, '').trim();
+            const encoding = part.headers["content-transfer-encoding"] || "";
+
+            // Nested multipart — recurse
+            if (partContentType.includes("multipart")) {
+                const nestedBoundary = this.extractBoundary(partContentType);
+                if (nestedBoundary) {
+                    this._processMultipart(part.body, nestedBoundary, result, inlineParts);
+                }
+                continue;
+            }
+
+            // Inline image with Content-ID → resolve cid: references
+            if (contentId && partContentType.startsWith("image/")) {
+                const b64 = part.body.replace(/\s/g, '');
+                const mimeType = partContentType.split(';')[0].trim();
+                inlineParts[contentId] = `data:${mimeType};base64,${b64}`;
+                // Also add without domain suffix (some clients omit it)
+                const shortCid = contentId.split('@')[0];
+                if (shortCid !== contentId) inlineParts[shortCid] = inlineParts[contentId];
+                continue;
+            }
+
+            // HTML body
+            if (partContentType.includes("text/html") && !result.htmlBody) {
+                result.htmlBody = this.decodeContent(part.body, encoding);
+                continue;
+            }
+
+            // Plain text body
+            if (partContentType.includes("text/plain") && !result.textBody) {
+                result.textBody = this.decodeContent(part.body, encoding);
+                continue;
+            }
+
+            // Named attachment
+            const isAttachment = contentDisposition.includes("attachment") ||
+                part.headers["content-type"]?.includes("name=") ||
+                (contentDisposition.includes("filename"));
+
+            if (isAttachment) {
+                const attachment = this.parseAttachment(part);
+                if (attachment && attachment.size <= 50 * 1024 * 1024) {
+                    result.attachments.push(attachment);
+                }
+            }
+        }
     },
 
     // Extract boundary from content-type
@@ -354,27 +382,37 @@ export default {
 
     // Decode content based on encoding
     decodeContent(content, encoding) {
-        if (!encoding) return content;
+        let decoded;
 
-        encoding = encoding.toLowerCase().trim();
+        if (!encoding) {
+            decoded = content;
+        } else {
+            encoding = encoding.toLowerCase().trim();
 
-        if (encoding === "base64") {
-            try {
-                const b64 = content.replace(/\s/g, "");
-                const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-                return new TextDecoder("utf-8").decode(bytes);
-            } catch (e) {
-                try { return atob(content.replace(/\s/g, "")); } catch (_) { return content; }
+            if (encoding === "base64") {
+                try {
+                    const b64 = content.replace(/\s/g, "");
+                    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                    decoded = new TextDecoder("utf-8").decode(bytes);
+                } catch (e) {
+                    try { decoded = atob(content.replace(/\s/g, "")); } catch (_) { decoded = content; }
+                }
+            } else if (encoding === "quoted-printable") {
+                decoded = content
+                    .replace(/=\r?\n/g, "")
+                    .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+            } else {
+                decoded = content;
             }
         }
 
-        if (encoding === "quoted-printable") {
-            return content
-                .replace(/=\r?\n/g, "")
-                .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-        }
-
-        return content;
+        // Strip UTF-8 BOM and zero-width chars that corrupt address strings
+        decoded = decoded
+            .replace(/\uFEFF/g, '')          // UTF-8 BOM (shows as ï»¿)
+            .replace(/\u200B/g, '')          // zero-width space
+            .replace(/\u200C/g, '')          // zero-width non-joiner
+            .replace(/\u200D/g, '');         // zero-width joiner
+        return decoded;
     },
 
     // Decode RFC 2047 encoded words (e.g. =?UTF-8?B?...?= or =?UTF-8?Q?...?=)
