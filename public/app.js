@@ -289,8 +289,14 @@ function renderInbox() {
     `;
   }).join('');
 
+  // Preserve scroll position across re-renders (e.g. read-state changes).
+  // Only reset to top when the inbox was previously empty (first batch of emails arriving).
+  const wasEmpty = $inboxBody.innerHTML === '' ||
+    $inboxBody.querySelector('.empty-inbox') !== null;
+  const savedScroll = wasEmpty ? 0 : $inboxBody.scrollTop;
+
   $inboxBody.innerHTML = rows;
-  $inboxBody.scrollTop = 0;
+  $inboxBody.scrollTop = savedScroll;
 }
 
 // ===== Parse Sender =====
