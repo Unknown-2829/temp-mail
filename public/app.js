@@ -32,6 +32,9 @@ let renderPending = false;
 // Stored here so closeModal() can disconnect it and prevent memory leaks.
 let _iframeResizeObserver = null;
 
+// Tracks whether the email modal is currently showing raw source instead of rendered email.
+let _isSourceView = false;
+
 // Regex constants reused during HTML email pre-processing
 const _NUMERIC_ATTR_RE = /^\d+$/;          // matches bare integer attribute values like "600"
 const _PIXEL_STYLE_RE  = /^\d+(\.\d+)?px$/i; // matches inline pixel values like "600px", "12.5px"
@@ -415,6 +418,10 @@ function extractFromDomain(email) {
 function viewEmail(index) {
   const email = emailsList[index];
   if (!email) return;
+
+  // Always start in rendered-email view (not source)
+  _isSourceView = false;
+  _updateSourceBtn(false);
 
   currentViewIndex = index;
   email.read = true;
@@ -817,6 +824,8 @@ function closeModal() {
   document.getElementById('email-modal').classList.remove('show');
   document.body.style.overflow = '';
   currentViewIndex = -1;
+  _isSourceView = false;
+  _updateSourceBtn(false);
   // Disconnect the ResizeObserver that keeps the email iframe sized to its content
   if (_iframeResizeObserver) {
     _iframeResizeObserver.disconnect();
@@ -829,7 +838,7 @@ async function deleteCurrentEmail() {
   const email = emailsList[currentViewIndex];
   if (!email) return;
 
-  // Server-side delete
+  // Server-side delete (KV + R2 attachments)
   if (email._key) {
     try {
       const params = new URLSearchParams({ key: email._key, address: email.to || currentEmail });
@@ -839,9 +848,17 @@ async function deleteCurrentEmail() {
           if (att.r2Key) params.append('r2key', att.r2Key);
         });
       }
-      await fetch(`/api/delete?${params}`, { method: 'DELETE' });
+      const res = await fetch(`/api/delete?${params}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('Server delete failed:', errData.error || res.status);
+        showToast('❌ Could not delete from server');
+        return; // Don't remove from local list if server delete failed
+      }
     } catch (e) {
       console.error('Server delete failed:', e);
+      showToast('❌ Delete failed — check connection');
+      return;
     }
   }
 
@@ -858,13 +875,54 @@ async function deleteCurrentEmail() {
   showToast('🗑️ Email deleted');
 }
 
-function viewSource() {
-  if (currentViewIndex >= 0) {
-    const email = emailsList[currentViewIndex];
-    const source = email.rawSource || email.htmlBody || email.body || 'No source';
-    document.getElementById('modal-body').innerHTML =
-      `<pre style="background:#f5f5f5;padding:15px;border-radius:8px;overflow-x:auto;font-size:12px;">${escapeHtml(source)}</pre>`;
+// ===== Source Toggle =====
+function _updateSourceBtn(isSource) {
+  const btn = document.getElementById('source-toggle-btn');
+  if (btn) {
+    btn.textContent = isSource ? 'Email' : 'Source';
+    btn.title = isSource ? 'Return to email view' : 'View raw source';
+    btn.classList.toggle('active', isSource);
   }
+}
+
+function viewSource() {
+  if (currentViewIndex < 0) return;
+  const email = emailsList[currentViewIndex];
+  if (!email) return;
+
+  if (_isSourceView) {
+    // Toggle back to normal email view
+    _isSourceView = false;
+    _updateSourceBtn(false);
+    viewEmail(currentViewIndex);
+    return;
+  }
+
+  _isSourceView = true;
+  _updateSourceBtn(true);
+
+  const source = email.rawSource || email.htmlBody || email.body || 'No source';
+  const body = document.getElementById('modal-body');
+
+  body.innerHTML = `
+    <div class="source-view-wrap">
+      <div class="source-view-toolbar">
+        <span class="source-view-label">Raw Source</span>
+        <button class="source-copy-btn" id="source-copy-btn">📋 Copy</button>
+      </div>
+      <pre class="source-code-block" id="source-code-pre">${escapeHtml(source)}</pre>
+    </div>`;
+
+  document.getElementById('source-copy-btn').addEventListener('click', () => {
+    const preEl = document.getElementById('source-code-pre');
+    const text = preEl ? preEl.textContent : '';
+    const btn = document.getElementById('source-copy-btn');
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) { btn.textContent = '✅ Copied!'; setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000); }
+    }).catch(() => {
+      if (btn) { btn.textContent = '⚠️ Copy failed'; setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000); }
+    });
+  });
 }
 
 async function downloadAttachment(ei, ai) {
