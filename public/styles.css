@@ -900,6 +900,33 @@ body {
   font-size: 14px;
 }
 
+/* To / CC / BCC rows — only injected when the field is present */
+.modal-meta-rows {
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 24px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+
+.modal-meta-label {
+  color: #888;
+  min-width: 32px;
+  flex-shrink: 0;
+}
+
+.modal-meta-value {
+  color: #555;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
 .modal-body {
   padding: 24px;
   color: #444;

@@ -15,10 +15,17 @@ export async function onRequestGet(context) {
     // Strip leading {timestamp}_{idx}_ prefix
     const filename = lastPart.replace(/^\d+_\d+_/, '');
 
+    const contentType = obj.httpMetadata?.contentType || 'application/octet-stream';
+    // PDFs must be served inline so the browser can render them inside an <iframe>.
+    // Everything else is forced to download.
+    const disposition = contentType === 'application/pdf'
+        ? `inline; filename*=UTF-8''${encodeURIComponent(filename)}`
+        : `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
     return new Response(obj.body, {
         headers: {
-            'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
-            'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+            'Content-Type': contentType,
+            'Content-Disposition': disposition,
             'Cache-Control': 'private, max-age=3600'
         }
     });

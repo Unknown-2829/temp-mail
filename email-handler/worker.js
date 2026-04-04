@@ -66,6 +66,11 @@ export default {
                 }
             }
 
+            // Extract optional CC / BCC headers (only stored when present)
+            const ccHeader  = message.headers.get("cc")  || "";
+            const bccHeader = message.headers.get("bcc") || "";
+            const toHeader  = message.headers.get("to")  || "";
+
             // Create storage object
             const emailData = {
                 from: this.extractRealFrom(message),
@@ -85,7 +90,10 @@ export default {
                     date: message.headers.get("date"),
                     contentType: message.headers.get("content-type"),
                     from: message.headers.get("from"),
-                    replyTo: message.headers.get("reply-to")
+                    replyTo: message.headers.get("reply-to"),
+                    ...(toHeader  ? { to:  this.decodeEncodedWord(toHeader)  } : {}),
+                    ...(ccHeader  ? { cc:  this.decodeEncodedWord(ccHeader)  } : {}),
+                    ...(bccHeader ? { bcc: this.decodeEncodedWord(bccHeader) } : {})
                 }
             };
 
@@ -403,9 +411,32 @@ export default {
                     try { decoded = atob(content.replace(/\s/g, "")); } catch (_) { decoded = content; }
                 }
             } else if (encoding === "quoted-printable") {
-                decoded = content
-                    .replace(/=\r?\n/g, "")
-                    .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+                // Decode soft line breaks first, then collect ALL escaped bytes and
+                // run them through TextDecoder so multi-byte UTF-8 sequences
+                // (e.g. emojis: =F0=9F=98=80) are reconstructed correctly instead
+                // of being converted to individual Latin-1 characters.
+                const unfolded = content.replace(/=\r?\n/g, "");
+                const bytes = [];
+                let i = 0;
+                while (i < unfolded.length) {
+                    if (unfolded[i] === '=' && i + 2 < unfolded.length &&
+                        /[0-9A-Fa-f]{2}/.test(unfolded.slice(i + 1, i + 3))) {
+                        bytes.push(parseInt(unfolded.slice(i + 1, i + 3), 16));
+                        i += 3;
+                    } else {
+                        // Regular character — encode to UTF-8 bytes so the array stays consistent
+                        const code = unfolded.charCodeAt(i);
+                        if (code < 0x80) {
+                            bytes.push(code);
+                        } else if (code < 0x800) {
+                            bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
+                        } else {
+                            bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
+                        }
+                        i++;
+                    }
+                }
+                decoded = new TextDecoder("utf-8").decode(new Uint8Array(bytes));
             } else {
                 decoded = content;
             }

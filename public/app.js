@@ -95,8 +95,6 @@ async function generateEmail() {
   $emailDisplay.value = 'Loading...';
   $emailDisplay.style.opacity = '0.6';
 
-  await new Promise(r => setTimeout(r, 800));
-
   try {
     const response = await fetch('/api/generate', { method: 'POST' });
     if (!response.ok) throw new Error('Failed');
@@ -213,6 +211,8 @@ async function refreshEmails() {
       const diff = newCount - oldCount;
       showToast(`📧 ${diff} new!`);
       showNotification('New Email!', `You have ${diff} new email(s)`);
+      // Re-poll quickly in case more emails arrive in rapid succession
+      setTimeout(() => { if (!document.hidden && currentEmail) refreshEmails(); }, 1500);
     }
 
     const unreadCount = emailsList.filter(e => !e.read).length;
@@ -448,6 +448,20 @@ function viewEmail(index) {
   document.getElementById('modal-sender-email').textContent = sender.email;
   document.getElementById('modal-date').textContent = formatDate(email.timestamp);
   document.getElementById('modal-subject').textContent = email.subject || '(No Subject)';
+
+  // Show To / CC / BCC rows only when the field is actually present
+  const metaRows = document.getElementById('modal-meta-rows');
+  metaRows.innerHTML = '';
+  const addMetaRow = (label, value) => {
+    if (!value) return;
+    const row = document.createElement('div');
+    row.className = 'modal-meta-row';
+    row.innerHTML = `<span class="modal-meta-label">${label}</span><span class="modal-meta-value">${escapeHtml(value)}</span>`;
+    metaRows.appendChild(row);
+  };
+  addMetaRow('To:', email.headers?.to || email.to || '');
+  addMetaRow('CC:', email.headers?.cc || '');
+  addMetaRow('BCC:', email.headers?.bcc || '');
 
   const body = document.getElementById('modal-body');
 
@@ -824,6 +838,24 @@ function viewEmail(index) {
 // ===== Clean broken UTF-8 / Latin-1 mojibake =====
 function cleanBrokenChars(text) {
   if (!text) return '';
+
+  // Attempt to re-decode text that was stored as a Latin-1/Windows-1252 byte string
+  // instead of a proper JS Unicode string. This happens when a server-side decoder
+  // ran UTF-8 bytes through charCodeAt() one byte at a time.
+  // Only re-decode when ALL characters are in the Latin-1 range (≤ U+00FF) and there
+  // are byte sequences that look like multi-byte UTF-8 leads (0xC0-0xFF).
+  // Skip HTML content to avoid corrupting attribute values and tag names.
+  const seemsMojibake = /[\xC0-\xFF][\x80-\xBF]/.test(text);
+  const looksLikeHtml = /<[a-zA-Z]/.test(text);
+  if (seemsMojibake && !looksLikeHtml) {
+    try {
+      const bytes = Uint8Array.from(text, c => c.charCodeAt(0));
+      const redecoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      // Use the re-decoded string only when it actually differs (avoids no-op cost)
+      if (redecoded !== text) text = redecoded;
+    } catch (_) {}
+  }
+
   return text
     // Common double-encoding artifacts
     .replace(/Â /g, ' ')
@@ -871,7 +903,10 @@ function cleanBrokenChars(text) {
     .replace(/Â¢/g, '¢').replace(/Â§/g, '§').replace(/Âµ/g, 'µ')
     // Non-breaking space → regular space
     .replace(/\u00A0/g, ' ')
-    // Strip C1 control characters that serve no display purpose
+    // Strip lone C1 control characters (U+0080–U+009F) that serve no display purpose.
+    // Guard: skip if the character is part of a surrogate pair (emoji) — JS strings are
+    // UTF-16 so emoji codepoints > U+FFFF are stored as surrogate pairs (U+D800–U+DFFF),
+    // not as C1 bytes, so this regex is safe for correctly-decoded emoji.
     .replace(/[\u0080-\u009F]/g, '')
     // Strip UTF-8 BOM and zero-width chars
     .replace(/\uFEFF/g, '')
@@ -1092,7 +1127,7 @@ function startAutoRefresh() {
   stopAutoRefresh();
   autoRefreshInterval = setInterval(() => {
     if (!document.hidden) refreshEmails();
-  }, 5000);
+  }, 3000);
 }
 
 function stopAutoRefresh() {
