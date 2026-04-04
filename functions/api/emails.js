@@ -3,24 +3,31 @@ export async function onRequestGet(context) {
         const { request, env } = context;
         const url = new URL(request.url);
         const address = url.searchParams.get('address');
+        const since = parseInt(url.searchParams.get('since') || '0', 10);
 
         if (!address) {
             return jsonResponse({ error: 'Email address required' }, 400);
         }
 
-        // Fetch all email keys for this address in parallel with their data
-        const emailKeys = await env.EMAILS.list({ prefix: `email:${address}:` });
+        // Fetch email keys with a limit to reduce KV quota usage
+        const emailKeys = await env.EMAILS.list({ prefix: `email:${address}:`, limit: 30 });
 
-        const emails = (
-            await Promise.all(
-                emailKeys.keys.map(key => env.EMAILS.get(key.name, { type: 'json' }))
-            )
-        ).filter(Boolean);
+        const emailsRaw = await Promise.all(
+            emailKeys.keys.map(async key => {
+                const data = await env.EMAILS.get(key.name, { type: 'json' });
+                if (!data) return null;
+                return { ...data, _key: key.name }; // Attach KV key for server-side delete
+            })
+        );
+        const emails = emailsRaw.filter(Boolean);
 
         // Sort newest first
         emails.sort((a, b) => b.timestamp - a.timestamp);
 
-        return jsonResponse({ emails });
+        // Filter by since timestamp if provided (reduces re-renders on poll)
+        const filtered = since > 0 ? emails.filter(e => e.timestamp > since) : emails;
+
+        return jsonResponse({ emails: filtered });
     } catch (error) {
         return jsonResponse({ error: error.message }, 500);
     }

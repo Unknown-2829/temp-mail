@@ -1,11 +1,16 @@
 /**
  * Email Handler Worker - Enhanced Version
- * 
+ *
  * Features:
  * - Full HTML email preservation
- * - Attachment support (up to 1MB)
- * - Proper MIME parsing
+ * - Attachment support (up to 50MB via R2)
+ * - Proper MIME parsing with full UTF-8/emoji support
  * - Structured email storage
+ * - Real sender extraction (bypasses SMTP bounce addresses)
+ * - Scheduled R2 cleanup: deletes attachments older than 15 days (runs daily at 3am UTC)
+ *
+ * Required bindings: TEMP_EMAILS (KV), EMAILS (KV), ATTACHMENTS (R2)
+ * Add ATTACHMENTS R2 bucket in Cloudflare Pages → Settings → Functions → R2 bindings
  */
 
 export default {
@@ -15,7 +20,7 @@ export default {
 
             const recipientEmail = message.to;
             console.log("To:", recipientEmail);
-            console.log("From:", message.from);
+            console.log("From (envelope):", message.from);
 
             // Verify email exists in system (temp emails in TEMP_EMAILS, permanent/saved in EMAILS)
             const tempEmailRecord = await env.TEMP_EMAILS.get(recipientEmail);
@@ -38,9 +43,32 @@ export default {
             // Parse email components
             const parsedEmail = this.parseEmail(rawEmail, message);
 
+            // Upload attachments to R2 (if binding available) and replace data with r2Key
+            for (let i = 0; i < parsedEmail.attachments.length; i++) {
+                const att = parsedEmail.attachments[i];
+                if (att && att.data && env.ATTACHMENTS) {
+                    try {
+                        const r2Key = `attachments/${recipientEmail}/${Date.now()}_${i}_${att.filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                        const binaryData = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
+                        await env.ATTACHMENTS.put(r2Key, binaryData, {
+                            httpMetadata: { contentType: att.contentType }
+                        });
+                        att.r2Key = r2Key;
+                        delete att.data; // Don't store base64 in KV — too large
+                        console.log("✅ Attachment uploaded to R2:", r2Key);
+                    } catch (attErr) {
+                        console.log("⚠️ R2 attachment upload failed:", attErr.message);
+                        delete att.data; // Remove data even on failure to avoid KV bloat
+                    }
+                } else if (att && att.data) {
+                    // No R2 binding — drop attachment data to avoid KV bloat
+                    delete att.data;
+                }
+            }
+
             // Create storage object
             const emailData = {
-                from: message.from,
+                from: this.extractRealFrom(message),
                 to: recipientEmail,
                 subject: parsedEmail.subject,
                 body: parsedEmail.textBody,
@@ -50,7 +78,9 @@ export default {
                 headers: {
                     messageId: message.headers.get("message-id"),
                     date: message.headers.get("date"),
-                    contentType: message.headers.get("content-type")
+                    contentType: message.headers.get("content-type"),
+                    from: message.headers.get("from"),
+                    replyTo: message.headers.get("reply-to")
                 }
             };
 
@@ -93,26 +123,51 @@ export default {
         }
     },
 
-    // Convert stream to string
+    // Cron cleanup — called daily by Cloudflare Cron Trigger (see wrangler.toml)
+    // Deletes R2 attachment objects that are older than 15 days.
+    async scheduled(event, env, ctx) {
+        ctx.waitUntil(cleanupAttachments(env));
+    },
+
+    // Extract the real human-visible From address from email headers.
+    // Prefers RFC 5322 From header over SMTP envelope (which may be a bounce address).
+    extractRealFrom(message) {
+        const fromHeader = message.headers.get("from");
+        if (fromHeader && fromHeader.trim()) return fromHeader.trim();
+
+        const replyTo = message.headers.get("reply-to");
+        if (replyTo && replyTo.trim()) return replyTo.trim();
+
+        return message.from;
+    },
+
+    // Convert stream to string — collects all Uint8Array chunks first, then decodes once
+    // to prevent split multi-byte sequences (emoji) from being corrupted at chunk boundaries.
     async streamToString(stream) {
         const reader = stream.getReader();
-        const decoder = new TextDecoder();
-        let result = "";
+        const chunks = [];
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            result += decoder.decode(value, { stream: true });
+            if (value) chunks.push(value);
         }
-        result += decoder.decode();
 
-        return result;
+        const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+        const combined = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+            combined.set(chunk, offset);
+            offset += chunk.length;
+        }
+
+        return new TextDecoder("utf-8").decode(combined);
     },
 
     // Parse email content
     parseEmail(rawEmail, message) {
         const result = {
-            subject: message.headers.get("subject") || "(No Subject)",
+            subject: this.decodeEncodedWord(message.headers.get("subject") || "") || "(No Subject)",
             textBody: "",
             htmlBody: "",
             attachments: []
@@ -134,7 +189,7 @@ export default {
                     if (contentDisposition.includes("attachment") ||
                         (contentDisposition.includes("filename") && !partContentType.includes("text/"))) {
                         const attachment = this.parseAttachment(part);
-                        if (attachment && attachment.size <= 1024 * 1024) { // 1MB limit
+                        if (attachment && attachment.size <= 50 * 1024 * 1024) { // 50MB limit
                             result.attachments.push(attachment);
                         }
                     }
@@ -305,9 +360,11 @@ export default {
 
         if (encoding === "base64") {
             try {
-                return atob(content.replace(/\s/g, ""));
+                const b64 = content.replace(/\s/g, "");
+                const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                return new TextDecoder("utf-8").decode(bytes);
             } catch (e) {
-                return content;
+                try { return atob(content.replace(/\s/g, "")); } catch (_) { return content; }
             }
         }
 
@@ -320,11 +377,17 @@ export default {
         return content;
     },
 
-    // Decode RFC 2047 encoded words
+    // Decode RFC 2047 encoded words (e.g. =?UTF-8?B?...?= or =?UTF-8?Q?...?=)
     decodeEncodedWord(str) {
+        if (!str) return str;
         return str.replace(/=\?([^?]+)\?([BQ])\?([^?]*)\?=/gi, (match, charset, encoding, text) => {
             if (encoding.toUpperCase() === "B") {
-                return atob(text);
+                try {
+                    const bytes = Uint8Array.from(atob(text), c => c.charCodeAt(0));
+                    return new TextDecoder(charset || "utf-8").decode(bytes);
+                } catch (e) {
+                    try { return atob(text); } catch (_) { return text; }
+                }
             } else if (encoding.toUpperCase() === "Q") {
                 return text.replace(/_/g, " ").replace(/=([0-9A-Fa-f]{2})/g, (_, hex) =>
                     String.fromCharCode(parseInt(hex, 16))
@@ -349,3 +412,46 @@ export default {
             .trim();
     }
 };
+
+// ── R2 Attachment Cleanup ────────────────────────────────────────────────────
+// Deletes attachments older than 15 days from the ATTACHMENTS R2 bucket.
+// Called by the `scheduled` handler above — runs daily at 3am UTC.
+//
+// Optimizations:
+//   • list() reads only metadata (key + upload timestamp) — never downloads content
+//   • Processes up to 1000 objects per R2 list call (the API maximum)
+//   • Deletes in parallel batches of 50 to be fast without overwhelming the R2 API
+//   • cursor-based pagination handles buckets with millions of files
+async function cleanupAttachments(env) {
+    if (!env.ATTACHMENTS) {
+        console.log("⚠️ ATTACHMENTS binding not configured — skipping R2 cleanup");
+        return;
+    }
+
+    const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - FIFTEEN_DAYS_MS;
+
+    let deleted = 0;
+    let cursor = undefined;
+
+    do {
+        // List up to 1000 objects per call (R2 maximum) — metadata only, no content
+        const batch = await env.ATTACHMENTS.list({ limit: 1000, cursor });
+
+        // Collect keys of objects whose upload timestamp is older than 15 days
+        const toDelete = batch.objects
+            .filter(obj => obj.uploaded.getTime() < cutoff)
+            .map(obj => obj.key);
+
+        // Delete in parallel chunks of 50 to stay within R2 rate limits
+        for (let i = 0; i < toDelete.length; i += 50) {
+            const chunk = toDelete.slice(i, i + 50);
+            await Promise.all(chunk.map(key => env.ATTACHMENTS.delete(key)));
+            deleted += chunk.length;
+        }
+
+        cursor = batch.truncated ? batch.cursor : undefined;
+    } while (cursor);
+
+    console.log(`✅ R2 cleanup: deleted ${deleted} attachment(s) older than 15 days`);
+}

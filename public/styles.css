@@ -395,6 +395,10 @@ body {
 
 .inbox-body {
   min-height: 380px;
+  max-height: 480px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
   background: #fff;
 }
 
