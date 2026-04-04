@@ -18,7 +18,7 @@ export async function onRequestGet(context) {
     return new Response(obj.body, {
         headers: {
             'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
-            'Content-Disposition': `attachment; filename="${filename}"`,
+            'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
             'Cache-Control': 'private, max-age=3600'
         }
     });

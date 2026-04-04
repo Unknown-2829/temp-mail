@@ -47,7 +47,7 @@ export default {
                 const att = parsedEmail.attachments[i];
                 if (att && att.data && env.ATTACHMENTS) {
                     try {
-                        const r2Key = `attachments/${recipientEmail}/${Date.now()}_${i}_${att.filename}`;
+                        const r2Key = `attachments/${recipientEmail}/${Date.now()}_${i}_${att.filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
                         const binaryData = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
                         await env.ATTACHMENTS.put(r2Key, binaryData, {
                             httpMetadata: { contentType: att.contentType }

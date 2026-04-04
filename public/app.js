@@ -176,7 +176,7 @@ async function refreshEmails() {
   if (!currentEmail) return;
 
   try {
-    const since = emailsList.length > 0 ? Math.max(...emailsList.map(e => e.timestamp || 0)) : 0;
+    const since = emailsList.length > 0 ? emailsList.reduce((max, e) => Math.max(max, e.timestamp || 0), 0) : 0;
     const url = `/api/emails?address=${encodeURIComponent(currentEmail)}${since ? `&since=${since}` : ''}`;
     const response = await fetch(url);
     const data = await response.json();
@@ -223,12 +223,12 @@ async function refreshEmails() {
     if (_refreshErrorCount > 1) {
       stopAutoRefresh();
       const delay = Math.min(5000 * Math.pow(2, _refreshErrorCount - 1), 60000);
-      autoRefreshInterval = setTimeout(() => {
-        autoRefreshInterval = setInterval(() => {
-          if (!document.hidden) refreshEmails();
-        }, 5000);
+      const backoffTimer = setTimeout(() => {
+        // Restart normal interval then fire immediately
+        startAutoRefresh();
         refreshEmails();
       }, delay);
+      autoRefreshInterval = backoffTimer; // Track so stopAutoRefresh() can cancel it
     }
   }
 }
@@ -300,7 +300,7 @@ function parseSender(from, emailObj) {
 
   // Decode SES/SendGrid bounce routing: bounces+TOKEN-ORIG=domain@bounce.host
   // The original sender is encoded as: localpart=originaldomain inside the bounce local part
-  const bounceMatch = from.match(/bounces\+[^@]*?[=+]([a-zA-Z0-9._%-]+=([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}))@/i);
+  const bounceMatch = from.match(/bounces\+[^@]*?[=+]([a-zA-Z0-9._%-]+=[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})@/i);
   if (bounceMatch) {
     // bounceMatch[1] is like "alert=uptimerobot.com" → decode to "alert@uptimerobot.com"
     const recovered = bounceMatch[1].replace(/=([^=]+)$/, '@$1');
@@ -590,13 +590,14 @@ function viewEmail(index) {
     };
     iframe.addEventListener('load', () => {
       resizeIframe();
-      // One fallback for late-loading images/fonts
-      const fallback = setTimeout(resizeIframe, 800);
+      // One fallback for late-loading images/fonts; cleared when ResizeObserver is active
+      let fallbackTimer = setTimeout(resizeIframe, 800);
 
       // ResizeObserver for live accurate sizing (debounced 100ms)
       try {
         if (typeof ResizeObserver !== 'undefined' && iframe.contentDocument?.body) {
           if (_iframeResizeObserver) _iframeResizeObserver.disconnect();
+          clearTimeout(fallbackTimer); // ResizeObserver handles live resizing
           let _roTimer = null;
           _iframeResizeObserver = new ResizeObserver(() => {
             clearTimeout(_roTimer);
