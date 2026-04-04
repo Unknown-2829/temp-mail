@@ -416,27 +416,23 @@ export default {
                 // (e.g. emojis: =F0=9F=98=80) are reconstructed correctly instead
                 // of being converted to individual Latin-1 characters.
                 const unfolded = content.replace(/=\r?\n/g, "");
-                const bytes = [];
+                const enc = new TextEncoder();
+                const allBytes = [];
                 let i = 0;
                 while (i < unfolded.length) {
                     if (unfolded[i] === '=' && i + 2 < unfolded.length &&
                         /[0-9A-Fa-f]{2}/.test(unfolded.slice(i + 1, i + 3))) {
-                        bytes.push(parseInt(unfolded.slice(i + 1, i + 3), 16));
+                        allBytes.push(parseInt(unfolded.slice(i + 1, i + 3), 16));
                         i += 3;
                     } else {
-                        // Regular character — encode to UTF-8 bytes so the array stays consistent
-                        const code = unfolded.charCodeAt(i);
-                        if (code < 0x80) {
-                            bytes.push(code);
-                        } else if (code < 0x800) {
-                            bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
-                        } else {
-                            bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
-                        }
+                        // Regular character — use TextEncoder to correctly handle
+                        // supplementary plane characters (emoji surrogate pairs).
+                        const charBytes = enc.encode(unfolded[i]);
+                        for (const b of charBytes) allBytes.push(b);
                         i++;
                     }
                 }
-                decoded = new TextDecoder("utf-8").decode(new Uint8Array(bytes));
+                decoded = new TextDecoder("utf-8").decode(new Uint8Array(allBytes));
             } else {
                 decoded = content;
             }
