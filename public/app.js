@@ -610,7 +610,7 @@ function viewEmail(index) {
     });
   } else if (email.body) {
     let text = cleanBrokenChars(email.body);
-    body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;overflow-x:hidden;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#333;">${linkify(escapeHtml(text))}</div>`;
+    body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;overflow-x:hidden;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;">${linkify(escapeHtml(text))}</div>`;
   } else {
     body.innerHTML = '<p style="color:#888;">No content</p>';
   }
@@ -620,13 +620,137 @@ function viewEmail(index) {
 
   if (email.attachments && email.attachments.length > 0) {
     attachSection.classList.remove('hidden');
-    attachList.innerHTML = email.attachments.map((att, i) => `
-      <div class="attachment-item" onclick="downloadAttachment(${index}, ${i})">
-        <span>${getFileIcon(att.filename)}</span>
-        <span>${escapeHtml(att.filename)}</span>
-        <span style="color:#888;">(${formatSize(att.size)})</span>
-      </div>
-    `).join('');
+    attachList.innerHTML = '';
+
+    email.attachments.forEach((att, i) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'attachment-item';
+
+      const ext = (att.filename || '').split('.').pop().toLowerCase();
+
+      // IMAGE preview
+      if (['jpg','jpeg','png','gif','webp','svg','bmp','ico'].includes(ext)) {
+        const src = att.r2Key
+          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
+          : `data:${att.contentType};base64,${att.data}`;
+        wrapper.innerHTML = `
+          <div class="att-preview att-image">
+            <img src="${src}" alt="${escapeHtml(att.filename)}"
+                 style="max-width:100%;max-height:300px;border-radius:8px;cursor:pointer;"
+                 onclick="window.open(this.src,'_blank')">
+            <div class="att-meta">
+              <span>${getFileIcon(att.filename)} ${escapeHtml(att.filename)}</span>
+              <span style="color:#888">(${formatSize(att.size)})</span>
+              <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn">⬇ Download</button>
+            </div>
+          </div>`;
+
+      // PDF preview
+      } else if (ext === 'pdf') {
+        const src = att.r2Key
+          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
+          : `data:application/pdf;base64,${att.data}`;
+        wrapper.innerHTML = `
+          <div class="att-preview att-pdf">
+            <iframe src="${src}" style="width:100%;height:400px;border:none;border-radius:8px;"
+                    title="${escapeHtml(att.filename)}"></iframe>
+            <div class="att-meta">
+              <span>📄 ${escapeHtml(att.filename)}</span>
+              <span style="color:#888">(${formatSize(att.size)})</span>
+              <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn">⬇ Download</button>
+            </div>
+          </div>`;
+
+      // TEXT / CODE preview
+      } else if (['txt','csv','json','xml','html','css','js','md','log'].includes(ext)) {
+        const fetchSrc = att.r2Key
+          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
+          : null;
+        const preEl = document.createElement('div');
+        preEl.className = 'att-preview att-text';
+        preEl.innerHTML = `
+          <div class="att-meta">
+            <span>📃 ${escapeHtml(att.filename)}</span>
+            <span style="color:#888">(${formatSize(att.size)})</span>
+            <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn">⬇ Download</button>
+          </div>
+          <pre class="att-text-content" id="att-text-${i}" style="background:#1a1a2e;padding:12px;
+               border-radius:8px;overflow-x:auto;font-size:12px;color:#ccc;max-height:250px;">
+            Loading...</pre>`;
+        wrapper.appendChild(preEl);
+        // Fetch and display text content
+        if (fetchSrc) {
+          fetch(fetchSrc).then(r => r.text()).then(text => {
+            const el = document.getElementById(`att-text-${i}`);
+            if (el) el.textContent = text.slice(0, 5000) + (text.length > 5000 ? '\n...(truncated)' : '');
+          }).catch(() => {
+            const el = document.getElementById(`att-text-${i}`);
+            if (el) el.textContent = 'Could not load preview.';
+          });
+        } else if (att.data) {
+          try {
+            const bytes = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
+            const text = new TextDecoder('utf-8').decode(bytes);
+            const el = document.getElementById(`att-text-${i}`);
+            if (el) el.textContent = text.slice(0, 5000) + (text.length > 5000 ? '\n...(truncated)' : '');
+          } catch(_) {
+            const el = document.getElementById(`att-text-${i}`);
+            if (el) el.textContent = 'Could not load preview.';
+          }
+        }
+        attachList.appendChild(wrapper);
+        return; // already appended
+
+      // AUDIO preview
+      } else if (['mp3','wav','ogg','m4a','flac','aac'].includes(ext)) {
+        const src = att.r2Key
+          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
+          : `data:${att.contentType};base64,${att.data}`;
+        wrapper.innerHTML = `
+          <div class="att-preview att-audio">
+            <div class="att-meta">
+              <span>🎵 ${escapeHtml(att.filename)}</span>
+              <span style="color:#888">(${formatSize(att.size)})</span>
+            </div>
+            <audio controls style="width:100%;margin-top:8px;">
+              <source src="${src}" type="${att.contentType || 'audio/mpeg'}">
+            </audio>
+            <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn" style="margin-top:8px;">
+              ⬇ Download</button>
+          </div>`;
+
+      // VIDEO preview
+      } else if (['mp4','webm','ogv','mov','avi'].includes(ext)) {
+        const src = att.r2Key
+          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
+          : `data:${att.contentType};base64,${att.data}`;
+        wrapper.innerHTML = `
+          <div class="att-preview att-video">
+            <div class="att-meta">
+              <span>🎬 ${escapeHtml(att.filename)}</span>
+              <span style="color:#888">(${formatSize(att.size)})</span>
+            </div>
+            <video controls style="width:100%;max-height:350px;border-radius:8px;margin-top:8px;">
+              <source src="${src}" type="${att.contentType || 'video/mp4'}">
+            </video>
+            <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn" style="margin-top:8px;">
+              ⬇ Download</button>
+          </div>`;
+
+      // UNSUPPORTED — direct download
+      } else {
+        wrapper.innerHTML = `
+          <div class="att-preview att-download" onclick="downloadAttachment(${index},${i})"
+               style="cursor:pointer;">
+            <span>${getFileIcon(att.filename)}</span>
+            <span>${escapeHtml(att.filename)}</span>
+            <span style="color:#888">(${formatSize(att.size)})</span>
+            <span style="color:#00d09c">⬇ Click to download</span>
+          </div>`;
+      }
+
+      attachList.appendChild(wrapper);
+    });
   } else {
     attachSection.classList.add('hidden');
   }

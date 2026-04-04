@@ -897,6 +897,42 @@ body {
   box-shadow: 0 2px 8px rgba(0, 208, 156, 0.2);
 }
 
+.att-preview {
+  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.03);
+}
+.att-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.att-dl-btn {
+  background: rgba(0,208,156,0.15);
+  color: #00d09c;
+  border: 1px solid rgba(0,208,156,0.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: auto;
+}
+.att-dl-btn:hover { background: rgba(0,208,156,0.25); }
+.att-text-content { margin: 0; }
+.att-download {
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.2s;
+}
+.att-download:hover { background: rgba(255,255,255,0.06); }
+
 .hidden {
   display: none !important;
 }
