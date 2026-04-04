@@ -73,6 +73,11 @@ export default {
                 subject: parsedEmail.subject,
                 body: parsedEmail.textBody,
                 htmlBody: parsedEmail.htmlBody,
+                // Store up to 400 KB of the raw RFC 5322 message so the frontend
+                // source-view always has content and body rendering has a fallback.
+                rawSource: rawEmail.length > 400000
+                    ? rawEmail.substring(0, 400000) + '\r\n...[truncated]'
+                    : rawEmail,
                 attachments: parsedEmail.attachments,
                 timestamp: Date.now(),
                 headers: {

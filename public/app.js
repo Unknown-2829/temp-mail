@@ -637,6 +637,11 @@ function viewEmail(index) {
   } else if (email.body) {
     let text = cleanBrokenChars(email.body);
     body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;overflow-x:hidden;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;">${linkify(escapeHtml(text))}</div>`;
+  } else if (email.rawSource) {
+    // Parsed body is empty but raw source exists — invite the user to inspect it
+    body.innerHTML = '<p style="color:#888;font-size:14px;">Email body could not be displayed. <a id="view-source-link" href="#" style="color:#00d09c;text-decoration:none;font-weight:600;">View raw source ›</a></p>';
+    const srcLink = document.getElementById('view-source-link');
+    if (srcLink) srcLink.addEventListener('click', (e) => { e.preventDefault(); viewSource(); });
   } else {
     body.innerHTML = '<p style="color:#888;">No content</p>';
   }
@@ -784,10 +789,10 @@ function viewEmail(index) {
           } catch(e) { showToast('❌ Could not open file'); }
         };
 
-      // EVERYTHING ELSE — download card
+      // EVERYTHING ELSE — download card with dedicated button (no whole-card auto-download)
       } else {
-        card.className += ' att-card-clickable';
-        card.title = 'Click to download';
+        const ei = emailsList.indexOf(email);
+        const ai = email.attachments.indexOf(att);
         card.innerHTML = `
           <div class="att-card-info">
             <span class="att-card-icon">${getFileIcon(att.filename)}</span>
@@ -795,12 +800,15 @@ function viewEmail(index) {
               <div class="att-card-name">${escapeHtml(att.filename||'file')}</div>
               <div class="att-card-size">${formatSize(att.size)}</div>
             </div>
-            <span class="att-card-action">⬇</span>
+            <button class="att-download-btn" title="Download file">⬇ Download</button>
           </div>`;
-        card.onclick = () => downloadAttachment(
-          emailsList.indexOf(email),
-          email.attachments.indexOf(att)
-        );
+        const dlBtn = card.querySelector('.att-download-btn');
+        if (dlBtn) {
+          dlBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadAttachment(ei, ai);
+          });
+        }
       }
 
       attachList.appendChild(card);
