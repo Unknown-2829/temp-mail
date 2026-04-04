@@ -66,6 +66,11 @@ export default {
                 }
             }
 
+            // Extract optional CC / BCC headers (only stored when present)
+            const ccHeader  = message.headers.get("cc")  || "";
+            const bccHeader = message.headers.get("bcc") || "";
+            const toHeader  = message.headers.get("to")  || "";
+
             // Create storage object
             const emailData = {
                 from: this.extractRealFrom(message),
@@ -85,7 +90,10 @@ export default {
                     date: message.headers.get("date"),
                     contentType: message.headers.get("content-type"),
                     from: message.headers.get("from"),
-                    replyTo: message.headers.get("reply-to")
+                    replyTo: message.headers.get("reply-to"),
+                    ...(toHeader  ? { to:  this.decodeEncodedWord(toHeader)  } : {}),
+                    ...(ccHeader  ? { cc:  this.decodeEncodedWord(ccHeader)  } : {}),
+                    ...(bccHeader ? { bcc: this.decodeEncodedWord(bccHeader) } : {})
                 }
             };
 
@@ -403,9 +411,30 @@ export default {
                     try { decoded = atob(content.replace(/\s/g, "")); } catch (_) { decoded = content; }
                 }
             } else if (encoding === "quoted-printable") {
-                decoded = content
-                    .replace(/=\r?\n/g, "")
-                    .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+                // Decode soft line breaks first, then collect ALL escaped bytes and
+                // run them through TextDecoder so multi-byte UTF-8 sequences
+                // (e.g. emojis: =F0=9F=98=80) are reconstructed correctly instead
+                // of being converted to individual Latin-1 characters.
+                const unfolded = content.replace(/=\r?\n/g, "");
+                const enc = new TextEncoder();
+                const allBytes = [];
+                let i = 0;
+                while (i < unfolded.length) {
+                    // Fast hex-digit check using char codes (avoids regex object per iteration)
+                    const isHex = (c) => (c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102);
+                    if (unfolded[i] === '=' && i + 2 < unfolded.length &&
+                        isHex(unfolded.charCodeAt(i + 1)) && isHex(unfolded.charCodeAt(i + 2))) {
+                        allBytes.push(parseInt(unfolded.slice(i + 1, i + 3), 16));
+                        i += 3;
+                    } else {
+                        // Regular character — use TextEncoder to correctly handle
+                        // supplementary plane characters (emoji surrogate pairs).
+                        const charBytes = enc.encode(unfolded[i]);
+                        for (const b of charBytes) allBytes.push(b);
+                        i++;
+                    }
+                }
+                decoded = new TextDecoder("utf-8").decode(new Uint8Array(allBytes));
             } else {
                 decoded = content;
             }
