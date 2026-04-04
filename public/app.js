@@ -289,8 +289,14 @@ function renderInbox() {
     `;
   }).join('');
 
+  // Preserve scroll position across re-renders (e.g. read-state changes).
+  // Only reset to top when the inbox was previously empty (first batch of emails arriving).
+  const wasEmpty = $inboxBody.innerHTML === '' ||
+    $inboxBody.querySelector('.empty-inbox') !== null;
+  const savedScroll = wasEmpty ? 0 : $inboxBody.scrollTop;
+
   $inboxBody.innerHTML = rows;
-  $inboxBody.scrollTop = 0;
+  $inboxBody.scrollTop = savedScroll;
 }
 
 // ===== Parse Sender =====
@@ -577,9 +583,22 @@ function viewEmail(index) {
     body.innerHTML = '';
     const iframe = document.createElement('iframe');
     iframe.title = 'Email content';
-    // allow-same-origin lets parent resize the iframe; scripts are blocked (no allow-scripts)
-    iframe.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+    // allow-scripts is needed for external images to load; scripts are blocked by the CSP meta below
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-scripts');
     iframe.style.cssText = 'width:100%;border:none;display:block;min-height:200px;';
+
+    // Add CSP meta to <head> to block scripts but allow images from any domain
+    const cspMeta = doc.createElement('meta');
+    cspMeta.setAttribute('http-equiv', 'Content-Security-Policy');
+    cspMeta.setAttribute('content',
+      "default-src 'none'; " +
+      "img-src * data: blob:; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "font-src *; " +
+      "script-src 'none';"
+    );
+    doc.head.insertBefore(cspMeta, doc.head.firstChild);
+
     iframe.srcdoc = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
     body.appendChild(iframe);
 
@@ -629,134 +648,162 @@ function viewEmail(index) {
     attachSection.classList.remove('hidden');
     attachList.innerHTML = '';
 
-    email.attachments.forEach((att, i) => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'attachment-item';
+    const imageExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico','avif'];
+    const audioExts = ['mp3','wav','ogg','m4a','flac','aac','opus'];
+    const videoExts = ['mp4','webm','ogv','mov','avi','mkv'];
+    const codeExts  = ['txt','py','js','ts','jsx','tsx','json','xml','csv',
+                       'html','css','md','sh','bash','yml','yaml','env',
+                       'log','ini','toml','rs','go','java','cpp','c','h',
+                       'php','rb','swift','kt','dart','sql'];
 
-      const ext = (att.filename || '').split('.').pop().toLowerCase();
+    const images = email.attachments.filter(a => {
+      const ext = (a.filename||'').split('.').pop().toLowerCase();
+      return imageExts.includes(ext);
+    });
+    const others = email.attachments.filter(a => {
+      const ext = (a.filename||'').split('.').pop().toLowerCase();
+      return !imageExts.includes(ext);
+    });
 
-      // IMAGE preview
-      if (['jpg','jpeg','png','gif','webp','svg','bmp','ico'].includes(ext)) {
+    // ── IMAGE GRID ──────────────────────────────────────────────
+    if (images.length > 0) {
+      const gridDiv = document.createElement('div');
+      const cols = images.length === 1 ? 1 : images.length <= 3 ? 2 : 3;
+      gridDiv.className = `att-image-grid att-cols-${cols}`;
+
+      images.forEach(att => {
         const src = att.r2Key
           ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
-          : `data:${att.contentType};base64,${att.data}`;
-        wrapper.innerHTML = `
-          <div class="att-preview att-image">
-            <img src="${src}" alt="${escapeHtml(att.filename)}"
-                 style="max-width:100%;max-height:300px;border-radius:8px;cursor:pointer;"
-                 onclick="window.open(this.src,'_blank')">
-            <div class="att-meta">
-              <span>${getFileIcon(att.filename)} ${escapeHtml(att.filename)}</span>
-              <span style="color:#888">(${formatSize(att.size)})</span>
-              <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn">⬇ Download</button>
-            </div>
-          </div>`;
+          : (att.data ? `data:${att.contentType||'image/jpeg'};base64,${att.data}` : null);
+        if (!src) return;
 
-      // PDF preview
-      } else if (ext === 'pdf') {
-        const src = att.r2Key
-          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
-          : `data:application/pdf;base64,${att.data}`;
-        wrapper.innerHTML = `
-          <div class="att-preview att-pdf">
-            <iframe src="${src}" style="width:100%;height:400px;border:none;border-radius:8px;"
-                    title="${escapeHtml(att.filename)}"></iframe>
-            <div class="att-meta">
-              <span>📄 ${escapeHtml(att.filename)}</span>
-              <span style="color:#888">(${formatSize(att.size)})</span>
-              <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn">⬇ Download</button>
-            </div>
-          </div>`;
+        const cell = document.createElement('div');
+        cell.className = 'att-img-cell';
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = att.filename || 'image';
+        img.loading = 'lazy';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;border-radius:6px;';
+        img.onclick = () => openAttLightbox(src, att.filename, att.contentType);
+        const label = document.createElement('div');
+        label.className = 'att-img-label';
+        label.textContent = att.filename || 'image';
+        cell.appendChild(img);
+        cell.appendChild(label);
+        gridDiv.appendChild(cell);
+      });
+      attachList.appendChild(gridDiv);
+    }
 
-      // TEXT / CODE preview
-      } else if (['txt','csv','json','xml','html','css','js','md','log'].includes(ext)) {
-        const fetchSrc = att.r2Key
-          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
-          : null;
-        const preEl = document.createElement('div');
-        preEl.className = 'att-preview att-text';
-        preEl.innerHTML = `
-          <div class="att-meta">
-            <span>📃 ${escapeHtml(att.filename)}</span>
-            <span style="color:#888">(${formatSize(att.size)})</span>
-            <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn">⬇ Download</button>
+    // ── OTHER ATTACHMENTS ────────────────────────────────────────
+    others.forEach(att => {
+      const ext = (att.filename||'').split('.').pop().toLowerCase();
+      const card = document.createElement('div');
+      card.className = 'att-card';
+
+      const src = att.r2Key
+        ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
+        : null;
+
+      // AUDIO
+      if (audioExts.includes(ext)) {
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">🎵</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'audio')}</div>
+              <div class="att-card-size">${formatSize(att.size)}</div>
+            </div>
           </div>
-          <pre class="att-text-content" id="att-text-${i}" style="background:#1a1a2e;padding:12px;
-               border-radius:8px;overflow-x:auto;font-size:12px;color:#ccc;max-height:250px;">
-            Loading...</pre>`;
-        wrapper.appendChild(preEl);
-        // Fetch and display text content
-        if (fetchSrc) {
-          fetch(fetchSrc).then(r => r.text()).then(text => {
-            const el = document.getElementById(`att-text-${i}`);
-            if (el) el.textContent = text.slice(0, 5000) + (text.length > 5000 ? '\n...(truncated)' : '');
-          }).catch(() => {
-            const el = document.getElementById(`att-text-${i}`);
-            if (el) el.textContent = 'Could not load preview.';
-          });
-        } else if (att.data) {
+          <audio controls style="width:100%;margin-top:8px;border-radius:6px;">
+            <source src="${src||''}" type="${att.contentType||'audio/mpeg'}">
+          </audio>`;
+
+      // VIDEO
+      } else if (videoExts.includes(ext)) {
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">🎬</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'video')}</div>
+              <div class="att-card-size">${formatSize(att.size)}</div>
+            </div>
+          </div>
+          <video controls style="width:100%;max-height:280px;border-radius:6px;margin-top:8px;background:#000;">
+            <source src="${src||''}" type="${att.contentType||'video/mp4'}">
+          </video>`;
+        card.onclick = (e) => {
+          const tag = e.target.tagName.toUpperCase();
+          if (tag !== 'VIDEO' && tag !== 'SOURCE')
+            openAttLightbox(src, att.filename, att.contentType);
+        };
+
+      // PDF — WhatsApp style card, opens in lightbox
+      } else if (ext === 'pdf') {
+        card.className += ' att-card-clickable';
+        card.title = 'Click to open PDF';
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">📄</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'document.pdf')}</div>
+              <div class="att-card-size">${formatSize(att.size)} · PDF</div>
+            </div>
+            <span class="att-card-action">↗</span>
+          </div>`;
+        card.onclick = () => { if (src) openAttLightbox(src, att.filename, 'application/pdf'); };
+
+      // CODE / TEXT — card opens content in new tab on click
+      } else if (codeExts.includes(ext)) {
+        const langIcon = {'py':'🐍','js':'🟨','ts':'🔷','json':'📋','md':'📝',
+          'html':'🌐','css':'🎨','sh':'⚙️','sql':'🗄️','yml':'⚙️','yaml':'⚙️'}[ext] || '📃';
+        card.className += ' att-card-clickable';
+        card.title = 'Click to view file';
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">${langIcon}</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'file')}</div>
+              <div class="att-card-size">${formatSize(att.size)} · ${ext.toUpperCase()}</div>
+            </div>
+            <span class="att-card-action">↗</span>
+          </div>`;
+        card.onclick = async () => {
           try {
-            const bytes = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
-            const text = new TextDecoder('utf-8').decode(bytes);
-            const el = document.getElementById(`att-text-${i}`);
-            if (el) el.textContent = text.slice(0, 5000) + (text.length > 5000 ? '\n...(truncated)' : '');
-          } catch(_) {
-            const el = document.getElementById(`att-text-${i}`);
-            if (el) el.textContent = 'Could not load preview.';
-          }
-        }
-        attachList.appendChild(wrapper);
-        return; // already appended
+            if (src) {
+              const res = await fetch(src);
+              const text = await res.text();
+              const blob = new Blob([text], {type:'text/plain'});
+              window.open(URL.createObjectURL(blob), '_blank');
+            } else if (att.data) {
+              const bytes = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
+              const text = new TextDecoder('utf-8').decode(bytes);
+              const blob = new Blob([text], {type:'text/plain'});
+              window.open(URL.createObjectURL(blob), '_blank');
+            }
+          } catch(e) { showToast('❌ Could not open file'); }
+        };
 
-      // AUDIO preview
-      } else if (['mp3','wav','ogg','m4a','flac','aac'].includes(ext)) {
-        const src = att.r2Key
-          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
-          : `data:${att.contentType};base64,${att.data}`;
-        wrapper.innerHTML = `
-          <div class="att-preview att-audio">
-            <div class="att-meta">
-              <span>🎵 ${escapeHtml(att.filename)}</span>
-              <span style="color:#888">(${formatSize(att.size)})</span>
-            </div>
-            <audio controls style="width:100%;margin-top:8px;">
-              <source src="${src}" type="${att.contentType || 'audio/mpeg'}">
-            </audio>
-            <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn" style="margin-top:8px;">
-              ⬇ Download</button>
-          </div>`;
-
-      // VIDEO preview
-      } else if (['mp4','webm','ogv','mov','avi'].includes(ext)) {
-        const src = att.r2Key
-          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
-          : `data:${att.contentType};base64,${att.data}`;
-        wrapper.innerHTML = `
-          <div class="att-preview att-video">
-            <div class="att-meta">
-              <span>🎬 ${escapeHtml(att.filename)}</span>
-              <span style="color:#888">(${formatSize(att.size)})</span>
-            </div>
-            <video controls style="width:100%;max-height:350px;border-radius:8px;margin-top:8px;">
-              <source src="${src}" type="${att.contentType || 'video/mp4'}">
-            </video>
-            <button onclick="downloadAttachment(${index},${i})" class="att-dl-btn" style="margin-top:8px;">
-              ⬇ Download</button>
-          </div>`;
-
-      // UNSUPPORTED — direct download
+      // EVERYTHING ELSE — download card
       } else {
-        wrapper.innerHTML = `
-          <div class="att-preview att-download" onclick="downloadAttachment(${index},${i})"
-               style="cursor:pointer;">
-            <span>${getFileIcon(att.filename)}</span>
-            <span>${escapeHtml(att.filename)}</span>
-            <span style="color:#888">(${formatSize(att.size)})</span>
-            <span style="color:#00d09c">⬇ Click to download</span>
+        card.className += ' att-card-clickable';
+        card.title = 'Click to download';
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">${getFileIcon(att.filename)}</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'file')}</div>
+              <div class="att-card-size">${formatSize(att.size)}</div>
+            </div>
+            <span class="att-card-action">⬇</span>
           </div>`;
+        card.onclick = () => downloadAttachment(
+          emailsList.indexOf(email),
+          email.attachments.indexOf(att)
+        );
       }
 
-      attachList.appendChild(wrapper);
+      attachList.appendChild(card);
     });
   } else {
     attachSection.classList.add('hidden');
@@ -817,7 +864,11 @@ function cleanBrokenChars(text) {
     // Non-breaking space → regular space
     .replace(/\u00A0/g, ' ')
     // Strip C1 control characters that serve no display purpose
-    .replace(/[\u0080-\u009F]/g, '');
+    .replace(/[\u0080-\u009F]/g, '')
+    // Strip UTF-8 BOM and zero-width chars
+    .replace(/\uFEFF/g, '')
+    .replace(/ï»¿/g, '')              // BOM rendered as mojibake
+    .replace(/\u200B|\u200C|\u200D/g, '');
 }
 
 function closeModal() {
@@ -953,6 +1004,79 @@ async function downloadAttachment(ei, ai) {
     URL.revokeObjectURL(url);
     showToast('📥 Downloading...');
   } catch (e) { showToast('❌ Download failed'); }
+}
+
+// ===== Attachment Lightbox =====
+function openAttLightbox(src, filename, type) {
+  const lb = document.getElementById('att-lightbox');
+  const content = document.getElementById('att-lb-content');
+  const nameEl = document.getElementById('att-lb-filename');
+  if (!lb || !content) return;
+
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  const imageExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico','avif'];
+  const videoExts = ['mp4','webm','ogv','mov'];
+  const audioExts = ['mp3','wav','ogg','m4a','flac','aac'];
+
+  content.innerHTML = '';
+
+  if (imageExts.includes(ext)) {
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = filename;
+    img.style.cssText = 'max-width:90vw;max-height:85vh;object-fit:contain;border-radius:8px;';
+    content.appendChild(img);
+
+  } else if (ext === 'pdf') {
+    const iframe = document.createElement('iframe');
+    iframe.src = src;
+    iframe.style.cssText = 'width:88vw;height:85vh;border:none;border-radius:8px;background:#fff;';
+    iframe.title = filename;
+    content.appendChild(iframe);
+
+  } else if (videoExts.includes(ext)) {
+    const video = document.createElement('video');
+    video.controls = true;
+    video.autoplay = false;
+    video.style.cssText = 'max-width:90vw;max-height:85vh;border-radius:8px;background:#000;';
+    const source = document.createElement('source');
+    source.src = src;
+    source.type = type || 'video/mp4';
+    video.appendChild(source);
+    content.appendChild(video);
+
+  } else if (audioExts.includes(ext)) {
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.style.cssText = 'width:80vw;margin:40px auto;display:block;';
+    const source = document.createElement('source');
+    source.src = src;
+    audio.appendChild(source);
+    content.appendChild(audio);
+
+  } else {
+    content.innerHTML = `
+      <div style="text-align:center;color:#fff;padding:40px;">
+        <div style="font-size:64px;margin-bottom:16px;">${getFileIcon(filename)}</div>
+        <div style="font-size:18px;margin-bottom:24px;">${escapeHtml(filename)}</div>
+        <a href="${src}" download="${escapeHtml(filename)}"
+           style="background:#00d09c;color:#000;padding:12px 28px;border-radius:8px;
+                  text-decoration:none;font-weight:600;">⬇ Download</a>
+      </div>`;
+  }
+
+  if (nameEl) nameEl.textContent = filename || '';
+  lb.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAttLightbox() {
+  const lb = document.getElementById('att-lightbox');
+  if (lb) lb.classList.remove('show');
+  document.body.style.overflow = '';
+  // Stop any playing media
+  document.querySelectorAll('#att-lb-content video, #att-lb-content audio')
+    .forEach(el => { el.pause(); el.src = ''; });
 }
 
 // ===== Auto Refresh (Visibility-Aware) =====
@@ -1987,7 +2111,7 @@ async function clearForwarding(address) {
 // ===== Global Key/Click Listeners =====
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth(); closeProfile();
+    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth(); closeProfile(); closeAttLightbox();
     closeSignOutConfirm(); closePremiumRequiredPrompt();
   }
 });
