@@ -420,8 +420,10 @@ export default {
                 const allBytes = [];
                 let i = 0;
                 while (i < unfolded.length) {
+                    // Fast hex-digit check using char codes (avoids regex object per iteration)
+                    const isHex = (c) => (c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102);
                     if (unfolded[i] === '=' && i + 2 < unfolded.length &&
-                        /[0-9A-Fa-f]{2}/.test(unfolded.slice(i + 1, i + 3))) {
+                        isHex(unfolded.charCodeAt(i + 1)) && isHex(unfolded.charCodeAt(i + 2))) {
                         allBytes.push(parseInt(unfolded.slice(i + 1, i + 3), 16));
                         i += 3;
                     } else {
