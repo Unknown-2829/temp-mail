@@ -16,9 +16,10 @@ export async function onRequestGet(context) {
     const filename = lastPart.replace(/^\d+_\d+_/, '');
 
     const contentType = obj.httpMetadata?.contentType || 'application/octet-stream';
-    // PDFs must be served inline so the browser can render them inside an <iframe>.
-    // Everything else is forced to download.
-    const disposition = contentType === 'application/pdf'
+    // Serve images and PDFs inline so the browser can display them directly
+    // (image grid, lightbox, PDF viewer).  Everything else is forced to download.
+    const isInline = contentType === 'application/pdf' || contentType.startsWith('image/');
+    const disposition = isInline
         ? `inline; filename*=UTF-8''${encodeURIComponent(filename)}`
         : `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
 

@@ -254,7 +254,10 @@ export default {
             }
 
             // Inline image with Content-ID → resolve cid: references
-            if (contentId && partContentType.startsWith("image/")) {
+            // Skip when the part is explicitly marked as an attachment: many email clients
+            // assign a Content-ID to every image part (including file attachments), which
+            // would otherwise silently swallow the attachment instead of displaying it.
+            if (contentId && partContentType.startsWith("image/") && !contentDisposition.includes("attachment")) {
                 const b64 = part.body.replace(/\s/g, '');
                 const mimeType = partContentType.split(';')[0].trim();
                 inlineParts[contentId] = `data:${mimeType};base64,${b64}`;

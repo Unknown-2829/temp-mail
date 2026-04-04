@@ -603,10 +603,13 @@ function viewEmail(index) {
     iframe.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-scripts');
     iframe.style.cssText = 'width:100%;border:none;display:block;min-height:200px;';
 
-    // Add CSP meta to <head> to block scripts but allow images from any domain
+    // Add CSP meta to <head> to block scripts but allow images from any domain.
+    // upgrade-insecure-requests rewrites HTTP image/font/style URLs to HTTPS so
+    // emails with plain-HTTP src attributes are not silently blocked as mixed content.
     const cspMeta = doc.createElement('meta');
     cspMeta.setAttribute('http-equiv', 'Content-Security-Policy');
     cspMeta.setAttribute('content',
+      "upgrade-insecure-requests; " +
       "default-src 'none'; " +
       "img-src * data: blob:; " +
       "style-src 'self' 'unsafe-inline'; " +
