@@ -701,6 +701,9 @@ function viewEmail(index) {
           : (att.data ? `data:${att.contentType||'image/jpeg'};base64,${att.data}` : null);
         if (!src) return;
 
+        const imgEi = emailsList.indexOf(email);
+        const imgAi = email.attachments.indexOf(att);
+
         const cell = document.createElement('div');
         cell.className = 'att-img-cell';
         const img = document.createElement('img');
@@ -712,8 +715,14 @@ function viewEmail(index) {
         const label = document.createElement('div');
         label.className = 'att-img-label';
         label.textContent = att.filename || 'image';
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'att-img-dl-btn';
+        dlBtn.title = 'Download image';
+        dlBtn.textContent = '⬇';
+        dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(imgEi, imgAi); });
         cell.appendChild(img);
         cell.appendChild(label);
+        cell.appendChild(dlBtn);
         gridDiv.appendChild(cell);
       });
       attachList.appendChild(gridDiv);
@@ -729,6 +738,9 @@ function viewEmail(index) {
         ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
         : null;
 
+      const ei = emailsList.indexOf(email);
+      const ai = email.attachments.indexOf(att);
+
       // AUDIO
       if (audioExts.includes(ext)) {
         card.innerHTML = `
@@ -738,10 +750,13 @@ function viewEmail(index) {
               <div class="att-card-name">${escapeHtml(att.filename||'audio')}</div>
               <div class="att-card-size">${formatSize(att.size)}</div>
             </div>
+            <button class="att-download-btn" title="Download file">⬇ Download</button>
           </div>
           <audio controls style="width:100%;margin-top:8px;border-radius:6px;">
             <source src="${src||''}" type="${att.contentType||'audio/mpeg'}">
           </audio>`;
+        const dlBtn = card.querySelector('.att-download-btn');
+        if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(ei, ai); });
 
       // VIDEO
       } else if (videoExts.includes(ext)) {
@@ -752,13 +767,16 @@ function viewEmail(index) {
               <div class="att-card-name">${escapeHtml(att.filename||'video')}</div>
               <div class="att-card-size">${formatSize(att.size)}</div>
             </div>
+            <button class="att-download-btn" title="Download file">⬇ Download</button>
           </div>
           <video controls style="width:100%;max-height:280px;border-radius:6px;margin-top:8px;background:#000;">
             <source src="${src||''}" type="${att.contentType||'video/mp4'}">
           </video>`;
+        const dlBtn = card.querySelector('.att-download-btn');
+        if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(ei, ai); });
         card.onclick = (e) => {
           const tag = e.target.tagName.toUpperCase();
-          if (tag !== 'VIDEO' && tag !== 'SOURCE')
+          if (tag !== 'VIDEO' && tag !== 'SOURCE' && tag !== 'BUTTON')
             openAttLightbox(src, att.filename, att.contentType);
         };
 
@@ -773,9 +791,12 @@ function viewEmail(index) {
               <div class="att-card-name">${escapeHtml(att.filename||'document.pdf')}</div>
               <div class="att-card-size">${formatSize(att.size)} · PDF</div>
             </div>
+            <button class="att-download-btn" title="Download PDF">⬇ Download</button>
             <span class="att-card-action">↗</span>
           </div>`;
-        card.onclick = () => { if (src) openAttLightbox(src, att.filename, 'application/pdf'); };
+        const dlBtn = card.querySelector('.att-download-btn');
+        if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(ei, ai); });
+        card.onclick = (e) => { if (e.target.tagName !== 'BUTTON' && src) openAttLightbox(src, att.filename, 'application/pdf'); };
 
       // CODE / TEXT — card opens content in new tab on click
       } else if (codeExts.includes(ext)) {
@@ -790,9 +811,13 @@ function viewEmail(index) {
               <div class="att-card-name">${escapeHtml(att.filename||'file')}</div>
               <div class="att-card-size">${formatSize(att.size)} · ${ext.toUpperCase()}</div>
             </div>
+            <button class="att-download-btn" title="Download file">⬇ Download</button>
             <span class="att-card-action">↗</span>
           </div>`;
-        card.onclick = async () => {
+        const dlBtn = card.querySelector('.att-download-btn');
+        if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(ei, ai); });
+        card.onclick = async (e) => {
+          if (e.target.tagName === 'BUTTON') return;
           try {
             if (src) {
               const res = await fetch(src);
@@ -810,8 +835,6 @@ function viewEmail(index) {
 
       // EVERYTHING ELSE — download card with dedicated button (no whole-card auto-download)
       } else {
-        const ei = emailsList.indexOf(email);
-        const ai = email.attachments.indexOf(att);
         card.innerHTML = `
           <div class="att-card-info">
             <span class="att-card-icon">${getFileIcon(att.filename)}</span>
@@ -1073,6 +1096,7 @@ function openAttLightbox(src, filename, type) {
   const lb = document.getElementById('att-lightbox');
   const content = document.getElementById('att-lb-content');
   const nameEl = document.getElementById('att-lb-filename');
+  const dlBtn = document.getElementById('att-lb-download');
   if (!lb || !content) return;
 
   const ext = (filename || '').split('.').pop().toLowerCase();
@@ -1081,6 +1105,16 @@ function openAttLightbox(src, filename, type) {
   const audioExts = ['mp3','wav','ogg','m4a','flac','aac'];
 
   content.innerHTML = '';
+
+  // Wire up the lightbox download button
+  if (dlBtn) {
+    dlBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = src;
+      a.download = filename || 'download';
+      a.click();
+    };
+  }
 
   if (imageExts.includes(ext)) {
     const img = document.createElement('img');
@@ -1121,9 +1155,6 @@ function openAttLightbox(src, filename, type) {
       <div style="text-align:center;color:#fff;padding:40px;">
         <div style="font-size:64px;margin-bottom:16px;">${getFileIcon(filename)}</div>
         <div style="font-size:18px;margin-bottom:24px;">${escapeHtml(filename)}</div>
-        <a href="${src}" download="${escapeHtml(filename)}"
-           style="background:#00d09c;color:#000;padding:12px 28px;border-radius:8px;
-                  text-decoration:none;font-weight:600;">⬇ Download</a>
       </div>`;
   }
 
