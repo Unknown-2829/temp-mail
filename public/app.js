@@ -287,6 +287,7 @@ function renderInbox() {
   }).join('');
 
   $inboxBody.innerHTML = rows;
+  $inboxBody.scrollTop = 0;
 }
 
 // ===== Parse Sender =====
