@@ -95,6 +95,8 @@ async function generateEmail() {
   $emailDisplay.value = 'Loading...';
   $emailDisplay.style.opacity = '0.6';
 
+  await new Promise(r => setTimeout(r, 500));
+
   try {
     const response = await fetch('/api/generate', { method: 'POST' });
     if (!response.ok) throw new Error('Failed');
@@ -903,6 +905,20 @@ function cleanBrokenChars(text) {
     .replace(/Â¢/g, '¢').replace(/Â§/g, '§').replace(/Âµ/g, 'µ')
     // Non-breaking space → regular space
     .replace(/\u00A0/g, ' ')
+    // Re-decode 3-byte UTF-8 sequences that were stored as raw Latin-1 code points
+    // instead of Windows-1252, causing the middle byte to land in the C1 control range
+    // (U+0080–U+009F) rather than as a Windows-1252 printable char.
+    // Pattern: â (U+00E2 = byte 0xE2) + C1 byte (0x80–0x9F) + continuation (0x80–0xBF)
+    // This restores em-dashes (—), en-dashes (–), curly quotes (' ' " "), bullets (•),
+    // ellipses, and all other Unicode typographic chars from the U+2000–U+27FF block.
+    // Must run BEFORE the C1 strip below, otherwise the middle byte gets erased first.
+    .replace(/\u00e2[\u0080-\u009f][\u0080-\u00bf]/g, m => {
+      try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(
+          new Uint8Array([0xe2, m.charCodeAt(1), m.charCodeAt(2)])
+        );
+      } catch (_) { return m; }
+    })
     // Strip lone C1 control characters (U+0080–U+009F) that serve no display purpose.
     // Guard: skip if the character is part of a surrogate pair (emoji) — JS strings are
     // UTF-16 so emoji codepoints > U+FFFF are stored as surrogate pairs (U+D800–U+DFFF),
