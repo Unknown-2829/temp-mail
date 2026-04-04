@@ -7,6 +7,7 @@
  * - Proper MIME parsing with full UTF-8/emoji support
  * - Structured email storage
  * - Real sender extraction (bypasses SMTP bounce addresses)
+ * - Scheduled R2 cleanup: deletes attachments older than 15 days (runs daily at 3am UTC)
  *
  * Required bindings: TEMP_EMAILS (KV), EMAILS (KV), ATTACHMENTS (R2)
  * Add ATTACHMENTS R2 bucket in Cloudflare Pages → Settings → Functions → R2 bindings
@@ -120,6 +121,12 @@ export default {
             console.error("❌ ERROR:", error.message);
             console.error("Stack:", error.stack);
         }
+    },
+
+    // Cron cleanup — called daily by Cloudflare Cron Trigger (see wrangler.toml)
+    // Deletes R2 attachment objects that are older than 15 days.
+    async scheduled(event, env, ctx) {
+        ctx.waitUntil(cleanupAttachments(env));
     },
 
     // Extract the real human-visible From address from email headers.
@@ -405,3 +412,46 @@ export default {
             .trim();
     }
 };
+
+// ── R2 Attachment Cleanup ────────────────────────────────────────────────────
+// Deletes attachments older than 15 days from the ATTACHMENTS R2 bucket.
+// Called by the `scheduled` handler above — runs daily at 3am UTC.
+//
+// Optimizations:
+//   • list() reads only metadata (key + upload timestamp) — never downloads content
+//   • Processes up to 1000 objects per R2 list call (the API maximum)
+//   • Deletes in parallel batches of 50 to be fast without overwhelming the R2 API
+//   • cursor-based pagination handles buckets with millions of files
+async function cleanupAttachments(env) {
+    if (!env.ATTACHMENTS) {
+        console.log("⚠️ ATTACHMENTS binding not configured — skipping R2 cleanup");
+        return;
+    }
+
+    const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - FIFTEEN_DAYS_MS;
+
+    let deleted = 0;
+    let cursor = undefined;
+
+    do {
+        // List up to 1000 objects per call (R2 maximum) — metadata only, no content
+        const batch = await env.ATTACHMENTS.list({ limit: 1000, cursor });
+
+        // Collect keys of objects whose upload timestamp is older than 15 days
+        const toDelete = batch.objects
+            .filter(obj => obj.uploaded.getTime() < cutoff)
+            .map(obj => obj.key);
+
+        // Delete in parallel chunks of 50 to stay within R2 rate limits
+        for (let i = 0; i < toDelete.length; i += 50) {
+            const chunk = toDelete.slice(i, i + 50);
+            await Promise.all(chunk.map(key => env.ATTACHMENTS.delete(key)));
+            deleted += chunk.length;
+        }
+
+        cursor = batch.truncated ? batch.cursor : undefined;
+    } while (cursor);
+
+    console.log(`✅ R2 cleanup: deleted ${deleted} attachment(s) older than 15 days`);
+}

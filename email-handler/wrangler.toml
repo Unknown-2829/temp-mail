@@ -1,0 +1,27 @@
+name = "phantom-mail-email-handler"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# ── R2 Buckets ────────────────────────────────────────────────────────────────
+# Create this bucket in Cloudflare Dashboard → R2 → Create bucket
+# Then add the binding here and in Pages → Settings → Functions → R2 bindings
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "phantom-mail-attachments"
+
+# ── KV Namespaces ─────────────────────────────────────────────────────────────
+# Replace the id values with your actual KV namespace IDs from the dashboard
+[[kv_namespaces]]
+binding = "TEMP_EMAILS"
+id = "REPLACE_WITH_YOUR_TEMP_EMAILS_KV_ID"
+
+[[kv_namespaces]]
+binding = "EMAILS"
+id = "REPLACE_WITH_YOUR_EMAILS_KV_ID"
+
+# ── Cron Triggers ─────────────────────────────────────────────────────────────
+# Runs cleanupAttachments() every day at 3am UTC — deletes R2 objects older than 15 days.
+# After deploying, verify under Workers & Pages → phantom-mail-email-handler → Triggers.
+# You can click "Run" on the dashboard to test it immediately without waiting 24 hours.
+[triggers]
+crons = ["0 3 * * *"]
