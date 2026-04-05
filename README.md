@@ -34,6 +34,11 @@ Or follow the [detailed setup guide](#cloudflare-setup-guide) below.
 - 🔒 **Private & Secure** - No tracking, no data selling
 - 📋 **One-Click Copy** - Easy email address copying
 - 🔄 **Unlimited Use** - Generate as many temporary emails as you need
+- 📎 **Attachment Support** - View and download email attachments (images, PDFs, files) up to 50 MB
+- 🖼️ **Inline Image Viewer** - Full-screen lightbox for image attachments
+- 📄 **Inline PDF Preview** - PDFs render directly in the email viewer
+- 🗑️ **Server-Side Delete** - Emails are deleted from storage, not just hidden locally
+- 🔍 **Raw Source View** - Toggle raw email source with one click + copy to clipboard
 
 ### Premium Plan ($3/mo or $20/yr)
 - 💾 **8 Permanent Addresses** - Custom addresses that never expire
@@ -56,6 +61,11 @@ Or follow the [detailed setup guide](#cloudflare-setup-guide) below.
 | **Custom Usernames** | ❌ | ✅ | ❌ |
 | **Email Forwarding** | ❌ | ✅ | ❌ (or paid only) |
 | **Developer API** | 100/day | **10,000/day** ⭐ | Limited or paid |
+| **Attachment Support** | ✅ up to 50 MB | ✅ up to 50 MB | Limited or ❌ |
+| **Inline Image Viewer** | ✅ lightbox | ✅ lightbox | ❌ (most) |
+| **Inline PDF Preview** | ✅ | ✅ | ❌ (most) |
+| **Server-Side Delete** | ✅ | ✅ | ❌ (most) |
+| **Raw Source View** | ✅ | ✅ | ❌ (most) |
 | **Self-Hosted** | ✅ | ✅ | ❌ (most) |
 | **Open Source** | ✅ | ✅ | ❌ (most) |
 | **Cloudflare Infrastructure** | ✅ | ✅ | Varies |
@@ -88,7 +98,8 @@ flowchart TD
         C2["👤 User\nprofile · API keys · forwarding"]
         C3["🛡️ Admin\nuser management"]
         C4["🔌 Developer API\nv1/generate · v1/emails"]
-        C --> C1 & C2 & C3 & C4
+        C5["📎 Attachments\n/api/attachment · /api/delete"]
+        C --> C1 & C2 & C3 & C4 & C5
     end
 
     B --> C
@@ -100,20 +111,29 @@ flowchart TD
         K4["📊 API_USAGE\nRate Limiting"]
     end
 
+    subgraph CF_R2["🪣 Cloudflare R2 (Object Storage)"]
+        R1["📎 ATTACHMENTS\nUp to 50 MB per file\n15-day cleanup cron"]
+    end
+
     C --> CF_KV
+    C5 --> CF_R2
 
     subgraph CF_WORKER["📨 Email Worker (Separate)"]
         E1["Receives inbound emails\n@unknownlll2829.qzz.io"]
-        E2["Stores in KV\n1hr free · 30d premium"]
-        E3["Forwards emails\nPremium feature"]
-        E1 --> E2 --> E3
+        E2["Stores body in KV\n1hr free · 30d premium"]
+        E3["Stores attachments in R2\nup to 50 MB"]
+        E4["Forwards emails\nPremium feature"]
+        E1 --> E2 --> E4
+        E1 --> E3
     end
 
     CF_KV --> CF_WORKER
     CF_WORKER --> K1
+    CF_WORKER --> R1
 
     style CF_PAGES fill:#f6821f,color:#fff,stroke:#f6821f
     style CF_KV fill:#faad3f,color:#000,stroke:#faad3f
+    style CF_R2 fill:#2c7be5,color:#fff,stroke:#2c7be5
     style CF_WORKER fill:#0051c3,color:#fff,stroke:#0051c3
 ```
 
@@ -131,12 +151,15 @@ phantom-mail/
 │   ├── privacy-policy.html      # Privacy policy
 │   ├── terms.html               # Terms of service
 │   ├── acceptable-use.html      # Acceptable use policy
+│   ├── _headers                 # Cloudflare Pages headers (CSP for external images)
 │   ├── app.js                   # Frontend JavaScript
 │   └── styles.css               # Styling
 ├── functions/
 │   └── api/
 │       ├── generate.js          # Web UI: generate temp email
 │       ├── emails.js            # Web UI: fetch emails for address
+│       ├── attachment.js        # GET /api/attachment — serve R2 attachments
+│       ├── delete.js            # DELETE /api/delete — server-side email deletion
 │       ├── qr.js                # QR code generation proxy
 │       ├── auth/
 │       │   ├── signin.js        # POST /api/auth/signin
@@ -152,7 +175,8 @@ phantom-mail/
 │       └── admin/
 │           └── [[action]].js    # Admin panel API
 ├── email-handler/
-│   └── worker.js                # Cloudflare Email Worker (deploy separately)
+│   ├── worker.js                # Cloudflare Email Worker (deploy separately)
+│   └── wrangler.toml            # Wrangler config: R2 bucket, KV bindings, cron trigger
 ├── LICENSE                      # MIT License
 └── README.md                    # This file
 ```
@@ -180,6 +204,14 @@ phantom-mail/
 | `API_KEYS` | Developer API key lookup for `/api/v1/*` endpoints |
 | `API_USAGE` | Daily rate-limit counters for developer API keys |
 
+### Step 1b: Create R2 Bucket (for Attachments)
+
+1. Go to **Cloudflare Dashboard → R2 → Create bucket**
+2. Name it `phantom-mail-attachments` (or any name you prefer)
+3. Note the bucket name — you'll bind it as `ATTACHMENTS` in the next steps
+
+> Attachments up to 50 MB are stored in R2. A built-in daily cron job automatically deletes attachments older than 15 days.
+
 ### Step 2: Push to GitHub
 
 ```bash
@@ -200,15 +232,18 @@ git push
    - Build output directory: `public`
 4. Click **Deploy**
 
-### Step 4: Bind KV Namespaces to Pages
+### Step 4: Bind KV Namespaces and R2 Bucket to Pages
 
 1. Go to your Pages project → **Settings → Functions → KV namespace bindings**
-2. Add all four bindings:
+2. Add all four KV bindings:
    - Variable name `EMAILS` → select the `EMAILS` KV namespace
    - Variable name `TEMP_EMAILS` → select the `TEMP_EMAILS` KV namespace
    - Variable name `API_KEYS` → select the `API_KEYS` KV namespace
    - Variable name `API_USAGE` → select the `API_USAGE` KV namespace
-3. **Re-deploy** the Pages project after adding bindings:
+3. Go to **Settings → Functions → R2 bucket bindings**
+4. Add the R2 binding:
+   - Variable name `ATTACHMENTS` → select the `phantom-mail-attachments` R2 bucket
+5. **Re-deploy** the Pages project after adding bindings:
    - Settings → Deployments → Retry deployment
 
 ### Step 5: Set Environment Variables
@@ -240,6 +275,11 @@ The `email-handler/worker.js` is a **separate Cloudflare Worker** that receives 
    - Settings → Variables → KV Namespace Bindings
    - Add `EMAILS` → `EMAILS` KV namespace
    - Add `TEMP_EMAILS` → `TEMP_EMAILS` KV namespace
+7. **Bind R2 bucket** to the worker:
+   - Settings → Variables → R2 Bucket Bindings
+   - Add `ATTACHMENTS` → `phantom-mail-attachments` R2 bucket
+
+> 💡 **Tip:** You can also deploy using Wrangler CLI with the included `email-handler/wrangler.toml` — just fill in your KV namespace IDs and run `wrangler deploy` from the `email-handler/` directory. The `wrangler.toml` also configures the daily cleanup cron trigger.
 
 > ⚠️ **Important:** Forwarding destination addresses must be verified in **Cloudflare Email Routing**.
 > When a premium user sets a forwarding address (e.g., `user@gmail.com`), that address must appear in **Email → Email Routing → Destination addresses** as a verified address. Cloudflare will send a one-time verification email — the user clicks the link, then forwarding works.
