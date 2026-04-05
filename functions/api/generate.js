@@ -57,7 +57,24 @@ const numberSuffixes = ['1', '2', '3', '4', '5', '7', '8', '9', '11', '12', '21'
 
 export async function onRequestPost(context) {
     try {
-        const { env } = context;
+        const { env, request } = context;
+
+        // Require a valid session token
+        const authHeader = request.headers.get('Authorization') || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        const session = await env.EMAILS.get(`session:${token}`);
+        if (!session) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
 
         // Generate unique human-like email with retry logic
         let email;
