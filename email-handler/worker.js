@@ -253,7 +253,11 @@ export default {
                 continue;
             }
 
-            // Inline image with Content-ID → resolve cid: references
+            // Image with Content-ID → register in inlineParts so cid: references in the HTML
+            // body are resolved.  Only skip attachment processing when the part is NOT
+            // explicitly declared as a file attachment (Content-Disposition: attachment).
+            // Many email clients add a Content-ID even to ordinary file attachments, so
+            // we must not unconditionally skip them here.
             if (contentId && partContentType.startsWith("image/")) {
                 const b64 = part.body.replace(/\s/g, '');
                 const mimeType = partContentType.split(';')[0].trim();
@@ -261,7 +265,14 @@ export default {
                 // Also add without domain suffix (some clients omit it)
                 const shortCid = contentId.split('@')[0];
                 if (shortCid !== contentId) inlineParts[shortCid] = inlineParts[contentId];
-                continue;
+                // Pure inline (not an explicit file attachment) — stop here.
+                // Parse the disposition type precisely (first token before ';') so we
+                // don't accidentally match 'attachment' inside a parameter value.
+                // An empty or absent Content-Disposition means the image is truly inline;
+                // only an explicit "attachment" type means it should also be stored as a file.
+                const dispositionType = contentDisposition.split(';')[0].trim();
+                if (dispositionType !== 'attachment') continue;
+                // Explicitly marked as an attachment — fall through to also store as a file
             }
 
             // HTML body

@@ -490,6 +490,16 @@ function viewEmail(index) {
       });
     });
 
+    // Upgrade HTTP media/image src attributes to HTTPS so they are not blocked by the
+    // browser's mixed-content protection (the parent page is always served over HTTPS).
+    // This covers <img src>, <source src>, <video src/poster> and <audio src>.
+    const upgradeHttp = (el, attr) => {
+      const val = el.getAttribute(attr);
+      if (val && /^http:\/\//i.test(val)) el.setAttribute(attr, val.replace(/^http:\/\//i, 'https://'));
+    };
+    doc.querySelectorAll('img[src], source[src], video[src], audio[src]').forEach(el => upgradeHttp(el, 'src'));
+    doc.querySelectorAll('video[poster]').forEach(el => upgradeHttp(el, 'poster'));
+
     // ── Strip fixed-pixel dimension attributes ───────────────────────────────
     // HTML width/height attributes (e.g. <table width="600">) map to CSS intrinsic
     // sizes that resist max-width overrides on many browsers; removing them lets our
@@ -603,10 +613,13 @@ function viewEmail(index) {
     iframe.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-scripts');
     iframe.style.cssText = 'width:100%;border:none;display:block;min-height:200px;';
 
-    // Add CSP meta to <head> to block scripts but allow images from any domain
+    // Add CSP meta to <head> to block scripts but allow images from any domain.
+    // upgrade-insecure-requests upgrades any remaining HTTP sub-resource URLs
+    // (e.g. CSS background-image) to HTTPS, preventing mixed-content blocks.
     const cspMeta = doc.createElement('meta');
     cspMeta.setAttribute('http-equiv', 'Content-Security-Policy');
     cspMeta.setAttribute('content',
+      "upgrade-insecure-requests; " +
       "default-src 'none'; " +
       "img-src * data: blob:; " +
       "style-src 'self' 'unsafe-inline'; " +
