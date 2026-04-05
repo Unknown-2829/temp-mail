@@ -35,17 +35,14 @@ Or follow the [detailed setup guide](#cloudflare-setup-guide) below.
 - 📋 **One-Click Copy** - Easy email address copying
 - 🔄 **Unlimited Use** - Generate as many temporary emails as you need
 - 📎 **Attachment Support** - View and download email attachments (images, PDFs, files) up to 50 MB
-- 🖼️ **Inline Image Viewer** - Full-screen lightbox for image attachments
-- 📄 **Inline PDF Preview** - PDFs render directly in the email viewer
-- 🗑️ **Server-Side Delete** - Emails are deleted from storage, not just hidden locally
-- 🔍 **Raw Source View** - Toggle raw email source with one click + copy to clipboard
+- 🔌 **Developer API** - 100/day free
 
 ### Premium Plan ($3/mo or $20/yr)
 - 💾 **8 Permanent Addresses** - Custom addresses that never expire
 - 🎯 **Custom Usernames** - Choose your own address handle
 - 📅 **30-Day Email Retention** - Premium emails last 30 days (vs 1 hour for free)
 - 📨 **Email Forwarding** - Auto-forward to your real inbox
-- 🔌 **Developer API** - 10,000 requests/day (vs 100/day free)
+- 🔌 **Developer API** - incread usage 10,000 requests/day (vs 100/day free)
 - 🛡️ **Priority Support** - Fast response from the team
 
 ---
@@ -62,13 +59,7 @@ Or follow the [detailed setup guide](#cloudflare-setup-guide) below.
 | **Email Forwarding** | ❌ | ✅ | ❌ (or paid only) |
 | **Developer API** | 100/day | **10,000/day** ⭐ | Limited or paid |
 | **Attachment Support** | ✅ up to 50 MB | ✅ up to 50 MB | Limited or ❌ |
-| **Inline Image Viewer** | ✅ lightbox | ✅ lightbox | ❌ (most) |
-| **Inline PDF Preview** | ✅ | ✅ | ❌ (most) |
-| **Server-Side Delete** | ✅ | ✅ | ❌ (most) |
-| **Raw Source View** | ✅ | ✅ | ❌ (most) |
-| **Self-Hosted** | ✅ | ✅ | ❌ (most) |
 | **Open Source** | ✅ | ✅ | ❌ (most) |
-| **Cloudflare Infrastructure** | ✅ | ✅ | Varies |
 | **No Ads** | ✅ | ✅ | ❌ (many have ads) |
 
 **🔑 Key Advantage:** 30-day email retention for Premium users means you never lose important verification emails or one-time codes.
@@ -203,7 +194,7 @@ phantom-mail/
 | `TEMP_EMAILS` | Temp email address registry (1-hour TTL) |
 | `API_KEYS` | Developer API key lookup for `/api/v1/*` endpoints |
 | `API_USAGE` | Daily rate-limit counters for developer API keys |
-
+| `ATTACHMENTS` | to store attachments in R2 bucket |
 ### Step 1b: Create R2 Bucket (for Attachments)
 
 1. Go to **Cloudflare Dashboard → R2 → Create bucket**
