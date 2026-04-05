@@ -223,7 +223,7 @@ async function refreshEmails() {
     scheduleRender();
   } catch (e) {
     _refreshErrorCount++;
-    console.error('Refresh error #' + _refreshErrorCount, e);
+    if (_refreshErrorCount === 1) console.error('Refresh error #' + _refreshErrorCount, e);
     // Back off: 5s → 10s → 20s → 60s cap
     if (_refreshErrorCount > 1) {
       stopAutoRefresh();
@@ -1460,15 +1460,23 @@ function updatePremiumDashboard(username, isPremium) {
   const dash = document.getElementById('premium-dashboard');
   if (!dash) return;
 
-  if (!isPremium) {
-    closePremiumDashboard();
-    return;
-  }
-
   dash.classList.remove('hidden');
   document.getElementById('pdash-username').textContent = `@${username}`;
-  loadSavedEmails();
+
+  // Update title based on tier
+  const titleEl = dash.querySelector('.pdash-title');
+  if (titleEl) titleEl.textContent = isPremium ? '⭐ Premium Dashboard' : '🔌 Developer Dashboard';
+
+  // Show/hide premium-only tabs (saved=index 0, forwarding=index 1)
+  const tabs = dash.querySelectorAll('.pdash-tab');
+  if (tabs[0]) tabs[0].classList.toggle('hidden', !isPremium);
+  if (tabs[1]) tabs[1].classList.toggle('hidden', !isPremium);
+
+  // Default active tab
+  switchPDashTab(isPremium ? 'saved' : 'apikey');
+
   loadApiKey();
+  if (isPremium) loadSavedEmails();
 }
 
 function switchPDashTab(tab) {

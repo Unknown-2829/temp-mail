@@ -3,13 +3,30 @@
  * Fetches a QR image from QRServer.com and returns it as a base64 data-URI.
  */
 
+const QR_DAILY_LIMIT = 30;
+
 export async function onRequestGet(context) {
-    const url = new URL(context.request.url);
+    const { request, env } = context;
+    const url = new URL(request.url);
     const email = url.searchParams.get('email');
 
     if (!email) {
         return jsonResponse({ error: 'Missing email parameter' }, 400);
     }
+
+    // IP-based rate limiting: 30 requests per IP per day
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const rateLimitKey = `ratelimit:qr:${ip}:${date}`;
+
+    const countStr = await env.TEMP_EMAILS.get(rateLimitKey);
+    const count = countStr ? parseInt(countStr, 10) : 0;
+
+    if (count >= QR_DAILY_LIMIT) {
+        return jsonResponse({ error: 'Rate limit exceeded. Max 30 QR requests per day.' }, 429);
+    }
+
+    await env.TEMP_EMAILS.put(rateLimitKey, String(count + 1), { expirationTtl: 86400 });
 
     try {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(email)}&margin=10`;
