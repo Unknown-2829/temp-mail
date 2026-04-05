@@ -1027,6 +1027,26 @@ body {
   text-overflow: ellipsis;
   border-radius: 0 0 6px 6px;
 }
+/* Download button overlaid in the top-right corner of image cells */
+.att-img-dl-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+  line-height: 1.2;
+}
+.att-img-cell:hover .att-img-dl-btn {
+  opacity: 1;
+}
 
 /* ── Attachment Cards ──────────────────────────────────── */
 /* The modal uses a white/light background, so cards use dark text on white */
