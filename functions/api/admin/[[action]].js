@@ -59,10 +59,21 @@ export async function onRequest(context) {
 
 // ===== Login =====
 async function handleLogin(request, env) {
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const rlKey = `ratelimit:admin:login:${ip}`;
+    const attempts = parseInt((await env.EMAILS.get(rlKey)) || '0', 10);
+    if (attempts >= 10) {
+        return jsonResponse({ error: 'Too many login attempts. Try again in 15 minutes.' }, 429);
+    }
+
     const { secret } = await request.json();
     if (!secret || secret !== env.ADMIN_SECRET) {
+        await env.EMAILS.put(rlKey, String(attempts + 1), { expirationTtl: 900 });
         return jsonResponse({ error: 'Invalid secret' }, 401);
     }
+
+    // Reset counter on successful login
+    await env.EMAILS.delete(rlKey);
 
     const adminToken = 'adm_' + Array.from(crypto.getRandomValues(new Uint8Array(32)))
         .map(b => b.toString(16).padStart(2, '0')).join('');

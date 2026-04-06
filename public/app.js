@@ -98,7 +98,9 @@ async function generateEmail() {
   await new Promise(r => setTimeout(r, 500));
 
   try {
-    const response = await fetch('/api/generate', { method: 'POST' });
+    const token = localStorage.getItem('authToken');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const response = await fetch('/api/generate', { method: 'POST', headers });
     if (!response.ok) throw new Error('Failed');
 
     const data = await response.json();

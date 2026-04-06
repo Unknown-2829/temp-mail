@@ -5,6 +5,56 @@ Every meaningful commit is listed — grouped by feature area — with a plain-E
 
 ---
 
+## [1.3.1] — 2026-04-06
+
+### Fix Broken Email Generation & Harden Admin Login (3 targeted fixes)
+
+v1.3.0 locked `POST /api/generate` behind a hard 401 for all unauthenticated requests, breaking the core email-generation feature for every guest user. This patch restores guest access via IP-based rate limiting, passes the auth token from the frontend when available, and adds brute-force protection to the admin login endpoint.
+
+---
+
+#### 1 · Guest Email Generation Restored (`functions/api/generate.js`)
+
+**What was wrong:** The v1.3.0 session-token check rejected every request without an `Authorization` header with a 401, causing all unauthenticated users to see "Error - Tap Regenerate".
+
+**What changed:**
+- Removed the hard 401 block for missing/invalid tokens.
+- Authenticated users (valid `session:{token}` in KV) continue to get **unlimited** generations.
+- Unauthenticated users are now rate-limited instead of rejected: up to **30 email generations per IP per day**, tracked in `env.EMAILS` under `ratelimit:gen:{ip}:{YYYY-MM-DD}` with a 24-hour TTL (`expirationTtl: 86400`). The IP is read from the `CF-Connecting-IP` header.
+- Exceeding the anonymous limit returns `429 Too Many Requests` with a JSON error message.
+- All existing email-generation logic is unchanged.
+
+**Files changed:** `functions/api/generate.js`
+
+---
+
+#### 2 · Auth Token Forwarded from Frontend (`public/app.js`)
+
+**What was wrong:** `generateEmail()` called `POST /api/generate` with no headers, so logged-in users were also being rate-limited (or rejected) even though they had a valid session token in `localStorage`.
+
+**What changed:**
+- `generateEmail()` now reads `authToken` from `localStorage`.
+- If a token is present, it is sent as `Authorization: Bearer <token>`.
+- If no token is present (guest), the request is sent with no auth header (triggering the IP rate limit path on the server).
+
+**Files changed:** `public/app.js`
+
+---
+
+#### 3 · Brute-Force Protection on Admin Login (`functions/api/admin/[[action]].js`)
+
+**What was wrong:** `POST /api/admin/login` had no attempt limiting — an attacker could try the admin secret an unlimited number of times.
+
+**What changed:**
+- Added IP-based attempt tracking using `env.EMAILS` under `ratelimit:admin:login:{ip}` with a 15-minute TTL (`expirationTtl: 900`).
+- Maximum **10 failed attempts per IP per 15 minutes**. Exceeding the limit returns `429 Too Many Requests`.
+- The counter increments only on a failed (wrong secret) attempt.
+- On a successful login the counter is deleted so the IP is not penalized for future sessions.
+
+**Files changed:** `functions/api/admin/[[action]].js`
+
+---
+
 ## [1.3.0] — 2026-04-05
 
 ### Security & UX Hardening (6 targeted fixes)
