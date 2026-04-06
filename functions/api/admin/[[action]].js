@@ -211,9 +211,14 @@ async function handleDeleteUser(request, env) {
     const cleanupErrors = [];
     if (Array.isArray(user.savedEmails)) {
         await Promise.all(
-            user.savedEmails.map(addr =>
-                env.EMAILS.delete(addr).catch(e => cleanupErrors.push(`saved-email:${addr}: ${e.message}`))
-            )
+            user.savedEmails.map(savedEmail => {
+                const address = savedEmail.address;
+                if (!address) return Promise.resolve();
+                return Promise.all([
+                    env.EMAILS.delete(address).catch(e => cleanupErrors.push(`saved-email:${address}: ${e.message}`)),
+                    env.EMAILS.delete(`forward:${address}`).catch(e => cleanupErrors.push(`forward:${address}: ${e.message}`))
+                ]);
+            })
         );
     }
 

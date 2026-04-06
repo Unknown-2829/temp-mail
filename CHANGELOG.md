@@ -5,6 +5,56 @@ Every meaningful commit is listed — grouped by feature area — with a plain-E
 
 ---
 
+## [1.3.2] — 2026-04-06
+
+### Login & Signup UX Improvements (3 targeted fixes)
+
+This release fixes the admin login rate-limit error always showing the wrong message, and modernises the sign-in / sign-up UI with proper Enter-key navigation, password-manager autofill, and field labels.
+
+---
+
+#### 1 · Admin Login Error Now Shows the Real Server Message (`public/admin.html`)
+
+**What was wrong:** The admin login card always displayed "Invalid secret. Access denied." even when the server returned a different error — for example, the 429 rate-limit message "Too many login attempts. Try again in 15 minutes.".
+
+**What changed:**
+- The `<p>` error element is now empty by default; its text is set from `data.error` at runtime.
+- The `catch` block now shows "Network error. Try again." instead of the generic access-denied text.
+- Added `role="alert"` and `aria-live="polite"` for screen-reader accessibility.
+
+**Files changed:** `public/admin.html`
+
+---
+
+#### 2 · Enter-Key Navigation & Autofill on All Login Forms (`public/index.html`, `public/admin.html`)
+
+**What was wrong:** The sign-in and sign-up inputs had no `name` attributes and were not wrapped in a `<form>`, so:
+- Pressing Enter did nothing (no form submission).
+- Browsers and password managers could not reliably recognise the credential fields.
+- The admin secret field had `autocomplete="off"`, blocking password-manager autofill entirely.
+
+**What changed:**
+- Sign-in and sign-up inputs are now wrapped in `<form>` elements with `onsubmit` handlers, so pressing **Enter** in any field advances to the next field and submits on the last field — no extra code needed.
+- All inputs now have `name` attributes (`username`, `password`, `email`) to maximise browser autofill and credential-saving.
+- Submit buttons are now `type="submit"` for correct semantic behaviour.
+- Admin secret input changed from `autocomplete="off"` to `autocomplete="current-password"` so password managers can fill it.
+
+**Files changed:** `public/index.html`, `public/admin.html`
+
+---
+
+#### 3 · Field Labels Added to Sign-In / Sign-Up Modal (`public/index.html`, `public/styles.css`)
+
+**What was wrong:** The auth modal only used placeholder text — once a user starts typing, there is no visual reminder of which field is which, making the form feel cheap and difficult to use.
+
+**What changed:**
+- Visible `<label>` elements added above every input field ("Username", "Password", "Recovery Email (optional)").
+- New `.auth-label` and `.auth-optional` CSS classes provide consistent 12 px uppercase label styling that matches the admin panel's existing field-label style.
+
+**Files changed:** `public/index.html`, `public/styles.css`
+
+---
+
 ## [1.3.1] — 2026-04-06
 
 ### Fix Broken Email Generation & Harden Admin Login (3 targeted fixes)

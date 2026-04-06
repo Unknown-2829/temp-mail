@@ -2884,6 +2884,29 @@ body {
   color: #ccc;
 }
 
+.auth-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  margin-top: 14px;
+}
+
+.auth-label:first-child {
+  margin-top: 0;
+}
+
+.auth-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #555;
+  font-size: 11px;
+}
+
 .auth-input+.auth-input {
   margin-top: 10px;
 }
@@ -2891,6 +2914,11 @@ body {
 #signin-section .auth-verify-btn,
 #signup-section .auth-verify-btn {
   margin-top: 14px;
+}
+
+#signin-form,
+#signup-form {
+  margin: 0;
 }
 
 /* Auth Warning Box */
