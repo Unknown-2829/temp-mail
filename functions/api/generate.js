@@ -59,21 +59,28 @@ export async function onRequestPost(context) {
     try {
         const { env, request } = context;
 
-        // Require a valid session token
+        // Check for a valid session token (authenticated users get unlimited generations)
         const authHeader = request.headers.get('Authorization') || '';
         const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-        if (!token) {
-            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-                status: 401,
-                headers: { 'Content-Type': 'application/json' }
-            });
+        let isAuthenticated = false;
+        if (token) {
+            const session = await env.EMAILS.get(`session:${token}`);
+            if (session) isAuthenticated = true;
         }
-        const session = await env.EMAILS.get(`session:${token}`);
-        if (!session) {
-            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-                status: 401,
-                headers: { 'Content-Type': 'application/json' }
-            });
+
+        // Apply IP-based rate limiting for unauthenticated requests
+        if (!isAuthenticated) {
+            const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+            const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+            const rlKey = `ratelimit:gen:${ip}:${today}`;
+            const count = parseInt((await env.EMAILS.get(rlKey)) || '0', 10);
+            if (count >= 30) {
+                return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again tomorrow.' }), {
+                    status: 429,
+                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                });
+            }
+            await env.EMAILS.put(rlKey, String(count + 1), { expirationTtl: 86400 });
         }
 
         // Generate unique human-like email with retry logic
