@@ -1,112 +1,99 @@
 /**
- * Google OAuth - Firebase ID Token Auth
- * POST /api/auth/google
- * Body: { idToken, email, name, uid, photoURL }
+ * Google Sign-In — client-side Firebase module
+ * Exposes window.googleLogin() which is called from the auth modal buttons.
  */
 
-export async function onRequestPost(context) {
-    const { request, env } = context;
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-    try {
-        const { idToken, email, name, uid, photoURL } = await request.json();
+let _auth = null;
 
-        if (!idToken || !email) {
-            return jsonResponse({ error: 'Missing required fields' }, 400);
-        }
-
-        // Verify Firebase ID token using Firebase REST API
-        // This is the correct endpoint for Firebase ID tokens (not oauth2 tokeninfo)
-        const projectId = env.FIREBASE_PROJECT_ID;
-        const verifyRes = await fetch(
-            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${env.FIREBASE_API_KEY}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken })
-            }
-        );
-
-        const verifyData = await verifyRes.json();
-
-        if (verifyData.error || !verifyData.users || verifyData.users.length === 0) {
-            return jsonResponse({ error: 'Invalid or expired token' }, 401);
-        }
-
-        const firebaseUser = verifyData.users[0];
-
-        // Make sure email matches
-        if (firebaseUser.email !== email) {
-            return jsonResponse({ error: 'Email mismatch' }, 401);
-        }
-
-        // Find or create user in KV
-        const userKey = `user:${email}`;
-        let user = await env.EMAILS.get(userKey, { type: 'json' });
-
-        if (!user) {
-            user = {
-                username: userKey,
-                displayUsername: name || email.split('@')[0],
-                email,
-                googleUid: uid,
-                authProviders: ['google'],
-                isPremium: false,
-                premiumExpiry: null,
-                savedEmails: [],
-                apiKey: null,
-                photoURL: photoURL || null,
-                createdAt: Date.now()
-            };
-            await env.EMAILS.put(userKey, JSON.stringify(user));
-        } else if (!user.googleUid) {
-            // Link Google to existing email/password account
-            user.googleUid = uid;
-            const providers = Array.isArray(user.authProviders) ? user.authProviders : [];
-            if (!providers.includes('google')) providers.push('google');
-            user.authProviders = providers;
-            if (photoURL && !user.photoURL) user.photoURL = photoURL;
-            if (!user.displayUsername && name) user.displayUsername = name;
-            await env.EMAILS.put(userKey, JSON.stringify(user));
-        }
-
-        // Check premium expiry
-        let isPremium = user.isPremium;
-        if (isPremium && user.premiumExpiry && user.premiumExpiry < Date.now()) {
-            user.isPremium = false;
-            user.premiumExpiry = null;
-            await env.EMAILS.put(userKey, JSON.stringify(user));
-            isPremium = false;
-        }
-
-        // Create session token
-        const token = generateToken();
-        await env.EMAILS.put(`session:${token}`, JSON.stringify({
-            username: userKey,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000)
-        }), { expirationTtl: 7 * 24 * 60 * 60 });
-
-        return jsonResponse({
-            success: true,
-            token,
-            username: user.displayUsername || email.split('@')[0],
-            isPremium: isPremium || false
-        });
-
-    } catch (err) {
-        console.error('Google auth error:', err);
-        return jsonResponse({ error: 'Internal server error' }, 500);
-    }
+async function getFirebaseAuth() {
+    if (_auth) return _auth;
+    // Fetch Firebase config from backend (env vars are not available in static JS)
+    const res = await fetch('/api/config');
+    if (!res.ok) throw new Error('Failed to load Firebase config');
+    const config = await res.json();
+    if (!config.apiKey) throw new Error('Firebase config missing');
+    const app = getApps().length ? getApps()[0] : initializeApp(config);
+    _auth = getAuth(app);
+    return _auth;
 }
 
-function generateToken() {
-    return Array.from(crypto.getRandomValues(new Uint8Array(48)))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-}
+const GOOGLE_SVG = `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+  <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+  <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+  <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+</svg> Continue with Google`;
 
-function jsonResponse(data, status = 200) {
-    return new Response(JSON.stringify(data), {
-        status,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+function resetGoogleBtns() {
+    document.querySelectorAll('.google-login-btn').forEach(b => {
+        b.disabled = false;
+        b.innerHTML = GOOGLE_SVG;
     });
 }
+
+window.googleLogin = async function () {
+    const errEl = document.getElementById('auth-error');
+    if (errEl) errEl.classList.add('hidden');
+
+    document.querySelectorAll('.google-login-btn').forEach(b => {
+        b.disabled = true;
+        b.textContent = 'Signing in…';
+    });
+
+    try {
+        const auth = await getFirebaseAuth();
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        const idToken = await user.getIdToken(/* forceRefresh */ true);
+
+        const res = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                idToken,
+                email: user.email,
+                name: user.displayName,
+                uid: user.uid,
+                photoURL: user.photoURL
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.token) {
+            localStorage.setItem('authToken', data.token);
+            localStorage.setItem('username', data.username);
+            localStorage.setItem('isPremium', data.isPremium ? 'true' : 'false');
+            if (data.photoURL) localStorage.setItem('photoURL', data.photoURL);
+            else localStorage.removeItem('photoURL');
+            closeAuth();
+            initAuthState();
+            showToast(data.isPremium ? '⭐ Welcome, Premium!' : '✅ Signed in with Google!');
+        } else {
+            const msg = data.error || 'Google sign-in failed';
+            if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+        }
+    } catch (err) {
+        // User closed popup or it was blocked — don't show an error
+        if (
+            err.code === 'auth/popup-closed-by-user' ||
+            err.code === 'auth/cancelled-popup-request'
+        ) {
+            return;
+        }
+        const msg =
+            err.code === 'auth/popup-blocked'
+                ? 'Popup blocked — please allow popups for this site and try again.'
+                : (err.message || 'Google sign-in failed. Try again.');
+        if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+    } finally {
+        resetGoogleBtns();
+    }
+};
+

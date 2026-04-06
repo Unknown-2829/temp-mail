@@ -2,6 +2,9 @@
  * Google OAuth - Firebase ID Token Auth
  * POST /api/auth/google
  * Body: { idToken, email, name, uid, photoURL }
+ *
+ * Token verification: Firebase identitytoolkit accounts:lookup
+ * (reliable for Firebase-issued ID tokens; oauth2 tokeninfo is for OAuth access tokens)
  */
 
 export async function onRequestPost(context) {
@@ -14,86 +17,106 @@ export async function onRequestPost(context) {
             return jsonResponse({ error: 'Missing required fields' }, 400);
         }
 
-        // Verify Firebase ID token using Google's public tokeninfo endpoint
+        // Verify Firebase ID token via Firebase REST API — the correct approach for
+        // Firebase-issued tokens (identitytoolkit returns the full user profile too)
         const verifyRes = await fetch(
-            `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${env.FIREBASE_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken })
+            }
         );
-        const payload = await verifyRes.json();
+        const verifyData = await verifyRes.json();
 
-        if (payload.error || payload.email !== email) {
-            return jsonResponse({ error: 'Invalid or expired token' }, 401);
+        if (verifyData.error || !verifyData.users || verifyData.users.length === 0) {
+            return jsonResponse({ error: 'Invalid or expired Google token' }, 401);
         }
 
-        // Check that the token was issued for our Firebase project
-        const senderId = env.FIREBASE_MESSAGING_SENDER_ID;
-        const projectId = env.FIREBASE_PROJECT_ID;
-        const audOk = senderId && projectId && (
-            payload.aud === senderId ||
-            payload.aud?.includes(senderId) ||
-            payload.aud === projectId ||
-            payload.aud?.includes(projectId)
-        );
-        if (!audOk) {
-            return jsonResponse({ error: 'Token audience mismatch' }, 401);
+        // Use verified data from Firebase — more trustworthy than what the client sent
+        const fbUser = verifyData.users[0];
+        if (fbUser.email !== email) {
+            return jsonResponse({ error: 'Email mismatch' }, 401);
         }
 
-        // Find or create user in KV (keyed by email, same store as username-based users)
+        // Prefer verified Firebase fields; fall back to client-supplied values
+        const verifiedName     = fbUser.displayName  || name  || email.split('@')[0];
+        const verifiedPhotoURL = fbUser.photoUrl     || photoURL || null;
+        const verifiedUid      = fbUser.localId      || uid;
+
+        // Find or create user in KV (keyed by email)
         const userKey = `user:${email}`;
         let user = await env.EMAILS.get(userKey, { type: 'json' });
+        let needsSave = false;
 
         if (!user) {
-            // New Google user — create account (no password needed)
+            // Brand-new Google user — create account
             user = {
                 username: userKey,
-                displayUsername: name || email.split('@')[0],
+                displayUsername: verifiedName,
                 email,
-                googleUid: uid,
+                googleUid: verifiedUid,
                 authProviders: ['google'],
                 isPremium: false,
                 premiumExpiry: null,
                 savedEmails: [],
                 apiKey: null,
-                photoURL: photoURL || null,
+                photoURL: verifiedPhotoURL,
                 createdAt: Date.now()
             };
-            await env.EMAILS.put(userKey, JSON.stringify(user));
-        } else if (!user.googleUid) {
-            // Existing email/password user — link Google to their account
-            user.googleUid = uid;
-            const providers = Array.isArray(user.authProviders) ? user.authProviders : [];
-            if (!providers.includes('google')) providers.push('google');
-            user.authProviders = providers;
-            if (photoURL && !user.photoURL) user.photoURL = photoURL;
-            if (!user.displayUsername && name) user.displayUsername = name;
-            await env.EMAILS.put(userKey, JSON.stringify(user));
+            needsSave = true;
+        } else {
+            // Existing user — link Google if not already linked
+            if (!user.googleUid) {
+                user.googleUid = verifiedUid;
+                const providers = Array.isArray(user.authProviders) ? user.authProviders : [];
+                if (!providers.includes('google')) providers.push('google');
+                user.authProviders = providers;
+                needsSave = true;
+            }
+
+            // Update display name if the user never set one
+            if (!user.displayUsername && verifiedName) {
+                user.displayUsername = verifiedName;
+                needsSave = true;
+            }
+
+            // Update photoURL from Google on every login UNLESS the user has
+            // uploaded a custom avatar (stored under /api/avatar?key=avatars/...)
+            const hasCustomAvatar = user.photoURL && user.photoURL.startsWith('/api/avatar');
+            if (!hasCustomAvatar && verifiedPhotoURL && user.photoURL !== verifiedPhotoURL) {
+                user.photoURL = verifiedPhotoURL;
+                needsSave = true;
+            }
         }
 
-        // Check premium expiry
+        // Expire premium if needed
         let isPremium = user.isPremium;
         if (isPremium && user.premiumExpiry && user.premiumExpiry < Date.now()) {
             user.isPremium = false;
             user.premiumExpiry = null;
-            await env.EMAILS.put(userKey, JSON.stringify(user));
             isPremium = false;
+            needsSave = true;
         }
 
-        // Create session token — same format as signin.js so profile.js works unchanged
+        if (needsSave) {
+            await env.EMAILS.put(userKey, JSON.stringify(user));
+        }
+
+        // Create session token
         const token = generateToken();
-        const sessionData = {
+        await env.EMAILS.put(`session:${token}`, JSON.stringify({
             username: userKey,
             createdAt: Date.now(),
             expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000)
-        };
-        await env.EMAILS.put(`session:${token}`, JSON.stringify(sessionData), {
-            expirationTtl: 7 * 24 * 60 * 60
-        });
+        }), { expirationTtl: 7 * 24 * 60 * 60 });
 
-        const displayName = user.displayUsername || email.split('@')[0];
         return jsonResponse({
             success: true,
             token,
-            username: displayName,
-            isPremium: isPremium || false
+            username: user.displayUsername || email.split('@')[0],
+            isPremium: isPremium || false,
+            photoURL: user.photoURL || null
         });
 
     } catch (err) {
@@ -113,3 +136,4 @@ function jsonResponse(data, status = 200) {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
 }
+

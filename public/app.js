@@ -12,9 +12,6 @@ const originalTitle = document.title;
 // Reusable SVG markup for the Sign-In account icon button
 const SIGN_IN_BTN_HTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><title>Account icon</title><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Sign In';
 
-// Reusable SVG markup for the logged-in Account button
-const ACCOUNT_BTN_HTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><title>Account icon</title><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Account';
-
 // Domain used for permanent / custom email addresses
 const PERM_EMAIL_DOMAIN = '@unknownlll2829.qzz.io';
 // Allowed characters for permanent email usernames
@@ -615,17 +612,16 @@ function viewEmail(index) {
     iframe.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-scripts');
     iframe.style.cssText = 'width:100%;border:none;display:block;min-height:200px;';
 
-    // Add CSP meta to <head> to block scripts but allow images from any domain.
-    // upgrade-insecure-requests upgrades any remaining HTTP sub-resource URLs
-    // (e.g. CSS background-image) to HTTPS, preventing mixed-content blocks.
+    // Add CSP meta to <head> — block scripts inside emails for security, but allow
+    // all external HTTP + HTTPS images, fonts, styles, and media to load freely.
     const cspMeta = doc.createElement('meta');
     cspMeta.setAttribute('http-equiv', 'Content-Security-Policy');
     cspMeta.setAttribute('content',
-      "upgrade-insecure-requests; " +
       "default-src 'none'; " +
-      "img-src * data: blob:; " +
-      "style-src 'self' 'unsafe-inline'; " +
-      "font-src *; " +
+      "img-src * http: https: data: blob:; " +
+      "style-src 'unsafe-inline' * http: https:; " +
+      "font-src * http: https: data:; " +
+      "media-src * http: https: data: blob:; " +
       "script-src 'none';"
     );
     doc.head.insertBefore(cspMeta, doc.head.firstChild);
@@ -1345,73 +1341,63 @@ function closePremiumFlow() { closePremiumPreview(); }
 
 // ===== Auth State =====
 function initAuthState() {
-  const username = localStorage.getItem('username');
+  const username  = localStorage.getItem('username');
   const isPremium = localStorage.getItem('isPremium') === 'true';
-  const section = document.getElementById('auth-status-section');
+  const photoURL  = localStorage.getItem('photoURL');
+  const section   = document.getElementById('auth-status-section');
   const statusText = document.getElementById('auth-status-text');
-  const actionBtn = document.getElementById('auth-action-btn');
-  const premBtn = document.getElementById('premium-header-btn');
+  const actionBtn  = document.getElementById('auth-action-btn');
+  const premBtn    = document.getElementById('premium-header-btn');
   const mobileAccountHeaderBtn = document.getElementById('mobile-account-header-btn');
-  const avatarEl = document.getElementById('user-avatar');
-  const mobileSigninBtn = document.getElementById('mobile-signin-btn');
+  const avatarEl       = document.getElementById('user-avatar');
   const mobileSigninRow = document.getElementById('mobile-signin-row');
   if (!section) return;
 
   if (username) {
-    // Avatar: hidden after login — Account button is the single account entry point
-    if (avatarEl) {
-      avatarEl.classList.add('hidden');
-      avatarEl.classList.remove('premium-avatar');
-    }
+    // Hide old separate avatar & status text — everything lives in the button now
+    if (avatarEl) { avatarEl.classList.add('hidden'); avatarEl.classList.remove('premium-avatar'); }
+    if (statusText) statusText.textContent = '';
 
-    statusText.textContent = isPremium
-      ? `⭐ @${username}`
-      : `@${username}`;
-    actionBtn.innerHTML = ACCOUNT_BTN_HTML;
-    actionBtn.classList.remove('signout-btn');
+    // Build inner HTML: small circular avatar + truncated username
+    const displayName = username.length > 15 ? username.slice(0, 14) + '…' : username;
+    const avatarHtml = photoURL
+      ? `<img class="btn-avatar" src="${escapeHtml(photoURL)}" alt="" onerror="this.remove()">`
+      : `<span class="btn-avatar-initial">${escapeHtml(username.charAt(0).toUpperCase())}</span>`;
+    actionBtn.innerHTML = `${avatarHtml}<span class="btn-username">${escapeHtml(displayName)}</span>`;
+
+    // Apply green (free) or yellow (premium) border class
+    actionBtn.classList.remove('signout-btn', 'user-free', 'user-premium');
+    actionBtn.classList.add(isPremium ? 'user-premium' : 'user-free');
     actionBtn.onclick = openProfile;
 
-    // Mobile: show Account button in header (replaces Premium button); hide middle sign-in row
+    // Mobile header: show Account button, hide sign-in row
     if (mobileAccountHeaderBtn) {
+      mobileAccountHeaderBtn.textContent = username.length > 12 ? username.slice(0, 11) + '…' : username;
       mobileAccountHeaderBtn.classList.remove('hidden');
     }
     if (mobileSigninRow) mobileSigninRow.classList.add('hidden');
 
-    // Hide the dashboard/premium button after login
-    if (premBtn) {
-      premBtn.classList.add('hidden');
-    }
+    // Hide the Premium button once logged in
+    if (premBtn) premBtn.classList.add('hidden');
 
-    // Show/hide premium dashboard
     updatePremiumDashboard(username, isPremium);
-
-    // Refresh premium status from server in background (handles admin-granted premium)
     refreshPremiumStatus();
   } else {
-    // Logged out: hide avatar
-    if (avatarEl) {
-      avatarEl.classList.add('hidden');
-      avatarEl.classList.remove('premium-avatar');
-    }
+    if (avatarEl) { avatarEl.classList.add('hidden'); avatarEl.classList.remove('premium-avatar'); }
+    if (statusText) statusText.textContent = '';
 
-    statusText.textContent = '';
     actionBtn.innerHTML = SIGN_IN_BTN_HTML;
-    actionBtn.classList.remove('signout-btn');
+    actionBtn.classList.remove('signout-btn', 'user-free', 'user-premium');
     actionBtn.onclick = openAuth;
 
-    // Mobile: hide Account header button; show Sign In in middle row
-    if (mobileAccountHeaderBtn) {
-      mobileAccountHeaderBtn.classList.add('hidden');
-    }
+    if (mobileAccountHeaderBtn) mobileAccountHeaderBtn.classList.add('hidden');
     if (mobileSigninRow) mobileSigninRow.classList.remove('hidden');
 
-    // Not logged in: show the premium button
     if (premBtn) {
       premBtn.classList.remove('hidden');
-      premBtn.textContent = '⭐ Premium';
+      premBtn.innerHTML = '<i class="purple-star" aria-hidden="true">★</i> Premium';
     }
 
-    // Hide premium dashboard
     closePremiumDashboard();
   }
 }
