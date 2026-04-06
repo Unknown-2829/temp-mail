@@ -3,17 +3,26 @@
 // It exposes window.googleLogin for use by inline onclick handlers.
 // Firebase config is fetched from /api/config (served from Cloudflare env vars).
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
+let _auth = null;
+let _provider = null;
+
 async function initFirebase() {
+    if (_auth && _provider) return { auth: _auth, provider: _provider };
     const res = await fetch('/api/config');
     const firebaseConfig = await res.json();
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
-    return { auth, provider };
+
+    // Prevent duplicate app error if somehow called twice
+    const app = getApps().length === 0
+        ? initializeApp(firebaseConfig)
+        : getApps()[0];
+
+    _auth = getAuth(app);
+    _provider = new GoogleAuthProvider();
+    return { auth: _auth, provider: _provider };
 }
 
 async function googleLogin() {
