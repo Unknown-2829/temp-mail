@@ -1,68 +1,112 @@
-// ===== FIREBASE GOOGLE AUTH =====
-// This module is loaded as type="module" so it can use ES module imports.
-// It exposes window.googleLogin for use by inline onclick handlers.
-// Firebase config is fetched from /api/config (served from Cloudflare env vars).
+/**
+ * Google OAuth - Firebase ID Token Auth
+ * POST /api/auth/google
+ * Body: { idToken, email, name, uid, photoURL }
+ */
 
-import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup }
-    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+export async function onRequestPost(context) {
+    const { request, env } = context;
 
-let _auth = null;
-let _provider = null;
-
-async function initFirebase() {
-    if (_auth && _provider) return { auth: _auth, provider: _provider };
-    const res = await fetch('/api/config');
-    const firebaseConfig = await res.json();
-
-    // Prevent duplicate app error if somehow called twice
-    const app = getApps().length === 0
-        ? initializeApp(firebaseConfig)
-        : getApps()[0];
-
-    _auth = getAuth(app);
-    _provider = new GoogleAuthProvider();
-    return { auth: _auth, provider: _provider };
-}
-
-async function googleLogin() {
     try {
-        const { auth, provider } = await initFirebase();
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        const idToken = await user.getIdToken();
+        const { idToken, email, name, uid, photoURL } = await request.json();
 
-        const res = await fetch('/api/auth/google', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                idToken,
-                email: user.email,
-                name: user.displayName,
-                uid: user.uid,
-                photoURL: user.photoURL
-            })
+        if (!idToken || !email) {
+            return jsonResponse({ error: 'Missing required fields' }, 400);
+        }
+
+        // Verify Firebase ID token using Firebase REST API
+        // This is the correct endpoint for Firebase ID tokens (not oauth2 tokeninfo)
+        const projectId = env.FIREBASE_PROJECT_ID;
+        const verifyRes = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${env.FIREBASE_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken })
+            }
+        );
+
+        const verifyData = await verifyRes.json();
+
+        if (verifyData.error || !verifyData.users || verifyData.users.length === 0) {
+            return jsonResponse({ error: 'Invalid or expired token' }, 401);
+        }
+
+        const firebaseUser = verifyData.users[0];
+
+        // Make sure email matches
+        if (firebaseUser.email !== email) {
+            return jsonResponse({ error: 'Email mismatch' }, 401);
+        }
+
+        // Find or create user in KV
+        const userKey = `user:${email}`;
+        let user = await env.EMAILS.get(userKey, { type: 'json' });
+
+        if (!user) {
+            user = {
+                username: userKey,
+                displayUsername: name || email.split('@')[0],
+                email,
+                googleUid: uid,
+                authProviders: ['google'],
+                isPremium: false,
+                premiumExpiry: null,
+                savedEmails: [],
+                apiKey: null,
+                photoURL: photoURL || null,
+                createdAt: Date.now()
+            };
+            await env.EMAILS.put(userKey, JSON.stringify(user));
+        } else if (!user.googleUid) {
+            // Link Google to existing email/password account
+            user.googleUid = uid;
+            const providers = Array.isArray(user.authProviders) ? user.authProviders : [];
+            if (!providers.includes('google')) providers.push('google');
+            user.authProviders = providers;
+            if (photoURL && !user.photoURL) user.photoURL = photoURL;
+            if (!user.displayUsername && name) user.displayUsername = name;
+            await env.EMAILS.put(userKey, JSON.stringify(user));
+        }
+
+        // Check premium expiry
+        let isPremium = user.isPremium;
+        if (isPremium && user.premiumExpiry && user.premiumExpiry < Date.now()) {
+            user.isPremium = false;
+            user.premiumExpiry = null;
+            await env.EMAILS.put(userKey, JSON.stringify(user));
+            isPremium = false;
+        }
+
+        // Create session token
+        const token = generateToken();
+        await env.EMAILS.put(`session:${token}`, JSON.stringify({
+            username: userKey,
+            createdAt: Date.now(),
+            expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000)
+        }), { expirationTtl: 7 * 24 * 60 * 60 });
+
+        return jsonResponse({
+            success: true,
+            token,
+            username: user.displayUsername || email.split('@')[0],
+            isPremium: isPremium || false
         });
 
-        const data = await res.json();
-
-        if (data.success && data.token) {
-            localStorage.setItem('authToken', data.token);
-            localStorage.setItem('username', data.username);
-            localStorage.setItem('isPremium', data.isPremium ? 'true' : 'false');
-            window.closeAuth?.();
-            window.closePremiumFlow?.();
-            window.initAuthState?.();
-            window.showToast?.(data.isPremium ? '⭐ Welcome back, Premium!' : '✅ Signed in with Google!');
-        } else {
-            window.showAuthError?.(data.error || 'Google login failed');
-        }
     } catch (err) {
-        if (err.code === 'auth/popup-closed-by-user') return;
-        console.error('Google login error:', err);
-        window.showAuthError?.('Google login error: ' + err.message);
+        console.error('Google auth error:', err);
+        return jsonResponse({ error: 'Internal server error' }, 500);
     }
 }
 
-window.googleLogin = googleLogin;
-// ===== END FIREBASE GOOGLE AUTH =====
+function generateToken() {
+    return Array.from(crypto.getRandomValues(new Uint8Array(48)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function jsonResponse(data, status = 200) {
+    return new Response(JSON.stringify(data), {
+        status,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+}
