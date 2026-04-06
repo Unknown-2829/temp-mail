@@ -42,7 +42,8 @@ export async function onRequestGet(context) {
     return jsonResponse({
         username,
         isPremium,
-        premiumExpiry: user.premiumExpiry || null
+        premiumExpiry: user.premiumExpiry || null,
+        photoURL: user.photoURL || null
     });
 }
 
