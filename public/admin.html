@@ -256,6 +256,13 @@
 
         window.onload = function() { if (adminToken) showDashboard(); };
 
+        async function apiFetch(url, options = {}) {
+            const headers = { 'X-Admin-Token': adminToken, ...(options.headers || {}) };
+            const res = await fetch(url, { ...options, headers });
+            if (res.status === 401) { adminLogout(); return null; }
+            return res;
+        }
+
         async function adminLogin() {
             const secret = document.getElementById('admin-secret').value.trim();
             if (!secret) return;
@@ -272,11 +279,15 @@
                     sessionStorage.setItem('adminToken', adminToken);
                     showDashboard();
                 } else {
-                    document.getElementById('login-error').style.display = 'block';
+                    const errEl = document.getElementById('login-error');
+                    errEl.textContent = data.error || 'Invalid secret. Access denied.';
+                    errEl.style.display = 'block';
                     btn.disabled = false; btn.textContent = 'Authenticate';
                 }
             } catch(e) {
-                document.getElementById('login-error').style.display = 'block';
+                const errEl = document.getElementById('login-error');
+                errEl.textContent = 'Network error. Try again.';
+                errEl.style.display = 'block';
                 btn.disabled = false; btn.textContent = 'Authenticate';
             }
         }
@@ -306,7 +317,8 @@
 
         async function loadStats() {
             try {
-                const res = await fetch('/api/admin/stats', { headers: {'X-Admin-Token': adminToken} });
+                const res = await apiFetch('/api/admin/stats');
+                if (!res) return;
                 const data = await res.json();
                 document.getElementById('stat-total').textContent = data.total ?? '?';
                 document.getElementById('stat-premium').textContent = data.premium ?? '?';
@@ -329,7 +341,8 @@
             try {
                 let url = `/api/admin/list-users?filter=${usersFilter}`;
                 if (usersCursor) url += '&cursor=' + encodeURIComponent(usersCursor);
-                const res = await fetch(url, { headers: {'X-Admin-Token': adminToken} });
+                const res = await apiFetch(url);
+                if (!res) return;
                 const data = await res.json();
                 if (!res.ok) { container.innerHTML = '<div class="empty-list">Error: ' + (data.error||'unknown') + '</div>'; return; }
                 usersCursor = data.cursor || null;
@@ -391,11 +404,12 @@
             const days = parseInt(document.getElementById('grant-modal-days').value) || 365;
             const msgEl = document.getElementById('grant-modal-msg');
             try {
-                const res = await fetch('/api/admin/grant-premium', {
+                const res = await apiFetch('/api/admin/grant-premium', {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
+                    headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ username: grantModalUsername, days })
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (res.ok) {
                     msgEl.textContent = '✅ ' + data.message;
@@ -411,11 +425,12 @@
         async function quickRevoke(username) {
             if (!confirm('Revoke premium from @' + username + '?')) return;
             try {
-                const res = await fetch('/api/admin/revoke-premium', {
+                const res = await apiFetch('/api/admin/revoke-premium', {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
+                    headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ username })
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (res.ok) { showToast('✅ ' + data.message); loadUsers(true); loadStats(); }
                 else showToast('❌ ' + (data.error||'Error'));
@@ -436,11 +451,12 @@
             if (!deleteModalUsername) return;
             const msgEl = document.getElementById('delete-modal-msg');
             try {
-                const res = await fetch('/api/admin/delete-user', {
+                const res = await apiFetch('/api/admin/delete-user', {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
+                    headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ username: deleteModalUsername })
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (res.ok) {
                     msgEl.textContent = '✅ ' + data.message;
@@ -464,7 +480,8 @@
             const card = document.getElementById('user-card');
             card.classList.remove('visible');
             try {
-                const res = await fetch(`/api/admin/user?username=${encodeURIComponent(username)}`, { headers: {'X-Admin-Token': adminToken} });
+                const res = await apiFetch(`/api/admin/user?username=${encodeURIComponent(username)}`);
+                if (!res) return;
                 const data = await res.json();
                 if (!res.ok) { showActionMsg('error', data.error||'User not found'); card.classList.add('visible'); return; }
                 currentUser = data;
@@ -499,11 +516,12 @@
             if (!currentUser) return;
             const days = parseInt(document.getElementById('days-input').value) || 365;
             try {
-                const res = await fetch('/api/admin/grant-premium', {
+                const res = await apiFetch('/api/admin/grant-premium', {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
+                    headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ username: currentUser.username, days })
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (res.ok) { showActionMsg('success', data.message); currentUser.isPremium = true; currentUser.premiumExpiry = Date.now() + days*86400000; renderUserCard(currentUser); loadStats(); }
                 else showActionMsg('error', data.error);
@@ -513,11 +531,12 @@
         async function revokePremium() {
             if (!currentUser) return;
             try {
-                const res = await fetch('/api/admin/revoke-premium', {
+                const res = await apiFetch('/api/admin/revoke-premium', {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json','X-Admin-Token': adminToken},
+                    headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ username: currentUser.username })
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (res.ok) { showActionMsg('success', data.message); currentUser.isPremium = false; currentUser.premiumExpiry = null; renderUserCard(currentUser); loadStats(); }
                 else showActionMsg('error', data.error);
