@@ -20,8 +20,10 @@ binding = "EMAILS"
 id = "REPLACE_WITH_YOUR_EMAILS_KV_ID"
 
 # ── Cron Triggers ─────────────────────────────────────────────────────────────
-# Runs cleanupAttachments() every day at 3am UTC — deletes R2 objects older than 15 days.
+# Runs cleanup functions every day at midnight UTC:
+#   • cleanupOldEmails()   — deletes KV email entries older than 10 days
+#   • cleanupAttachments() — deletes R2 attachment objects older than 15 days
 # After deploying, verify under Workers & Pages → phantom-mail-email-handler → Triggers.
 # You can click "Run" on the dashboard to test it immediately without waiting 24 hours.
 [triggers]
-crons = ["0 3 * * *"]
+crons = ["0 0 * * *"]

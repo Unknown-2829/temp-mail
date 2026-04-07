@@ -7,14 +7,27 @@
  * - Proper MIME parsing with full UTF-8/emoji support
  * - Structured email storage
  * - Real sender extraction (bypasses SMTP bounce addresses)
- * - Scheduled R2 cleanup: deletes attachments older than 15 days (runs daily at 3am UTC)
+ * - Scheduled R2 cleanup: deletes attachments older than 15 days (runs daily at midnight UTC)
+ * - Scheduled KV cleanup: deletes received emails older than 10 days (runs daily at midnight UTC)
+ * - One-time cleanup on first worker activation after each deploy
  *
  * Required bindings: TEMP_EMAILS (KV), EMAILS (KV), ATTACHMENTS (R2)
  * Add ATTACHMENTS R2 bucket in Cloudflare Pages → Settings → Functions → R2 bindings
  */
 
+// Tracks whether the one-time startup cleanup has already run for this worker instance.
+// Cloudflare creates a fresh instance on each deploy, so this runs once per deployment.
+let startupCleanupDone = false;
+
 export default {
     async email(message, env, ctx) {
+        // On first email after a deploy, run both cleanup routines immediately once.
+        if (!startupCleanupDone) {
+            startupCleanupDone = true;
+            console.log("🚀 Startup: triggering one-time cleanup after deploy");
+            ctx.waitUntil(Promise.all([cleanupOldEmails(env), cleanupAttachments(env)]));
+        }
+
         try {
             console.log("========== NEW EMAIL RECEIVED ==========");
 
@@ -136,10 +149,10 @@ export default {
         }
     },
 
-    // Cron cleanup — called daily by Cloudflare Cron Trigger (see wrangler.toml)
-    // Deletes R2 attachment objects that are older than 15 days.
+    // Cron cleanup — called daily at midnight UTC by Cloudflare Cron Trigger (see wrangler.toml)
+    // Deletes R2 attachment objects older than 15 days and KV email entries older than 10 days.
     async scheduled(event, env, ctx) {
-        ctx.waitUntil(cleanupAttachments(env));
+        ctx.waitUntil(Promise.all([cleanupOldEmails(env), cleanupAttachments(env)]));
     },
 
     // Extract the real human-visible From address from email headers.
@@ -496,12 +509,53 @@ export default {
     }
 };
 
-// ── R2 Attachment Cleanup ────────────────────────────────────────────────────
-// Deletes attachments older than 15 days from the ATTACHMENTS R2 bucket.
-// Called by the `scheduled` handler above — runs daily at 3am UTC.
-//
-// Optimizations:
-//   • list() reads only metadata (key + upload timestamp) — never downloads content
+// ── Scheduled KV email cleanup ─────────────────────────────────────────────────
+// Deletes all KV entries under the "email:*" prefix that are older than 10 days.
+// Email storage keys follow the pattern: email:{recipientAddress}:{unixTimestampMs}
+// The timestamp embedded in the key is used to determine age so no extra metadata
+// is needed. Works with cursor-based pagination for large inboxes.
+async function cleanupOldEmails(env) {
+    if (!env.EMAILS) {
+        console.log("⚠️ EMAILS binding not configured — skipping KV email cleanup");
+        return;
+    }
+
+    const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - TEN_DAYS_MS;
+
+    let deleted = 0;
+    let cursor = undefined;
+
+    do {
+        // List up to 1000 keys per call — metadata only, no values fetched
+        const batch = await env.EMAILS.list({ prefix: "email:", limit: 1000, cursor });
+
+        // Extract the timestamp from the key suffix and keep only stale ones
+        const toDelete = [];
+        for (const entry of batch.keys) {
+            const parts = entry.name.split(":");
+            // key format: email:{address}:{timestamp}  — timestamp is the last segment
+            const tsStr = parts[parts.length - 1];
+            const ts = parseInt(tsStr, 10);
+            if (!isNaN(ts) && ts < cutoff) {
+                toDelete.push(entry.name);
+            }
+        }
+
+        // Delete in parallel chunks of 50 to stay within KV rate limits
+        for (let i = 0; i < toDelete.length; i += 50) {
+            const chunk = toDelete.slice(i, i + 50);
+            await Promise.all(chunk.map(key => env.EMAILS.delete(key)));
+            deleted += chunk.length;
+        }
+
+        cursor = batch.list_complete ? undefined : batch.cursor;
+    } while (cursor);
+
+    console.log(`✅ KV email cleanup: deleted ${deleted} email(s) older than 10 days`);
+}
+
+// ── Scheduled R2 attachment cleanup ───────────────────────────────────────────
 //   • Processes up to 1000 objects per R2 list call (the API maximum)
 //   • Deletes in parallel batches of 50 to be fast without overwhelming the R2 API
 //   • cursor-based pagination handles buckets with millions of files
