@@ -30,6 +30,11 @@ let composeMinimized = false;
 let composeIsHtml = true;
 let sentList = [];
 let sentBoxOpen = false;
+let composeAttachments = []; // {filename, content (base64), size, type}
+let _composeDragInited = false;
+let _composeDragActive = false;
+let _composeDragStartX = 0, _composeDragStartY = 0;
+let _composeDragWinX = 0, _composeDragWinY = 0;
 
 // ResizeObserver used to keep the email iframe height in sync with its content.
 // Stored here so closeModal() can disconnect it and prevent memory leaks.
@@ -219,8 +224,8 @@ async function refreshEmails() {
       const diff = newCount - oldCount;
       showToast(`📧 ${diff} new!`);
       showNotification('New Email!', `You have ${diff} new email(s)`);
-      // Re-poll quickly in case more emails arrive in rapid succession
-      setTimeout(() => { if (!document.hidden && currentEmail) refreshEmails(); }, 1500);
+      // Re-poll in case more emails arrive in rapid succession
+      setTimeout(() => { if (!document.hidden && currentEmail) refreshEmails(); }, 3000);
     }
 
     const unreadCount = emailsList.filter(e => !e.read).length;
@@ -1209,7 +1214,7 @@ function startAutoRefresh() {
   stopAutoRefresh();
   autoRefreshInterval = setInterval(() => {
     if (!document.hidden) refreshEmails();
-  }, 3000);
+  }, 6000);
 }
 
 function stopAutoRefresh() {
@@ -2272,6 +2277,23 @@ function openCompose() {
   document.getElementById('compose-textarea').value = '';
   document.getElementById('compose-error').classList.add('hidden');
 
+  // Reset attachments
+  composeAttachments = [];
+  renderComposeAttachments();
+
+  // Reset custom-from
+  const customFromWrap = document.getElementById('compose-custom-from-wrap');
+  const customFromInput = document.getElementById('compose-custom-username');
+  const fromSelect = document.getElementById('compose-from');
+  if (customFromWrap) customFromWrap.classList.add('hidden');
+  if (customFromInput) customFromInput.value = '';
+  if (fromSelect) fromSelect.classList.remove('hidden');
+
+  // Reset drag position so window reopens at default bottom-right corner
+  win.classList.remove('dragging');
+  win.style.removeProperty('left');
+  win.style.removeProperty('top');
+
   composeMinimized = false;
   composeIsHtml = true;
   _composeFullscreen = false;
@@ -2285,6 +2307,9 @@ function openCompose() {
   win.classList.add('show');
 
   setTimeout(() => document.getElementById('compose-to').focus(), 80);
+
+  // ── Init drag once ────────────────────────────────────────────
+  _initComposeDrag();
 
   // ── Populate From dropdown asynchronously (non-blocking) ────
   _populateComposeFrom();
@@ -2306,6 +2331,10 @@ async function _populateComposeFrom() {
 
   const rl = document.getElementById('compose-ratelimit');
   if (rl) rl.textContent = isPremium ? '⭐ 50/day' : '3/day free';
+
+  // Show/hide custom-from pencil button based on premium status
+  const customFromBtn = document.getElementById('compose-custom-from-btn');
+  if (customFromBtn) customFromBtn.classList.toggle('hidden', !isPremium);
 
   if (token && isPremium) {
     try {
@@ -2330,9 +2359,134 @@ function closeCompose() {
   const win = document.getElementById('compose-modal');
   if (!win) return;
   win.style.display = 'none'; // clear the inline style set by openCompose
-  win.classList.remove('show', 'minimized', 'fullscreen');
+  win.classList.remove('show', 'minimized', 'fullscreen', 'dragging');
+  win.style.removeProperty('left');
+  win.style.removeProperty('top');
   composeMinimized = false;
   _composeFullscreen = false;
+  _composeDragActive = false;
+}
+
+// ===== COMPOSE: Drag (desktop only) =====
+function _initComposeDrag() {
+  if (_composeDragInited) return;
+  _composeDragInited = true;
+
+  const win = document.getElementById('compose-modal');
+  const header = win ? win.querySelector('.cw-header') : null;
+  if (!header) return;
+
+  header.addEventListener('mousedown', (e) => {
+    // Don't drag when clicking control buttons or on small/mobile screens
+    if (e.target.closest('.cw-controls')) return;
+    if (_composeFullscreen) return;
+    if (window.innerWidth <= 560) return;
+
+    e.preventDefault();
+    const rect = win.getBoundingClientRect();
+    _composeDragWinX = rect.left;
+    _composeDragWinY = rect.top;
+    _composeDragStartX = e.clientX;
+    _composeDragStartY = e.clientY;
+    _composeDragActive = true;
+
+    // Switch from bottom/right anchoring to top/left so we can move freely
+    win.classList.add('dragging');
+    win.style.setProperty('left', `${rect.left}px`, 'important');
+    win.style.setProperty('top', `${rect.top}px`, 'important');
+    header.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!_composeDragActive) return;
+    const win2 = document.getElementById('compose-modal');
+    if (!win2) return;
+    const dx = e.clientX - _composeDragStartX;
+    const dy = e.clientY - _composeDragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - win2.offsetWidth, _composeDragWinX + dx));
+    const newY = Math.max(0, Math.min(window.innerHeight - 48, _composeDragWinY + dy));
+    win2.style.setProperty('left', `${newX}px`, 'important');
+    win2.style.setProperty('top', `${newY}px`, 'important');
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!_composeDragActive) return;
+    _composeDragActive = false;
+    const hdr = document.querySelector('#compose-modal .cw-header');
+    if (hdr) hdr.style.cursor = '';
+  });
+}
+
+// ===== COMPOSE: Premium custom sender =====
+function toggleCustomFrom() {
+  const wrap = document.getElementById('compose-custom-from-wrap');
+  const sel = document.getElementById('compose-from');
+  if (!wrap || !sel) return;
+  const isShowing = !wrap.classList.contains('hidden');
+  if (isShowing) {
+    wrap.classList.add('hidden');
+    sel.classList.remove('hidden');
+  } else {
+    wrap.classList.remove('hidden');
+    sel.classList.add('hidden');
+    const inp = document.getElementById('compose-custom-username');
+    if (inp) inp.focus();
+  }
+}
+
+// ===== COMPOSE: Attachments =====
+async function addComposeAttachments(input) {
+  const MAX_TOTAL = 10 * 1024 * 1024; // 10 MB total (raw bytes)
+  const files = Array.from(input.files);
+  for (const file of files) {
+    const currentTotal = composeAttachments.reduce((s, a) => s + a.size, 0);
+    if (currentTotal + file.size > MAX_TOTAL) {
+      showToast('❌ Total attachments exceed 10 MB limit');
+      break;
+    }
+    const content = await _readFileBase64(file);
+    composeAttachments.push({ filename: file.name, content, size: file.size, type: file.type });
+  }
+  renderComposeAttachments();
+  input.value = ''; // reset so the same file can be re-attached
+}
+
+function _readFileBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeComposeAttachment(index) {
+  composeAttachments.splice(index, 1);
+  renderComposeAttachments();
+}
+
+function renderComposeAttachments() {
+  const el = document.getElementById('compose-attach-list');
+  if (!el) return;
+  if (composeAttachments.length === 0) {
+    el.innerHTML = '';
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+  el.innerHTML = composeAttachments.map((a, i) => `
+    <div class="cw-attach-chip">
+      <span class="cw-attach-icon">📎</span>
+      <span class="cw-attach-name" title="${escapeHtml(a.filename)}">${escapeHtml(a.filename)}</span>
+      <span class="cw-attach-size">${_fmtFileSize(a.size)}</span>
+      <button class="cw-attach-remove" onclick="removeComposeAttachment(${i})" title="Remove attachment">✕</button>
+    </div>`).join('');
+}
+
+function _fmtFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 // ===== COMPOSE: Minimize / restore on header click =====
@@ -2389,7 +2543,23 @@ function composeInsertLink() {
 
 // ===== COMPOSE: Send =====
 async function sendComposedEmail() {
-  const from = document.getElementById('compose-from').value;
+  // Resolve "from" — prefer custom address if premium toggle is active
+  let from = document.getElementById('compose-from').value;
+  const customFromWrap = document.getElementById('compose-custom-from-wrap');
+  if (customFromWrap && !customFromWrap.classList.contains('hidden')) {
+    const customUsername = (document.getElementById('compose-custom-username').value || '').trim();
+    if (customUsername) {
+      // Only allow safe characters in username
+      if (!/^[a-zA-Z0-9._+-]+$/.test(customUsername)) {
+        const errEl = document.getElementById('compose-error');
+        errEl.textContent = 'Custom username may only contain letters, numbers, dots, underscores, plus and hyphens';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      from = `${customUsername}@unknownlll2829.qzz.io`;
+    }
+  }
+
   const to = document.getElementById('compose-to').value.trim();
   const subject = document.getElementById('compose-subject').value.trim();
   const body = composeIsHtml
@@ -2422,13 +2592,19 @@ async function sendComposedEmail() {
 
   try {
     const token = localStorage.getItem('authToken');
+    const payload = {
+      from, to, subject, body, isHtml: composeIsHtml,
+      ...(composeAttachments.length > 0 && {
+        attachments: composeAttachments.map(a => ({ filename: a.filename, content: a.content }))
+      })
+    };
     const res = await fetch('/api/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
-      body: JSON.stringify({ from, to, subject, body, isHtml: composeIsHtml })
+      body: JSON.stringify(payload)
     });
 
     const data = await res.json();

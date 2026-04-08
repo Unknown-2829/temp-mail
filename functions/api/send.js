@@ -56,7 +56,7 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { from, to, subject, body: emailBody, isHtml, replyTo } = body;
+  const { from, to, subject, body: emailBody, isHtml, replyTo, attachments } = body;
 
   // ── Validate ─────────────────────────────────────────────────
   if (!from || !to || !subject || !emailBody) {
@@ -66,6 +66,29 @@ export async function onRequestPost(context) {
   // Only allow sending FROM our domain — prevents spoofing
   if (!from.endsWith('@unknownlll2829.qzz.io')) {
     return jsonResponse({ error: 'You can only send from @unknownlll2829.qzz.io addresses' }, 403);
+  }
+
+  // Validate attachments
+  if (attachments !== undefined && !Array.isArray(attachments)) {
+    return jsonResponse({ error: 'attachments must be an array' }, 400);
+  }
+  if (attachments && attachments.length > 10) {
+    return jsonResponse({ error: 'Maximum 10 attachments allowed' }, 400);
+  }
+  if (attachments && attachments.length > 0) {
+    // base64 is ~1.37× the binary size; 14 MB of base64 ≈ 10 MB binary
+    const totalBase64 = attachments.reduce((s, a) => s + (typeof a.content === 'string' ? a.content.length : 0), 0);
+    if (totalBase64 > 14 * 1024 * 1024) {
+      return jsonResponse({ error: 'Total attachment size too large (max ~10 MB)' }, 400);
+    }
+    for (const att of attachments) {
+      if (!att.filename || typeof att.filename !== 'string') {
+        return jsonResponse({ error: 'Each attachment must have a filename' }, 400);
+      }
+      if (!att.content || typeof att.content !== 'string') {
+        return jsonResponse({ error: 'Each attachment must have base64 content' }, 400);
+      }
+    }
   }
 
   // Validate recipient
@@ -151,6 +174,9 @@ export async function onRequestPost(context) {
     html: finalHtml,
     ...(finalText && { text: finalText }),
     ...(replyTo && { reply_to: replyTo }),
+    ...(attachments && attachments.length > 0 && {
+      attachments: attachments.map(a => ({ filename: a.filename, content: a.content }))
+    }),
     headers: {
       'X-Mailer': 'Phantom Mail (https://mail.unknowns.app)',
       'X-Tracking-ID': trackingId
