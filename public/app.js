@@ -2498,10 +2498,14 @@ function renderSentBox() {
     const openBadge = opens > 0
       ? `<span class="sent-opened-badge">👁 ${opens} open${opens > 1 ? 's' : ''}</span>`
       : `<span class="sent-unopened-badge">Not opened</span>`;
-    // Strip HTML tags for plain-text preview
-    const bodyPreview = s.body
-      ? escapeHtml(s.body.replace(/<[^>]*>/g, '').trim().slice(0, 80)) + (s.body.replace(/<[^>]*>/g, '').trim().length > 80 ? '…' : '')
-      : '';
+    // Extract plain-text preview safely via DOM (avoids regex-based incomplete sanitization)
+    let bodyPreview = '';
+    if (s.body) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = s.body;
+      const plainText = (tmp.textContent || tmp.innerText || '').trim();
+      bodyPreview = escapeHtml(plainText.slice(0, 80)) + (plainText.length > 80 ? '…' : '');
+    }
 
     return `
       <div class="sent-row">
