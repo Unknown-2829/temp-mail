@@ -2253,7 +2253,7 @@ document.addEventListener('DOMContentLoaded', initAuthState);
 let _composeFullscreen = false;
 
 // ===== COMPOSE: Open =====
-async function openCompose() {
+function openCompose() {
   const win = document.getElementById('compose-modal');
   if (!win) return;
 
@@ -2265,8 +2265,34 @@ async function openCompose() {
     return;
   }
 
-  // Populate From dropdown
+  // ── Show window IMMEDIATELY (no awaiting anything) ──────────
+  document.getElementById('compose-to').value = '';
+  document.getElementById('compose-subject').value = '';
+  document.getElementById('compose-editor').innerHTML = '';
+  document.getElementById('compose-textarea').value = '';
+  document.getElementById('compose-error').classList.add('hidden');
+
+  composeMinimized = false;
+  composeIsHtml = true;
+  _composeFullscreen = false;
+  document.getElementById('compose-editor').classList.remove('hidden');
+  document.getElementById('compose-textarea').classList.add('hidden');
+  const modeBtn = document.getElementById('compose-mode-btn');
+  if (modeBtn) modeBtn.querySelector('span').textContent = 'HTML';
+  win.classList.remove('minimized', 'fullscreen');
+  // Force display via inline style so it always works regardless of CSS cascade
+  win.style.display = 'flex';
+  win.classList.add('show');
+
+  setTimeout(() => document.getElementById('compose-to').focus(), 80);
+
+  // ── Populate From dropdown asynchronously (non-blocking) ────
+  _populateComposeFrom();
+}
+
+async function _populateComposeFrom() {
   const fromSelect = document.getElementById('compose-from');
+  if (!fromSelect) return;
   fromSelect.innerHTML = '';
   if (currentEmail) {
     const opt = document.createElement('option');
@@ -2277,6 +2303,10 @@ async function openCompose() {
 
   const token = localStorage.getItem('authToken');
   const isPremium = localStorage.getItem('isPremium') === 'true';
+
+  const rl = document.getElementById('compose-ratelimit');
+  if (rl) rl.textContent = isPremium ? '⭐ 50/day' : '3/day free';
+
   if (token && isPremium) {
     try {
       const res = await fetch('/api/user/saved-emails', {
@@ -2293,36 +2323,13 @@ async function openCompose() {
       });
     } catch (_) {}
   }
-
-  // Rate limit label
-  const rl = document.getElementById('compose-ratelimit');
-  if (rl) rl.textContent = isPremium ? '⭐ 50/day' : '3/day free';
-
-  // Reset fields
-  document.getElementById('compose-to').value = '';
-  document.getElementById('compose-subject').value = '';
-  document.getElementById('compose-editor').innerHTML = '';
-  document.getElementById('compose-textarea').value = '';
-  document.getElementById('compose-error').classList.add('hidden');
-
-  // Reset mode
-  composeMinimized = false;
-  composeIsHtml = true;
-  _composeFullscreen = false;
-  document.getElementById('compose-editor').classList.remove('hidden');
-  document.getElementById('compose-textarea').classList.add('hidden');
-  const modeBtn = document.getElementById('compose-mode-btn');
-  if (modeBtn) modeBtn.querySelector('span').textContent = 'HTML';
-  win.classList.remove('minimized', 'fullscreen');
-  win.classList.add('show');
-
-  setTimeout(() => document.getElementById('compose-to').focus(), 120);
 }
 
 // ===== COMPOSE: Close =====
 function closeCompose() {
   const win = document.getElementById('compose-modal');
   if (!win) return;
+  win.style.display = 'none'; // clear the inline style set by openCompose
   win.classList.remove('show', 'minimized', 'fullscreen');
   composeMinimized = false;
   _composeFullscreen = false;
