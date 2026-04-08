@@ -422,7 +422,7 @@ function extractFromDomain(email) {
 }
 
 // ===== View Email =====
-function viewEmail(index) {
+async function viewEmail(index) {
   const email = emailsList[index];
   if (!email) return;
 
@@ -464,8 +464,229 @@ function viewEmail(index) {
   addMetaRow('CC:', email.headers?.cc || '');
   addMetaRow('BCC:', email.headers?.bcc || '');
 
+  // Open the modal immediately so the user sees the header/metadata right away
+  document.getElementById('email-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+
   const body = document.getElementById('modal-body');
 
+  // If the body content was stripped from the list response, fetch it now on demand
+  if (!email.htmlBody && !email.body && !email.rawSource && email._key) {
+    body.innerHTML = '<p style="color:#888;font-size:14px;text-align:center;padding:24px 0;">⏳ Loading…</p>';
+    try {
+      const params = new URLSearchParams({ key: email._key, address: email.to || currentEmail });
+      const res = await fetch(`/api/email?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.email) {
+          // Merge full content back into the cached entry so re-opens are instant
+          Object.assign(email, data.email);
+        }
+      }
+    } catch (_) {
+      // Network error — body will show "No content"; user can close and re-open to retry
+      console.warn('Failed to fetch email body:', _);
+    }
+  }
+
+  _renderEmailBody(email, body);
+
+  const attachSection = document.getElementById('modal-attachments');
+  const attachList = document.getElementById('attachments-list');
+
+  if (email.attachments && email.attachments.length > 0) {
+    attachSection.classList.remove('hidden');
+    attachList.innerHTML = '';
+
+    const imageExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico','avif'];
+    const audioExts = ['mp3','wav','ogg','m4a','flac','aac','opus'];
+    const videoExts = ['mp4','webm','ogv','mov','avi','mkv'];
+    const codeExts  = ['txt','py','js','ts','jsx','tsx','json','xml','csv',
+                       'html','css','md','sh','bash','yml','yaml','env',
+                       'log','ini','toml','rs','go','java','cpp','c','h',
+                       'php','rb','swift','kt','dart','sql'];
+
+    const images = email.attachments.filter(a => {
+      const ext = (a.filename||'').split('.').pop().toLowerCase();
+      return imageExts.includes(ext);
+    });
+    const others = email.attachments.filter(a => {
+      const ext = (a.filename||'').split('.').pop().toLowerCase();
+      return !imageExts.includes(ext);
+    });
+
+    // Index of this email — needed by downloadAttachment()
+    const ei = emailsList.indexOf(email);
+
+    // ── IMAGE GRID ──────────────────────────────────────────────
+    if (images.length > 0) {
+      const gridDiv = document.createElement('div');
+      const cols = images.length === 1 ? 1 : images.length <= 3 ? 2 : 3;
+      gridDiv.className = `att-image-grid att-cols-${cols}`;
+
+      images.forEach(att => {
+        const ai = email.attachments.indexOf(att);
+        const src = att.r2Key
+          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
+          : (att.data ? `data:${att.contentType||'image/jpeg'};base64,${att.data}` : null);
+        if (!src) return;
+
+        const cell = document.createElement('div');
+        cell.className = 'att-img-cell';
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = att.filename || 'image';
+        img.loading = 'lazy';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;border-radius:6px;';
+        img.onclick = () => openAttLightbox(src, att.filename, att.contentType);
+        const label = document.createElement('div');
+        label.className = 'att-img-label';
+        label.textContent = att.filename || 'image';
+        // Download button overlay (top-right corner)
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'att-img-dl-btn';
+        dlBtn.title = 'Download';
+        dlBtn.textContent = '⬇';
+        dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(ei, ai); });
+        cell.appendChild(img);
+        cell.appendChild(label);
+        cell.appendChild(dlBtn);
+        gridDiv.appendChild(cell);
+      });
+      attachList.appendChild(gridDiv);
+    }
+
+    // ── OTHER ATTACHMENTS ────────────────────────────────────────
+    others.forEach(att => {
+      const ext = (att.filename||'').split('.').pop().toLowerCase();
+      const ai = email.attachments.indexOf(att);
+      const card = document.createElement('div');
+      card.className = 'att-card';
+
+      const src = att.r2Key
+        ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
+        : null;
+
+      // Helper: wire up the download button after innerHTML is set
+      const wireDownload = () => {
+        const dlBtn = card.querySelector('.att-download-btn');
+        if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(ei, ai); });
+      };
+
+      // AUDIO
+      if (audioExts.includes(ext)) {
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">🎵</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'audio')}</div>
+              <div class="att-card-size">${formatSize(att.size)}</div>
+            </div>
+            <button class="att-download-btn" title="Download file">⬇ Download</button>
+          </div>
+          <audio controls style="width:100%;margin-top:8px;border-radius:6px;">
+            <source src="${src||''}" type="${att.contentType||'audio/mpeg'}">
+          </audio>`;
+        wireDownload();
+
+      // VIDEO
+      } else if (videoExts.includes(ext)) {
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">🎬</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'video')}</div>
+              <div class="att-card-size">${formatSize(att.size)}</div>
+            </div>
+            <button class="att-download-btn" title="Download file">⬇ Download</button>
+          </div>
+          <video controls style="width:100%;max-height:280px;border-radius:6px;margin-top:8px;background:#000;">
+            <source src="${src||''}" type="${att.contentType||'video/mp4'}">
+          </video>`;
+        wireDownload();
+        card.onclick = (e) => {
+          const tag = e.target.tagName.toUpperCase();
+          if (tag !== 'VIDEO' && tag !== 'SOURCE' && tag !== 'BUTTON')
+            openAttLightbox(src, att.filename, att.contentType);
+        };
+
+      // PDF — opens in lightbox; separate download button
+      } else if (ext === 'pdf') {
+        card.className += ' att-card-clickable';
+        card.title = 'Click to open PDF';
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">📄</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'document.pdf')}</div>
+              <div class="att-card-size">${formatSize(att.size)} · PDF</div>
+            </div>
+            <span class="att-card-action">↗</span>
+            <button class="att-download-btn" title="Download file">⬇</button>
+          </div>`;
+        wireDownload();
+        card.onclick = (e) => { if (e.target.tagName !== 'BUTTON' && src) openAttLightbox(src, att.filename, 'application/pdf'); };
+
+      // CODE / TEXT — opens content in new tab; separate download button
+      } else if (codeExts.includes(ext)) {
+        const langIcon = {'py':'🐍','js':'🟨','ts':'🔷','json':'📋','md':'📝',
+          'html':'🌐','css':'🎨','sh':'⚙️','sql':'🗄️','yml':'⚙️','yaml':'⚙️'}[ext] || '📃';
+        card.className += ' att-card-clickable';
+        card.title = 'Click to view file';
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">${langIcon}</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'file')}</div>
+              <div class="att-card-size">${formatSize(att.size)} · ${ext.toUpperCase()}</div>
+            </div>
+            <span class="att-card-action">↗</span>
+            <button class="att-download-btn" title="Download file">⬇</button>
+          </div>`;
+        wireDownload();
+        card.onclick = async (e) => {
+          if (e.target.tagName === 'BUTTON') return;
+          try {
+            if (src) {
+              const res = await fetch(src);
+              const text = await res.text();
+              const blob = new Blob([text], {type:'text/plain'});
+              window.open(URL.createObjectURL(blob), '_blank');
+            } else if (att.data) {
+              const bytes = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
+              const text = new TextDecoder('utf-8').decode(bytes);
+              const blob = new Blob([text], {type:'text/plain'});
+              window.open(URL.createObjectURL(blob), '_blank');
+            }
+          } catch(e) { showToast('❌ Could not open file'); }
+        };
+
+      // EVERYTHING ELSE — whole card + dedicated button both trigger download
+      } else {
+        card.className += ' att-card-clickable';
+        card.title = 'Click to download';
+        card.innerHTML = `
+          <div class="att-card-info">
+            <span class="att-card-icon">${getFileIcon(att.filename)}</span>
+            <div class="att-card-meta">
+              <div class="att-card-name">${escapeHtml(att.filename||'file')}</div>
+              <div class="att-card-size">${formatSize(att.size)}</div>
+            </div>
+            <button class="att-download-btn" title="Download file">⬇ Download</button>
+          </div>`;
+        wireDownload();
+        card.onclick = (e) => { if (e.target.tagName !== 'BUTTON') downloadAttachment(ei, ai); };
+      }
+
+      attachList.appendChild(card);
+    });
+  } else {
+    attachSection.classList.add('hidden');
+  }
+}
+
+// ===== Render Email Body =====
+function _renderEmailBody(email, body) {
   if (email.htmlBody) {
     // Clean broken chars on raw string BEFORE parsing (avoids corrupting HTML attributes)
     const cleanedHtml = cleanBrokenChars(email.htmlBody);
@@ -672,202 +893,6 @@ function viewEmail(index) {
   } else {
     body.innerHTML = '<p style="color:#888;">No content</p>';
   }
-
-  const attachSection = document.getElementById('modal-attachments');
-  const attachList = document.getElementById('attachments-list');
-
-  if (email.attachments && email.attachments.length > 0) {
-    attachSection.classList.remove('hidden');
-    attachList.innerHTML = '';
-
-    const imageExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico','avif'];
-    const audioExts = ['mp3','wav','ogg','m4a','flac','aac','opus'];
-    const videoExts = ['mp4','webm','ogv','mov','avi','mkv'];
-    const codeExts  = ['txt','py','js','ts','jsx','tsx','json','xml','csv',
-                       'html','css','md','sh','bash','yml','yaml','env',
-                       'log','ini','toml','rs','go','java','cpp','c','h',
-                       'php','rb','swift','kt','dart','sql'];
-
-    const images = email.attachments.filter(a => {
-      const ext = (a.filename||'').split('.').pop().toLowerCase();
-      return imageExts.includes(ext);
-    });
-    const others = email.attachments.filter(a => {
-      const ext = (a.filename||'').split('.').pop().toLowerCase();
-      return !imageExts.includes(ext);
-    });
-
-    // Index of this email — needed by downloadAttachment()
-    const ei = emailsList.indexOf(email);
-
-    // ── IMAGE GRID ──────────────────────────────────────────────
-    if (images.length > 0) {
-      const gridDiv = document.createElement('div');
-      const cols = images.length === 1 ? 1 : images.length <= 3 ? 2 : 3;
-      gridDiv.className = `att-image-grid att-cols-${cols}`;
-
-      images.forEach(att => {
-        const ai = email.attachments.indexOf(att);
-        const src = att.r2Key
-          ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
-          : (att.data ? `data:${att.contentType||'image/jpeg'};base64,${att.data}` : null);
-        if (!src) return;
-
-        const cell = document.createElement('div');
-        cell.className = 'att-img-cell';
-        const img = document.createElement('img');
-        img.src = src;
-        img.alt = att.filename || 'image';
-        img.loading = 'lazy';
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;border-radius:6px;';
-        img.onclick = () => openAttLightbox(src, att.filename, att.contentType);
-        const label = document.createElement('div');
-        label.className = 'att-img-label';
-        label.textContent = att.filename || 'image';
-        // Download button overlay (top-right corner)
-        const dlBtn = document.createElement('button');
-        dlBtn.className = 'att-img-dl-btn';
-        dlBtn.title = 'Download';
-        dlBtn.textContent = '⬇';
-        dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(ei, ai); });
-        cell.appendChild(img);
-        cell.appendChild(label);
-        cell.appendChild(dlBtn);
-        gridDiv.appendChild(cell);
-      });
-      attachList.appendChild(gridDiv);
-    }
-
-    // ── OTHER ATTACHMENTS ────────────────────────────────────────
-    others.forEach(att => {
-      const ext = (att.filename||'').split('.').pop().toLowerCase();
-      const ai = email.attachments.indexOf(att);
-      const card = document.createElement('div');
-      card.className = 'att-card';
-
-      const src = att.r2Key
-        ? `/api/attachment?key=${encodeURIComponent(att.r2Key)}`
-        : null;
-
-      // Helper: wire up the download button after innerHTML is set
-      const wireDownload = () => {
-        const dlBtn = card.querySelector('.att-download-btn');
-        if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadAttachment(ei, ai); });
-      };
-
-      // AUDIO
-      if (audioExts.includes(ext)) {
-        card.innerHTML = `
-          <div class="att-card-info">
-            <span class="att-card-icon">🎵</span>
-            <div class="att-card-meta">
-              <div class="att-card-name">${escapeHtml(att.filename||'audio')}</div>
-              <div class="att-card-size">${formatSize(att.size)}</div>
-            </div>
-            <button class="att-download-btn" title="Download file">⬇ Download</button>
-          </div>
-          <audio controls style="width:100%;margin-top:8px;border-radius:6px;">
-            <source src="${src||''}" type="${att.contentType||'audio/mpeg'}">
-          </audio>`;
-        wireDownload();
-
-      // VIDEO
-      } else if (videoExts.includes(ext)) {
-        card.innerHTML = `
-          <div class="att-card-info">
-            <span class="att-card-icon">🎬</span>
-            <div class="att-card-meta">
-              <div class="att-card-name">${escapeHtml(att.filename||'video')}</div>
-              <div class="att-card-size">${formatSize(att.size)}</div>
-            </div>
-            <button class="att-download-btn" title="Download file">⬇ Download</button>
-          </div>
-          <video controls style="width:100%;max-height:280px;border-radius:6px;margin-top:8px;background:#000;">
-            <source src="${src||''}" type="${att.contentType||'video/mp4'}">
-          </video>`;
-        wireDownload();
-        card.onclick = (e) => {
-          const tag = e.target.tagName.toUpperCase();
-          if (tag !== 'VIDEO' && tag !== 'SOURCE' && tag !== 'BUTTON')
-            openAttLightbox(src, att.filename, att.contentType);
-        };
-
-      // PDF — opens in lightbox; separate download button
-      } else if (ext === 'pdf') {
-        card.className += ' att-card-clickable';
-        card.title = 'Click to open PDF';
-        card.innerHTML = `
-          <div class="att-card-info">
-            <span class="att-card-icon">📄</span>
-            <div class="att-card-meta">
-              <div class="att-card-name">${escapeHtml(att.filename||'document.pdf')}</div>
-              <div class="att-card-size">${formatSize(att.size)} · PDF</div>
-            </div>
-            <span class="att-card-action">↗</span>
-            <button class="att-download-btn" title="Download file">⬇</button>
-          </div>`;
-        wireDownload();
-        card.onclick = (e) => { if (e.target.tagName !== 'BUTTON' && src) openAttLightbox(src, att.filename, 'application/pdf'); };
-
-      // CODE / TEXT — opens content in new tab; separate download button
-      } else if (codeExts.includes(ext)) {
-        const langIcon = {'py':'🐍','js':'🟨','ts':'🔷','json':'📋','md':'📝',
-          'html':'🌐','css':'🎨','sh':'⚙️','sql':'🗄️','yml':'⚙️','yaml':'⚙️'}[ext] || '📃';
-        card.className += ' att-card-clickable';
-        card.title = 'Click to view file';
-        card.innerHTML = `
-          <div class="att-card-info">
-            <span class="att-card-icon">${langIcon}</span>
-            <div class="att-card-meta">
-              <div class="att-card-name">${escapeHtml(att.filename||'file')}</div>
-              <div class="att-card-size">${formatSize(att.size)} · ${ext.toUpperCase()}</div>
-            </div>
-            <span class="att-card-action">↗</span>
-            <button class="att-download-btn" title="Download file">⬇</button>
-          </div>`;
-        wireDownload();
-        card.onclick = async (e) => {
-          if (e.target.tagName === 'BUTTON') return;
-          try {
-            if (src) {
-              const res = await fetch(src);
-              const text = await res.text();
-              const blob = new Blob([text], {type:'text/plain'});
-              window.open(URL.createObjectURL(blob), '_blank');
-            } else if (att.data) {
-              const bytes = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
-              const text = new TextDecoder('utf-8').decode(bytes);
-              const blob = new Blob([text], {type:'text/plain'});
-              window.open(URL.createObjectURL(blob), '_blank');
-            }
-          } catch(e) { showToast('❌ Could not open file'); }
-        };
-
-      // EVERYTHING ELSE — whole card + dedicated button both trigger download
-      } else {
-        card.className += ' att-card-clickable';
-        card.title = 'Click to download';
-        card.innerHTML = `
-          <div class="att-card-info">
-            <span class="att-card-icon">${getFileIcon(att.filename)}</span>
-            <div class="att-card-meta">
-              <div class="att-card-name">${escapeHtml(att.filename||'file')}</div>
-              <div class="att-card-size">${formatSize(att.size)}</div>
-            </div>
-            <button class="att-download-btn" title="Download file">⬇ Download</button>
-          </div>`;
-        wireDownload();
-        card.onclick = (e) => { if (e.target.tagName !== 'BUTTON') downloadAttachment(ei, ai); };
-      }
-
-      attachList.appendChild(card);
-    });
-  } else {
-    attachSection.classList.add('hidden');
-  }
-
-  document.getElementById('email-modal').classList.add('show');
-  document.body.style.overflow = 'hidden';
 }
 
 // ===== Clean broken UTF-8 / Latin-1 mojibake =====

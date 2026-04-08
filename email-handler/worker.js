@@ -535,6 +535,8 @@ async function cleanupOldEmails(env) {
         for (const entry of batch.keys) {
             const parts = entry.name.split(":");
             // key format: email:{address}:{timestamp}  — timestamp is the last segment
+            // Require at least 3 parts to ensure this is a valid email key
+            if (parts.length < 3) continue;
             const tsStr = parts[parts.length - 1];
             const ts = parseInt(tsStr, 10);
             if (!isNaN(ts) && ts < cutoff) {
