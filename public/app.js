@@ -25,6 +25,12 @@ let readIds = JSON.parse(localStorage.getItem('readIds') || '[]');
 let isGenerating = false;
 let renderPending = false;
 
+// ── Compose / Sent state ──────────────────────────────────────
+let composeMinimized = false;
+let composeIsHtml = true;
+let sentList = [];
+let sentBoxOpen = false;
+
 // ResizeObserver used to keep the email iframe height in sync with its content.
 // Stored here so closeModal() can disconnect it and prevent memory leaks.
 let _iframeResizeObserver = null;
@@ -56,6 +62,7 @@ function init() {
     $emailDisplay.value = currentEmail;
     startAutoRefresh();
     refreshEmails();
+    loadSentEmails();
   } else {
     localStorage.removeItem('tempEmail');
     localStorage.removeItem('emailCreatedAt');
@@ -220,6 +227,7 @@ async function refreshEmails() {
     updateTabTitle(unreadCount);
 
     scheduleRender();
+    loadSentEmails();
   } catch (e) {
     _refreshErrorCount++;
     if (_refreshErrorCount === 1) console.error('Refresh error #' + _refreshErrorCount, e);
@@ -2226,7 +2234,7 @@ async function clearForwarding(address) {
 // ===== Global Key/Click Listeners =====
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth(); closeProfile(); closeAttLightbox();
+    closeModal(); closeAbout(); closeQR(); closePremiumFlow(); closeAuth(); closeProfile(); closeAttLightbox(); closeCompose();
     closeSignOutConfirm(); closePremiumRequiredPrompt();
   }
 });
@@ -2239,3 +2247,325 @@ document.getElementById('profile-modal')?.addEventListener('click', e => { if (e
 
 // Initialize auth state on load
 document.addEventListener('DOMContentLoaded', initAuthState);
+
+// ===== COMPOSE: State =====
+// (composeMinimized, composeIsHtml, sentList, sentBoxOpen declared at top of file)
+
+// ===== COMPOSE: Open =====
+async function openCompose() {
+  const modal = document.getElementById('compose-modal');
+  if (!modal) return;
+
+  // Populate From dropdown
+  const fromSelect = document.getElementById('compose-from');
+  fromSelect.innerHTML = '';
+
+  // Always add current temp email
+  if (currentEmail) {
+    const opt = document.createElement('option');
+    opt.value = currentEmail;
+    opt.textContent = currentEmail;
+    fromSelect.appendChild(opt);
+  }
+
+  // If premium, also load saved addresses
+  const token = localStorage.getItem('authToken');
+  const isPremium = localStorage.getItem('isPremium') === 'true';
+  if (token && isPremium) {
+    try {
+      const res = await fetch('/api/user/saved-emails', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      (data.savedEmails || []).forEach(e => {
+        if (e.address !== currentEmail) {
+          const opt = document.createElement('option');
+          opt.value = e.address;
+          opt.textContent = e.address;
+          fromSelect.appendChild(opt);
+        }
+      });
+    } catch (_) {}
+  }
+
+  // Show rate limit info
+  const rateLimitEl = document.getElementById('compose-ratelimit');
+  if (rateLimitEl) {
+    rateLimitEl.textContent = isPremium
+      ? '⭐ Premium: 50 emails/day'
+      : 'Free: 3 emails/day · Upgrade for more';
+  }
+
+  // Clear previous content
+  document.getElementById('compose-to').value = '';
+  document.getElementById('compose-subject').value = '';
+  document.getElementById('compose-editor').innerHTML = '';
+  document.getElementById('compose-textarea').value = '';
+  document.getElementById('compose-error').classList.add('hidden');
+
+  composeMinimized = false;
+  composeIsHtml = true;
+  const editor = document.getElementById('compose-editor');
+  const textarea = document.getElementById('compose-textarea');
+  const modeBtn = document.getElementById('compose-mode-btn');
+  const toolbar = document.querySelector('.compose-toolbar');
+  if (editor) editor.classList.remove('hidden');
+  if (textarea) textarea.classList.add('hidden');
+  if (toolbar) toolbar.classList.remove('hidden');
+  if (modeBtn) modeBtn.textContent = 'HTML';
+
+  document.getElementById('compose-body').classList.remove('hidden');
+  const footer = document.querySelector('.compose-footer');
+  if (footer) footer.classList.remove('hidden');
+
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+
+  // Focus To field
+  setTimeout(() => document.getElementById('compose-to').focus(), 100);
+}
+
+// ===== COMPOSE: Close =====
+function closeCompose() {
+  const modal = document.getElementById('compose-modal');
+  if (modal) modal.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+// ===== COMPOSE: Minimize =====
+function toggleComposeMinimize() {
+  composeMinimized = !composeMinimized;
+  const body = document.getElementById('compose-body');
+  const footer = document.querySelector('.compose-footer');
+  const btn = document.querySelector('.compose-minimize');
+  if (body) body.classList.toggle('hidden', composeMinimized);
+  if (footer) footer.classList.toggle('hidden', composeMinimized);
+  if (btn) btn.textContent = composeMinimized ? '□' : '—';
+}
+
+// ===== COMPOSE: Toggle HTML / Plain Text =====
+function toggleComposeMode() {
+  composeIsHtml = !composeIsHtml;
+  const editor = document.getElementById('compose-editor');
+  const textarea = document.getElementById('compose-textarea');
+  const btn = document.getElementById('compose-mode-btn');
+  const toolbar = document.querySelector('.compose-toolbar');
+
+  if (composeIsHtml) {
+    // Plain → HTML: copy text into editor
+    editor.innerHTML = (textarea.value || '').replace(/\n/g, '<br>');
+    editor.classList.remove('hidden');
+    textarea.classList.add('hidden');
+    if (toolbar) toolbar.classList.remove('hidden');
+    if (btn) btn.textContent = 'HTML';
+  } else {
+    // HTML → Plain: strip tags
+    textarea.value = editor.innerText || '';
+    editor.classList.add('hidden');
+    textarea.classList.remove('hidden');
+    if (toolbar) toolbar.classList.add('hidden');
+    if (btn) btn.textContent = 'TXT';
+  }
+}
+
+// ===== COMPOSE: Formatting =====
+function composeFormat(cmd) {
+  document.getElementById('compose-editor').focus();
+  document.execCommand(cmd, false, null);
+}
+
+function composeInsertLink() {
+  const url = prompt('Enter URL:');
+  if (url) {
+    document.getElementById('compose-editor').focus();
+    document.execCommand('createLink', false, url);
+  }
+}
+
+// ===== COMPOSE: Send =====
+async function sendComposedEmail() {
+  const from = document.getElementById('compose-from').value;
+  const to = document.getElementById('compose-to').value.trim();
+  const subject = document.getElementById('compose-subject').value.trim();
+  const body = composeIsHtml
+    ? document.getElementById('compose-editor').innerHTML
+    : document.getElementById('compose-textarea').value;
+  const errEl = document.getElementById('compose-error');
+  const sendBtn = document.getElementById('compose-send-btn');
+  const sendLabel = document.getElementById('compose-send-label');
+
+  errEl.classList.add('hidden');
+
+  // Validate
+  if (!to || !to.includes('@')) {
+    errEl.textContent = '❌ Enter a valid recipient email';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!subject) {
+    errEl.textContent = '❌ Subject is required';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!body || body.replace(/<[^>]*>/g, '').trim().length === 0) {
+    errEl.textContent = '❌ Message body is empty';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  // Send
+  sendBtn.disabled = true;
+  sendLabel.textContent = 'Sending...';
+
+  try {
+    const token = localStorage.getItem('authToken');
+    const res = await fetch('/api/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ from, to, subject, body, isHtml: composeIsHtml })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      showToast('📤 Email sent!');
+      closeCompose();
+      // Refresh sent list
+      setTimeout(() => loadSentEmails(), 500);
+    } else if (res.status === 429) {
+      errEl.textContent = '❌ ' + data.error;
+      errEl.classList.remove('hidden');
+    } else {
+      errEl.textContent = '❌ ' + (data.error || 'Failed to send');
+      errEl.classList.remove('hidden');
+    }
+  } catch (e) {
+    errEl.textContent = '❌ Network error. Try again.';
+    errEl.classList.remove('hidden');
+  } finally {
+    sendBtn.disabled = false;
+    sendLabel.textContent = 'Send';
+  }
+}
+
+// ===== SENT BOX: Load =====
+async function loadSentEmails() {
+  if (!currentEmail) return;
+  try {
+    const res = await fetch(`/api/sent?address=${encodeURIComponent(currentEmail)}`);
+    const data = await res.json();
+    sentList = data.sent || [];
+
+    const wrapper = document.getElementById('sent-box-wrapper');
+    const badge = document.getElementById('sent-count-badge');
+
+    if (sentList.length > 0) {
+      if (wrapper) wrapper.classList.remove('hidden');
+      if (badge) badge.textContent = sentList.length;
+      if (sentBoxOpen) renderSentBox();
+    } else {
+      if (wrapper) wrapper.classList.add('hidden');
+    }
+  } catch (_) {}
+}
+
+// ===== SENT BOX: Toggle =====
+function toggleSentBox() {
+  sentBoxOpen = !sentBoxOpen;
+  const body = document.getElementById('sent-box-body');
+  const toggle = document.getElementById('sent-box-toggle');
+  if (body) body.classList.toggle('hidden', !sentBoxOpen);
+  if (toggle) toggle.textContent = sentBoxOpen ? '▴' : '▾';
+  if (sentBoxOpen) renderSentBox();
+}
+
+// ===== SENT BOX: Render =====
+function renderSentBox() {
+  const body = document.getElementById('sent-box-body');
+  if (!body) return;
+
+  if (sentList.length === 0) {
+    body.innerHTML = '<div class="sent-empty">No sent emails</div>';
+    return;
+  }
+
+  body.innerHTML = sentList.map((s, i) => {
+    const opens = s.opens || 0;
+    const toStr = Array.isArray(s.to) ? s.to.join(', ') : s.to;
+    const dateStr = formatDate(s.sentAt);
+    const openBadge = opens > 0
+      ? `<span class="sent-opened-badge">👁 ${opens} open${opens > 1 ? 's' : ''}</span>`
+      : `<span class="sent-unopened-badge">Not opened</span>`;
+
+    return `
+      <div class="sent-row" onclick="viewSentEmail(${i})">
+        <div class="sent-row-main">
+          <div class="sent-to">To: ${escapeHtml(toStr)}</div>
+          <div class="sent-subject">${escapeHtml(s.subject)}</div>
+        </div>
+        <div class="sent-row-meta">
+          ${openBadge}
+          <div class="sent-date">${dateStr}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ===== SENT BOX: View sent email with analytics =====
+function viewSentEmail(index) {
+  const s = sentList[index];
+  if (!s) return;
+
+  const toStr = Array.isArray(s.to) ? s.to.join(', ') : s.to;
+  const opens = s.opens || 0;
+  const lastOpen = s.lastOpenAt ? formatDate(s.lastOpenAt) : 'Never';
+  const country = s.lastOpenCountry || '—';
+
+  document.getElementById('modal-avatar').textContent = '📤';
+  document.getElementById('modal-sender-name').textContent = 'You → ' + toStr;
+  document.getElementById('modal-sender-email').textContent = s.from;
+  document.getElementById('modal-date').textContent = formatDate(s.sentAt);
+  document.getElementById('modal-subject').textContent = s.subject;
+
+  const body = document.getElementById('modal-body');
+  body.innerHTML = `
+    <div class="sent-analytics-card">
+      <h4>📊 Delivery Analytics</h4>
+      <div class="analytics-grid">
+        <div class="analytics-item">
+          <div class="analytics-value ${opens > 0 ? 'green' : ''}">${opens}</div>
+          <div class="analytics-label">Opens</div>
+        </div>
+        <div class="analytics-item">
+          <div class="analytics-value">${lastOpen}</div>
+          <div class="analytics-label">Last Opened</div>
+        </div>
+        <div class="analytics-item">
+          <div class="analytics-value">${country}</div>
+          <div class="analytics-label">Location</div>
+        </div>
+        <div class="analytics-item">
+          <div class="analytics-value">${opens > 0 ? '✅' : '⏳'}</div>
+          <div class="analytics-label">Status</div>
+        </div>
+      </div>
+      ${s.openHistory && s.openHistory.length > 0 ? `
+        <h4 style="margin-top:16px;">Open History</h4>
+        <div class="open-history">
+          ${s.openHistory.slice(0, 5).map(h => `
+            <div class="open-history-item">
+              <span>${formatDate(h.at)}</span>
+              <span>${h.country || '—'}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>`;
+
+  document.getElementById('modal-attachments').classList.add('hidden');
+  document.getElementById('email-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
