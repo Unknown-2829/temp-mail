@@ -478,6 +478,7 @@ async function viewEmail(index) {
   addMetaRow('BCC:', email.headers?.bcc || '');
 
   // Open the modal immediately so the user sees the header/metadata right away
+  _pushModalHistory();
   document.getElementById('email-modal').classList.add('show');
   document.body.style.overflow = 'hidden';
 
@@ -1002,6 +1003,7 @@ function cleanBrokenChars(text) {
 }
 
 function closeModal() {
+  _popModalHistory();
   document.getElementById('email-modal').classList.remove('show');
   document.body.style.overflow = '';
   currentViewIndex = -1;
@@ -1196,11 +1198,13 @@ function openAttLightbox(src, filename, type) {
   }
 
   if (nameEl) nameEl.textContent = filename || '';
+  _pushModalHistory();
   lb.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 
 function closeAttLightbox() {
+  _popModalHistory();
   const lb = document.getElementById('att-lightbox');
   if (lb) lb.classList.remove('show');
   document.body.style.overflow = '';
@@ -1680,12 +1684,14 @@ function confirmSignOut() {
     modal.classList.remove('hiding');
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
+    _pushModalHistory();
   } else {
     doSignOut();
   }
 }
 
 function closeSignOutConfirm() {
+  _popModalHistory();
   _dismissModal(document.getElementById('signout-confirm-modal'));
   document.body.style.overflow = '';
 }
@@ -1704,9 +1710,11 @@ function doSignOut() {
 function openAuth() {
   document.getElementById('auth-modal').classList.add('show');
   document.body.style.overflow = 'hidden';
+  _pushModalHistory();
 }
 
 function closeAuth() {
+  _popModalHistory();
   document.getElementById('auth-modal').classList.remove('show');
   document.body.style.overflow = '';
   document.getElementById('signin-username').value = '';
@@ -1801,8 +1809,10 @@ function showAuthError(msg) {
 function openAbout() {
   document.getElementById('about-modal').classList.add('show');
   document.body.style.overflow = 'hidden';
+  _pushModalHistory();
 }
 function closeAbout() {
+  _popModalHistory();
   document.getElementById('about-modal').classList.remove('show');
   document.body.style.overflow = '';
 }
@@ -1814,10 +1824,12 @@ async function openProfile() {
   modal.classList.remove('hiding');
   modal.classList.add('show');
   document.body.style.overflow = 'hidden';
+  _pushModalHistory();
   await loadProfileData();
 }
 
 function closeProfile() {
+  _popModalHistory();
   _dismissModal(document.getElementById('profile-modal'));
   document.body.style.overflow = '';
 }
@@ -2073,9 +2085,11 @@ function showPremiumRequiredPrompt(message) {
   modal.classList.remove('hiding');
   modal.classList.add('show');
   document.body.style.overflow = 'hidden';
+  _pushModalHistory();
 }
 
 function closePremiumRequiredPrompt() {
+  _popModalHistory();
   _dismissModal(document.getElementById('premium-required-modal'));
   document.body.style.overflow = '';
 }
@@ -2236,6 +2250,59 @@ async function clearForwarding(address) {
   } catch (e) { showToast('❌ Network error'); }
 }
 
+// ===== History API: Back-Button Modal Navigation =====
+// Pushing a history state for each modal open so the browser back button
+// closes the modal instead of navigating away from the page.
+let _modalHistoryDepth = 0;
+let _handlingPopstate = false;
+
+function _pushModalHistory() {
+  _modalHistoryDepth++;
+  history.pushState({ phantomModal: true }, '');
+}
+
+function _popModalHistory() {
+  if (_modalHistoryDepth <= 0) return;
+  if (_handlingPopstate) return; // History already moved by the back button
+  _modalHistoryDepth--;
+  _handlingPopstate = true;
+  // history.back() fires popstate asynchronously; the flag prevents the handler
+  // from treating this programmatic navigation as a user back-press.
+  // Safety: reset the flag after 500 ms in case history.back() never fires
+  // (e.g. already at the beginning of the session history).
+  setTimeout(() => { _handlingPopstate = false; }, 500);
+  history.back();
+}
+
+function _closeTopmostModal() {
+  const lb = document.getElementById('att-lightbox');
+  if (lb && lb.classList.contains('show')) { closeAttLightbox(); return; }
+  const em = document.getElementById('email-modal');
+  if (em && em.classList.contains('show')) { closeModal(); return; }
+  const premReq = document.getElementById('premium-required-modal');
+  if (premReq && premReq.classList.contains('show')) { closePremiumRequiredPrompt(); return; }
+  const signout = document.getElementById('signout-confirm-modal');
+  if (signout && signout.classList.contains('show')) { closeSignOutConfirm(); return; }
+  const auth = document.getElementById('auth-modal');
+  if (auth && auth.classList.contains('show')) { closeAuth(); return; }
+  const profile = document.getElementById('profile-modal');
+  if (profile && profile.classList.contains('show')) { closeProfile(); return; }
+  const about = document.getElementById('about-modal');
+  if (about && about.classList.contains('show')) { closeAbout(); return; }
+  const qr = document.getElementById('qr-modal');
+  if (qr && qr.classList.contains('show')) { closeQR(); return; }
+  const compose = document.getElementById('compose-modal');
+  if (compose && compose.classList.contains('show')) { closeCompose(); return; }
+}
+
+window.addEventListener('popstate', () => {
+  if (_handlingPopstate) { _handlingPopstate = false; return; }
+  _handlingPopstate = true;
+  if (_modalHistoryDepth > 0) _modalHistoryDepth--;
+  _closeTopmostModal();
+  _handlingPopstate = false;
+});
+
 // ===== Global Key/Click Listeners =====
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
@@ -2322,6 +2389,9 @@ function openCompose() {
   // Force display via inline style so it always works regardless of CSS cascade
   win.style.display = 'flex';
   win.classList.add('show');
+  const fab = document.getElementById('compose-fab');
+  if (fab) fab.style.display = 'none';
+  _pushModalHistory();
 
   // Apply smart initial position on desktop (after the element is visible so
   // the browser has laid it out and we can read its dimensions)
@@ -2350,12 +2420,31 @@ async function _populateComposeFrom() {
   const token = localStorage.getItem('authToken');
   const isPremium = localStorage.getItem('isPremium') === 'true';
 
-  const rl = document.getElementById('compose-ratelimit');
-  if (rl) rl.textContent = isPremium ? '⭐ 50/day' : '3/day free';
-
-  // Show/hide custom-from pencil button based on premium status
+  // Show pencil button for EVERYONE (non-premium gets a premium prompt when they click)
   const customFromBtn = document.getElementById('compose-custom-from-btn');
-  if (customFromBtn) customFromBtn.classList.toggle('hidden', !isPremium);
+  if (customFromBtn) customFromBtn.classList.remove('hidden');
+
+  // Fetch real remaining count from server
+  const rl = document.getElementById('compose-ratelimit');
+  if (rl) {
+    rl.textContent = isPremium ? '⭐ 50/day' : '3/day free'; // initial placeholder
+    try {
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const limitUrl = token
+        ? '/api/send'
+        : currentEmail
+          ? `/api/send?address=${encodeURIComponent(currentEmail)}`
+          : null;
+      if (limitUrl) {
+        const res = await fetch(limitUrl, { headers });
+        const data = await res.json();
+        if (typeof data.remaining === 'number') {
+          const icon = data.isPremium ? '⭐' : '📨';
+          rl.textContent = `${icon} ${data.remaining}/${data.limit} left today`;
+        }
+      }
+    } catch (_) {}
+  }
 
   if (token && isPremium) {
     try {
@@ -2377,6 +2466,9 @@ async function _populateComposeFrom() {
 
 // ===== COMPOSE: Close =====
 function closeCompose() {
+  _popModalHistory();
+  const fab = document.getElementById('compose-fab');
+  if (fab) fab.style.removeProperty('display');
   const win = document.getElementById('compose-modal');
   if (!win) return;
   win.style.display = 'none'; // clear the inline style set by openCompose
@@ -2410,7 +2502,10 @@ function _setComposeInitialPosition(win) {
   // --- Bottom clearance: let portrait/square-ish screens breathe a little ---
   // Standard landscape (ratio ≥ 1.5) → sit flush at the bottom
   // Near-square / portrait → float up slightly
-  const bottomClearance = ratio < 1.4 ? Math.round(vh * 0.04) : 0;
+  // Portrait/square (ratio < 1.4) → float up 4 % of viewport height.
+  // Landscape (ratio ≥ 1.4) → leave a small 16 px gap from the bottom edge
+  // so the window never appears flush against the taskbar / safe area.
+  const bottomClearance = ratio < 1.4 ? Math.round(vh * 0.04) : 16;
 
   // Base position: bottom-right with adaptive margins
   let left = vw - winW - rightMargin;
@@ -2484,6 +2579,15 @@ function _initComposeDrag() {
 
 // ===== COMPOSE: Premium custom sender =====
 function toggleCustomFrom() {
+  const isPremium = localStorage.getItem('isPremium') === 'true';
+  const token = localStorage.getItem('authToken');
+  if (!isPremium) {
+    const msg = token
+      ? '⭐ Upgrade to Premium to use a custom sender username.'
+      : '🔐 Sign in and upgrade to Premium to use a custom sender username.';
+    showPremiumRequiredPrompt(msg);
+    return;
+  }
   const wrap = document.getElementById('compose-custom-from-wrap');
   const sel = document.getElementById('compose-from');
   if (!wrap || !sel) return;
@@ -2707,23 +2811,31 @@ async function sendComposedEmail() {
 
 // ===== SENT BOX: Load =====
 async function loadSentEmails() {
-  if (!currentEmail) return;
+  const wrapper = document.getElementById('sent-box-wrapper');
+  const badge = document.getElementById('sent-count-badge');
+  if (wrapper) wrapper.classList.remove('hidden');
+
   try {
-    const res = await fetch(`/api/sent?address=${encodeURIComponent(currentEmail)}`);
+    const token = localStorage.getItem('authToken');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    // For authenticated users, server returns all sent emails via sentidx lookup.
+    // For anonymous, fall back to address-based lookup.
+    const url = token
+      ? '/api/sent'
+      : currentEmail ? `/api/sent?address=${encodeURIComponent(currentEmail)}` : null;
+
+    if (!url) { sentList = []; if (sentBoxOpen) renderSentBox(); return; }
+
+    const res = await fetch(url, { headers });
     const data = await res.json();
     sentList = data.sent || [];
 
-    const wrapper = document.getElementById('sent-box-wrapper');
-    const badge = document.getElementById('sent-count-badge');
-
-    if (sentList.length > 0) {
-      if (wrapper) wrapper.classList.remove('hidden');
-      if (badge) badge.textContent = sentList.length;
-      if (sentBoxOpen) renderSentBox();
-    } else {
-      if (wrapper) wrapper.classList.add('hidden');
-    }
-  } catch (_) {}
+    if (badge) badge.textContent = sentList.length;
+    if (sentBoxOpen) renderSentBox();
+  } catch (_) {
+    sentList = [];
+    if (sentBoxOpen) renderSentBox();
+  }
 }
 
 // ===== SENT BOX: Toggle =====
@@ -2765,7 +2877,10 @@ function renderSentBox() {
     return `
       <div class="sent-row">
         <div class="sent-row-main" onclick="viewSentEmail(${i})" style="cursor:pointer;">
-          <div class="sent-to">To: ${escapeHtml(toStr)}</div>
+          <div class="sent-from-to">
+            <span class="sent-from-label">From: ${escapeHtml(s.from || '')}</span>
+            <span class="sent-to-label">To: ${escapeHtml(toStr)}</span>
+          </div>
           <div class="sent-subject">${escapeHtml(s.subject)}</div>
           ${bodyPreview ? `<div class="sent-body-preview">${bodyPreview}</div>` : ''}
         </div>
@@ -2785,18 +2900,17 @@ async function deleteSentEmail(event, index) {
   if (!s || !s._kvKey) return;
   if (!confirm('Delete this sent email?')) return;
   try {
-    const res = await fetch(`/api/sent?address=${encodeURIComponent(currentEmail)}&key=${encodeURIComponent(s._kvKey)}`, {
-      method: 'DELETE'
-    });
+    const token = localStorage.getItem('authToken');
+    const params = new URLSearchParams({ key: s._kvKey });
+    if (s._idxKey) params.set('idxKey', s._idxKey);
+    if (!token && currentEmail) params.set('address', currentEmail);
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(`/api/sent?${params}`, { method: 'DELETE', headers });
     const data = await res.json();
     if (data.success) {
       sentList.splice(index, 1);
       const badge = document.getElementById('sent-count-badge');
       if (badge) badge.textContent = sentList.length;
-      if (sentList.length === 0) {
-        const wrapper = document.getElementById('sent-box-wrapper');
-        if (wrapper) wrapper.classList.add('hidden');
-      }
       renderSentBox();
       showToast('🗑 Sent email deleted');
     } else {
@@ -2818,7 +2932,7 @@ function viewSentEmail(index) {
   const country = s.lastOpenCountry || '—';
 
   document.getElementById('modal-avatar').textContent = '📤';
-  document.getElementById('modal-sender-name').textContent = 'You → ' + toStr;
+  document.getElementById('modal-sender-name').textContent = 'Sent Email';
   document.getElementById('modal-sender-email').textContent = s.from;
   document.getElementById('modal-date').textContent = formatDate(s.sentAt);
   document.getElementById('modal-subject').textContent = s.subject;
@@ -2842,9 +2956,16 @@ function viewSentEmail(index) {
     }
   }
 
+  const toStr2 = Array.isArray(s.to) ? s.to.join(', ') : s.to;
   const body = document.getElementById('modal-body');
   body.innerHTML = `
-    <div class="sent-analytics-card">
+    <div class="sent-mail-meta-card">
+      <div class="smm-row"><span class="smm-label">From</span><span class="smm-value">${escapeHtml(s.from || '')}</span></div>
+      <div class="smm-row"><span class="smm-label">To</span><span class="smm-value">${escapeHtml(toStr2)}</span></div>
+      <div class="smm-row"><span class="smm-label">Date</span><span class="smm-value">${formatDate(s.sentAt)}</span></div>
+    </div>
+    ${bodyHtml}
+    <div class="sent-analytics-card" style="margin-top:20px;">
       <h4>📊 Delivery Analytics</h4>
       <div class="analytics-grid">
         <div class="analytics-item">
@@ -2875,10 +2996,10 @@ function viewSentEmail(index) {
           `).join('')}
         </div>
       ` : ''}
-    </div>
-    ${bodyHtml}`;
+    </div>`;
 
   document.getElementById('modal-attachments').classList.add('hidden');
+  _pushModalHistory();
   document.getElementById('email-modal').classList.add('show');
   document.body.style.overflow = 'hidden';
 }
