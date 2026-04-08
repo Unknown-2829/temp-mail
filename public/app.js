@@ -2491,19 +2491,54 @@ function renderSentBox() {
     const openBadge = opens > 0
       ? `<span class="sent-opened-badge">👁 ${opens} open${opens > 1 ? 's' : ''}</span>`
       : `<span class="sent-unopened-badge">Not opened</span>`;
+    // Strip HTML tags for plain-text preview
+    const bodyPreview = s.body
+      ? escapeHtml(s.body.replace(/<[^>]*>/g, '').trim().slice(0, 80)) + (s.body.replace(/<[^>]*>/g, '').trim().length > 80 ? '…' : '')
+      : '';
 
     return `
-      <div class="sent-row" onclick="viewSentEmail(${i})">
-        <div class="sent-row-main">
+      <div class="sent-row">
+        <div class="sent-row-main" onclick="viewSentEmail(${i})" style="cursor:pointer;">
           <div class="sent-to">To: ${escapeHtml(toStr)}</div>
           <div class="sent-subject">${escapeHtml(s.subject)}</div>
+          ${bodyPreview ? `<div class="sent-body-preview">${bodyPreview}</div>` : ''}
         </div>
         <div class="sent-row-meta">
           ${openBadge}
           <div class="sent-date">${dateStr}</div>
+          <button class="sent-delete-btn" onclick="deleteSentEmail(event,${i})" title="Delete this sent email">🗑</button>
         </div>
       </div>`;
   }).join('');
+}
+
+// ===== SENT BOX: Delete a sent email =====
+async function deleteSentEmail(event, index) {
+  event.stopPropagation();
+  const s = sentList[index];
+  if (!s || !s._kvKey) return;
+  if (!confirm('Delete this sent email?')) return;
+  try {
+    const res = await fetch(`/api/sent?address=${encodeURIComponent(currentEmail)}&key=${encodeURIComponent(s._kvKey)}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (data.success) {
+      sentList.splice(index, 1);
+      const badge = document.getElementById('sent-count-badge');
+      if (badge) badge.textContent = sentList.length;
+      if (sentList.length === 0) {
+        const wrapper = document.getElementById('sent-box-wrapper');
+        if (wrapper) wrapper.classList.add('hidden');
+      }
+      renderSentBox();
+      showToast('🗑 Sent email deleted');
+    } else {
+      showToast('❌ ' + (data.error || 'Failed to delete'));
+    }
+  } catch (_) {
+    showToast('❌ Network error');
+  }
 }
 
 // ===== SENT BOX: View sent email with analytics =====
@@ -2521,6 +2556,25 @@ function viewSentEmail(index) {
   document.getElementById('modal-sender-email').textContent = s.from;
   document.getElementById('modal-date').textContent = formatDate(s.sentAt);
   document.getElementById('modal-subject').textContent = s.subject;
+
+  // Render email body for display
+  let bodyHtml = '';
+  if (s.body) {
+    if (s.isHtml) {
+      bodyHtml = `
+        <div class="sent-email-body-section">
+          <h4>📧 Email Content</h4>
+          <iframe class="sent-email-iframe" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            srcdoc="${escapeHtml(s.body)}" title="Sent email content"></iframe>
+        </div>`;
+    } else {
+      bodyHtml = `
+        <div class="sent-email-body-section">
+          <h4>📧 Email Content</h4>
+          <pre class="sent-email-plaintext">${escapeHtml(s.body)}</pre>
+        </div>`;
+    }
+  }
 
   const body = document.getElementById('modal-body');
   body.innerHTML = `
@@ -2555,7 +2609,8 @@ function viewSentEmail(index) {
           `).join('')}
         </div>
       ` : ''}
-    </div>`;
+    </div>
+    ${bodyHtml}`;
 
   document.getElementById('modal-attachments').classList.add('hidden');
   document.getElementById('email-modal').classList.add('show');
