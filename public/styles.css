@@ -5061,3 +5061,72 @@ button,
   border-radius: 9px;
   border: 1px solid rgba(255,255,255,0.05);
 }
+
+/* ══════════════════════════════════════════════════
+   SENT MAIL META CARD — shown above body in sent email modal
+══════════════════════════════════════════════════ */
+.sent-mail-meta-card {
+  background: #07070f;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.smm-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+.smm-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #00d09c;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+  width: 38px;
+}
+.smm-value {
+  color: #c8c8dc;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+/* ── Sent row: from + to labels ── */
+.sent-from-to {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 3px;
+}
+.sent-from-label {
+  font-size: 10.5px;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sent-to-label {
+  font-size: 10.5px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ══════════════════════════════════════════════════
+   MOBILE COMPOSE — safe-area + smart positioning
+══════════════════════════════════════════════════ */
+@media (max-width: 560px) {
+  .compose-window, .compose-window.show {
+    /* Push the bottom-sheet up from the very bottom edge on notched phones */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Cap height to leave a peek of content above on short phones */
+    max-height: 88vh !important;
+  }
+  /* When compose is open, FAB is hidden via JS — no additional CSS needed */
+}

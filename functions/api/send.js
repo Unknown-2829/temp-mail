@@ -271,6 +271,11 @@ export async function onRequestPost(context) {
     expirationTtl: 15 * 24 * 3600 // keep for 15 days
   });
 
+  if (username) {
+    const sentIdxKey = `sentidx:user:${username}:${Date.now()}`;
+    await env.EMAILS.put(sentIdxKey, sentKey, { expirationTtl: 15 * 24 * 3600 });
+  }
+
   // Store trackingId → sentKey mapping for open tracking lookup
   await env.EMAILS.put(`track:${trackingId}`, sentKey, {
     expirationTtl: 15 * 24 * 3600
@@ -306,7 +311,7 @@ export async function onRequestOptions() {
   return new Response(null, {
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     }
   });
