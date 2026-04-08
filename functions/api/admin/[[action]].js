@@ -100,10 +100,25 @@ async function verifyAdminToken(token, env) {
 
 // ===== Get User =====
 async function handleGetUser(url, env) {
-    const username = url.searchParams.get('username')?.toLowerCase();
+    const username = url.searchParams.get('username')?.trim();
     if (!username) return jsonResponse({ error: 'username required' }, 400);
 
-    const user = await env.EMAILS.get(`user:${username}`, { type: 'json' });
+    // Try direct key first (works for both password users and Google users if email given)
+    let user = await env.EMAILS.get(`user:${username.toLowerCase()}`, { type: 'json' });
+
+    // If not found and input doesn't look like an email, try it as a display-name match
+    // by scanning the user list (lightweight — only needed for Google-user display names)
+    if (!user && !username.includes('@')) {
+        const list = await env.EMAILS.list({ prefix: 'user:', limit: 200 });
+        for (const key of list.keys) {
+            const candidate = await env.EMAILS.get(key.name, { type: 'json' });
+            if (candidate && (candidate.displayUsername || '').toLowerCase() === username.toLowerCase()) {
+                user = candidate;
+                break;
+            }
+        }
+    }
+
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
     return jsonResponse(safeUser(user));
@@ -144,10 +159,11 @@ async function handleListUsers(url, env) {
 
 // ===== Grant Premium =====
 async function handleGrantPremium(request, env) {
-    const { username, days = 365 } = await request.json();
-    if (!username) return jsonResponse({ error: 'username required' }, 400);
+    const { username, internalKey, days = 365 } = await request.json();
+    const lookup = internalKey || username;
+    if (!lookup) return jsonResponse({ error: 'username required' }, 400);
 
-    const userKey = `user:${username.toLowerCase()}`;
+    const userKey = `user:${lookup.toLowerCase()}`;
     const user = await env.EMAILS.get(userKey, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
@@ -175,10 +191,11 @@ async function handleGrantPremium(request, env) {
 
 // ===== Revoke Premium =====
 async function handleRevokePremium(request, env) {
-    const { username } = await request.json();
-    if (!username) return jsonResponse({ error: 'username required' }, 400);
+    const { username, internalKey } = await request.json();
+    const lookup = internalKey || username;
+    if (!lookup) return jsonResponse({ error: 'username required' }, 400);
 
-    const userKey = `user:${username.toLowerCase()}`;
+    const userKey = `user:${lookup.toLowerCase()}`;
     const user = await env.EMAILS.get(userKey, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
@@ -200,10 +217,11 @@ async function handleRevokePremium(request, env) {
 
 // ===== Delete User =====
 async function handleDeleteUser(request, env) {
-    const { username } = await request.json();
-    if (!username) return jsonResponse({ error: 'username required' }, 400);
+    const { username, internalKey } = await request.json();
+    const lookup = internalKey || username;
+    if (!lookup) return jsonResponse({ error: 'username required' }, 400);
 
-    const userKey = `user:${username.toLowerCase()}`;
+    const userKey = `user:${lookup.toLowerCase()}`;
     const user = await env.EMAILS.get(userKey, { type: 'json' });
     if (!user) return jsonResponse({ error: 'User not found' }, 404);
 
@@ -256,16 +274,19 @@ async function handleStats(env) {
 // ===== Helpers =====
 function safeUser(user) {
     const rawName = user.username || '';
-    const displayName = user.displayUsername || rawName.replace(/^user:/, '');
+    const internalKey = rawName.replace(/^user:/, ''); // email for Google users, username for password users
+    const displayName = user.displayUsername || internalKey;
     return {
-        username: displayName,
+        internalKey,            // used by admin for grant/revoke/delete API calls
+        username: displayName,  // display name shown in admin UI
         email: user.email || null,
         createdAt: user.createdAt,
         isPremium: !!user.isPremium,
         premiumExpiry: user.premiumExpiry || null,
         premiumGrantedAt: user.premiumGrantedAt || null,
         savedEmails: (user.savedEmails || []).length,
-        hasApiKey: !!user.apiKey
+        hasApiKey: !!user.apiKey,
+        authProviders: user.authProviders || (user.passwordHash ? ['password'] : [])
     };
 }
 

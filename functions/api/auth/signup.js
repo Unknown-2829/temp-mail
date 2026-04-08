@@ -1,14 +1,14 @@
 /**
  * Signup - Username/Password Auth
  * POST /api/auth/signup
- * Body: { username, password, email? }
+ * Body: { username, password, email?, emailOtp?, otpToken? }
  */
 
 export async function onRequestPost(context) {
     const { request, env } = context;
 
     try {
-        const { username, password, email } = await request.json();
+        const { username, password, email, emailOtp, otpToken } = await request.json();
 
         // Validate username
         if (!username || username.length < 3 || username.length > 20) {
@@ -31,6 +31,42 @@ export async function onRequestPost(context) {
             return jsonResponse({ error: 'Username already taken' }, 400);
         }
 
+        let emailVerified = false;
+
+        // If OTP token provided, verify it before creating account
+        if (emailOtp && otpToken) {
+            const otpKey = `otp:${otpToken}`;
+            const otpRaw = await env.EMAILS.get(otpKey);
+            if (!otpRaw) {
+                return jsonResponse({ error: 'Invalid or expired verification code' }, 400);
+            }
+            const otpData = JSON.parse(otpRaw);
+            if (otpData.type !== 'email_verify') {
+                return jsonResponse({ error: 'Invalid verification token' }, 400);
+            }
+            if (Date.now() > otpData.expiresAt) {
+                await env.EMAILS.delete(otpKey);
+                return jsonResponse({ error: 'Verification code has expired' }, 400);
+            }
+            if (otpData.attempts >= 5) {
+                await env.EMAILS.delete(otpKey);
+                return jsonResponse({ error: 'Too many wrong attempts. Please request a new code.' }, 400);
+            }
+            if (!constantTimeEqual(otpData.code, String(emailOtp).trim())) {
+                otpData.attempts += 1;
+                await env.EMAILS.put(otpKey, JSON.stringify(otpData), { expirationTtl: 600 });
+                const remaining = 5 - otpData.attempts;
+                return jsonResponse({
+                    error: remaining > 0
+                        ? `Incorrect code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+                        : 'Too many wrong attempts. Please request a new code.'
+                }, 400);
+            }
+            // OTP valid
+            emailVerified = true;
+            await env.EMAILS.delete(otpKey);
+        }
+
         // Hash password with PBKDF2 + random salt (Web Crypto API)
         const salt = crypto.randomUUID().replace(/-/g, '');
         const passwordHash = await hashPassword(password, salt);
@@ -42,11 +78,13 @@ export async function onRequestPost(context) {
             passwordHash,
             salt,
             email: email || null,
+            emailVerified,
             createdAt: Date.now(),
             isPremium: false,
             premiumExpiry: null,
             savedEmails: [],
-            apiKey: null
+            apiKey: null,
+            authProviders: ['password']
         };
 
         await env.EMAILS.put(userKey, JSON.stringify(user));
@@ -90,6 +128,15 @@ async function hashPassword(password, salt) {
 function generateToken() {
     return Array.from(crypto.getRandomValues(new Uint8Array(48)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function constantTimeEqual(a, b) {
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
 }
 
 function jsonResponse(data, status = 200) {
