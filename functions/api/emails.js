@@ -16,7 +16,10 @@ export async function onRequestGet(context) {
             emailKeys.keys.map(async key => {
                 const data = await env.EMAILS.get(key.name, { type: 'json' });
                 if (!data) return null;
-                return { ...data, _key: key.name }; // Attach KV key for server-side delete
+                // Strip large body fields from list response to keep payload small.
+                // Full content is fetched on demand via GET /api/email?key=...
+                const { rawSource, htmlBody, body, ...meta } = data;
+                return { ...meta, _key: key.name };
             })
         );
         const emails = emailsRaw.filter(Boolean);
