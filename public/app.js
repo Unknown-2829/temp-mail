@@ -48,6 +48,36 @@ let _iframeResizeObserver = null;
 // Tracks whether the email modal is currently showing raw source instead of rendered email.
 let _isSourceView = false;
 
+// ═══════════════════════════════════════════════════════════════
+// CLIENT-SIDE TTL CACHE
+// Saves bandwidth by serving recent API data from localStorage
+// while a fresh fetch runs in the background.
+// Keys are prefixed with '_c:' to avoid collisions.
+// ═══════════════════════════════════════════════════════════════
+const _CACHE_TTL = {
+  profile:     5 * 60 * 1000,   // 5 minutes
+  savedEmails: 2 * 60 * 1000,   // 2 minutes
+  inbox:       30 * 1000,        // 30 seconds
+};
+
+function _cacheGet(key) {
+  try {
+    const raw = localStorage.getItem('_c:' + key);
+    if (!raw) return null;
+    const { v, exp } = JSON.parse(raw);
+    if (Date.now() > exp) { localStorage.removeItem('_c:' + key); return null; }
+    return v;
+  } catch { return null; }
+}
+
+function _cacheSet(key, value, ttlMs) {
+  try {
+    localStorage.setItem('_c:' + key, JSON.stringify({ v: value, exp: Date.now() + ttlMs }));
+  } catch { /* storage full — silently ignore */ }
+}
+
+function _cacheDel(key) { localStorage.removeItem('_c:' + key); }
+
 // Regex constants reused during HTML email pre-processing
 const _NUMERIC_ATTR_RE = /^\d+$/;          // matches bare integer attribute values like "600"
 const _PIXEL_STYLE_RE  = /^\d+(\.\d+)?px$/i; // matches inline pixel values like "600px", "12.5px"
@@ -218,27 +248,38 @@ async function refreshEmails() {
 
   try {
     const since = emailsList.length > 0 ? emailsList.reduce((max, e) => Math.max(max, e.timestamp || 0), 0) : 0;
+
+    // On first load (no emails yet), show cached list immediately so inbox feels instant
+    if (since === 0) {
+      const cachedKey = 'inbox:' + currentEmail;
+      const cached = _cacheGet(cachedKey);
+      if (cached && emailsList.length === 0) {
+        const validCached = cached.filter(e => !deletedIds.includes(e._key || e.id || e.timestamp));
+        validCached.forEach(e => { if (readIds.includes(e._key || e.id || e.timestamp)) e.read = true; });
+        emailsList = validCached;
+        scheduleRender();
+      }
+    }
+
     const url = `/api/emails?address=${encodeURIComponent(currentEmail)}${since ? `&since=${since}` : ''}`;
     const response = await fetch(url);
     const data = await response.json();
 
-    _refreshErrorCount = 0; // Reset on success
+    _refreshErrorCount = 0;
 
     const rawEmails = data.emails || [];
-    // When using since= we get only new emails — merge with existing list
     let merged;
     if (since > 0 && rawEmails.length > 0) {
       const existingKeys = new Set(emailsList.map(e => e._key || e.timestamp));
       const newOnly = rawEmails.filter(e => !existingKeys.has(e._key || e.timestamp));
       merged = [...newOnly, ...emailsList];
     } else if (since > 0) {
-      merged = emailsList; // nothing new
+      merged = emailsList;
     } else {
       merged = rawEmails;
     }
 
     const validEmails = merged.filter(e => !deletedIds.includes(e._key || e.id || e.timestamp));
-
     validEmails.forEach(e => {
       if (readIds.includes(e._key || e.id || e.timestamp)) e.read = true;
     });
@@ -247,11 +288,13 @@ async function refreshEmails() {
     emailsList = validEmails;
     const newCount = emailsList.length;
 
+    // Persist inbox to cache after each successful fetch
+    try { _cacheSet('inbox:' + currentEmail, emailsList, _CACHE_TTL.inbox); } catch (_) {}
+
     if (newCount > oldCount && oldCount > 0) {
       const diff = newCount - oldCount;
       showToast(`📧 ${diff} new!`);
       showNotification('New Email!', `You have ${diff} new email(s)`);
-      // Re-poll in case more emails arrive in rapid succession
       setTimeout(() => { if (!document.hidden && currentEmail) refreshEmails(); }, 3000);
     }
 
@@ -263,16 +306,14 @@ async function refreshEmails() {
   } catch (e) {
     _refreshErrorCount++;
     if (_refreshErrorCount === 1) console.error('Refresh error #' + _refreshErrorCount, e);
-    // Back off: 5s → 10s → 20s → 60s cap
     if (_refreshErrorCount > 1) {
       stopAutoRefresh();
       const delay = Math.min(5000 * Math.pow(2, _refreshErrorCount - 1), 60000);
       const backoffTimer = setTimeout(() => {
-        // Restart normal interval then fire immediately
         startAutoRefresh();
         refreshEmails();
       }, delay);
-      autoRefreshInterval = backoffTimer; // Track so stopAutoRefresh() can cancel it
+      autoRefreshInterval = backoffTimer;
     }
   }
 }
@@ -930,13 +971,110 @@ function _renderEmailBody(email, body) {
     let text = cleanBrokenChars(email.body);
     body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;overflow-x:hidden;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;">${linkify(escapeHtml(text))}</div>`;
   } else if (email.rawSource) {
-    // Parsed body is empty but raw source exists — invite the user to inspect it
-    body.innerHTML = '<p style="color:#888;font-size:14px;">Email body could not be displayed. <a id="view-source-link" href="#" style="color:#00d09c;text-decoration:none;font-weight:600;">View raw source ›</a></p>';
-    const srcLink = document.getElementById('view-source-link');
-    if (srcLink) srcLink.addEventListener('click', (e) => { e.preventDefault(); viewSource(); });
+    // Parsed body is empty but raw source exists.
+    // Try to extract plain text from the raw MIME source before falling back to the "view source" link.
+    const extracted = _extractPlainFromRaw(email.rawSource);
+    if (extracted) {
+      body.innerHTML = `<div style="white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;overflow-x:hidden;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;">${linkify(escapeHtml(extracted))}</div>`;
+    } else {
+      body.innerHTML = '<p style="color:#888;font-size:14px;">Email body could not be displayed. <a id="view-source-link" href="#" style="color:#00d09c;text-decoration:none;font-weight:600;">View raw source ›</a></p>';
+      const srcLink = document.getElementById('view-source-link');
+      if (srcLink) srcLink.addEventListener('click', (e) => { e.preventDefault(); viewSource(); });
+    }
   } else {
     body.innerHTML = '<p style="color:#888;">No content</p>';
   }
+}
+
+// Extract human-readable plain text from a raw MIME email source.
+// Handles quoted-printable, base64, and plain text body parts.
+function _extractPlainFromRaw(raw) {
+  if (!raw) return null;
+
+  // Split into headers and body on the first blank line
+  const blankLine = raw.indexOf('\r\n\r\n') !== -1 ? raw.indexOf('\r\n\r\n') : raw.indexOf('\n\n');
+  if (blankLine === -1) return null;
+
+  const headerBlock = raw.slice(0, blankLine);
+  const fullBody = raw.slice(blankLine + (raw[blankLine + 1] === '\n' ? 2 : 4));
+
+  // Read a specific header value (case-insensitive, handles folding)
+  const getHeader = (hdrs, name) => {
+    const re = new RegExp(`^${name}:\\s*(.+(?:\\r?\\n[ \\t].+)*)`, 'im');
+    const m = hdrs.match(re);
+    return m ? m[1].replace(/\r?\n[ \t]+/g, ' ').trim() : '';
+  };
+
+  const contentType = getHeader(headerBlock, 'Content-Type');
+  const encoding = getHeader(headerBlock, 'Content-Transfer-Encoding').toLowerCase();
+
+  // Helper: decode a body part
+  const decodeBody = (text, enc) => {
+    if (enc === 'quoted-printable') {
+      return text
+        .replace(/=\r?\n/g, '')
+        .replace(/=([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+    }
+    if (enc === 'base64') {
+      try { return atob(text.replace(/\s/g, '')); } catch { return ''; }
+    }
+    return text;
+  };
+
+  // Non-multipart message
+  if (!/multipart/i.test(contentType)) {
+    if (/text\/html/i.test(contentType)) {
+      // HTML-only: extract text via DOM
+      const tmp = document.createElement('div');
+      tmp.innerHTML = decodeBody(fullBody, encoding);
+      return (tmp.textContent || tmp.innerText || '').trim() || null;
+    }
+    // text/plain or unknown — return decoded
+    const decoded = decodeBody(fullBody, encoding).trim();
+    return decoded || null;
+  }
+
+  // Multipart: find boundary
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^\s;]+))/i);
+  if (!boundaryMatch) return null;
+  const boundary = boundaryMatch[1] || boundaryMatch[2];
+
+  // Split on boundaries
+  const parts = fullBody.split(new RegExp(`--${boundary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:--)?`));
+  let plainText = '';
+
+  for (const part of parts) {
+    const partBlank = part.indexOf('\r\n\r\n') !== -1 ? part.indexOf('\r\n\r\n') : part.indexOf('\n\n');
+    if (partBlank === -1) continue;
+    const partHeaders = part.slice(0, partBlank);
+    const partBody = part.slice(partBlank + (part[partBlank + 1] === '\n' ? 2 : 4));
+    const partCT = getHeader(partHeaders, 'Content-Type');
+    const partEnc = getHeader(partHeaders, 'Content-Transfer-Encoding').toLowerCase();
+    if (/text\/plain/i.test(partCT)) {
+      plainText = decodeBody(partBody.trim(), partEnc).trim();
+      if (plainText) break;
+    }
+  }
+
+  // Fallback: try first text/html part
+  if (!plainText) {
+    for (const part of parts) {
+      const partBlank = part.indexOf('\r\n\r\n') !== -1 ? part.indexOf('\r\n\r\n') : part.indexOf('\n\n');
+      if (partBlank === -1) continue;
+      const partHeaders = part.slice(0, partBlank);
+      const partBody = part.slice(partBlank + (part[partBlank + 1] === '\n' ? 2 : 4));
+      const partCT = getHeader(partHeaders, 'Content-Type');
+      const partEnc = getHeader(partHeaders, 'Content-Transfer-Encoding').toLowerCase();
+      if (/text\/html/i.test(partCT)) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = decodeBody(partBody.trim(), partEnc);
+        plainText = (tmp.textContent || tmp.innerText || '').trim();
+        if (plainText) break;
+      }
+    }
+  }
+
+  return plainText || null;
 }
 
 // ===== Clean broken UTF-8 / Latin-1 mojibake =====
@@ -1039,6 +1177,11 @@ function closeModal() {
   currentViewIndex = -1;
   _isSourceView = false;
   _updateSourceBtn(false);
+  // Restore the delete + source buttons that may have been hidden by viewSentEmail
+  const sourceBtn = document.getElementById('source-toggle-btn');
+  if (sourceBtn) sourceBtn.classList.remove('hidden');
+  const deleteLink = document.querySelector('.modal-actions .action-link[onclick="deleteCurrentEmail()"]');
+  if (deleteLink) deleteLink.classList.remove('hidden');
   // Disconnect the ResizeObserver that keeps the email iframe sized to its content
   if (_iframeResizeObserver) {
     _iframeResizeObserver.disconnect();
@@ -1442,9 +1585,13 @@ function initAuthState() {
     actionBtn.classList.add(isPremium ? 'user-premium' : 'user-free');
     actionBtn.onclick = openProfile;
 
-    // Mobile header: show Account button, hide sign-in row
+    // Mobile header: show Account button with avatar, hide sign-in row
     if (mobileAccountHeaderBtn) {
-      mobileAccountHeaderBtn.textContent = username.length > 12 ? username.slice(0, 11) + '…' : username;
+      const mobileDisplayName = username.length > 10 ? username.slice(0, 9) + '…' : username;
+      const mobileAvatarHtml = photoURL
+        ? `<img class="btn-avatar" src="${escapeHtml(photoURL)}" alt="" onerror="this.remove()" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        : `<span style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${escapeHtml(username.charAt(0).toUpperCase())}</span>`;
+      mobileAccountHeaderBtn.innerHTML = `${mobileAvatarHtml}<span>${escapeHtml(mobileDisplayName)}</span>`;
       mobileAccountHeaderBtn.classList.remove('hidden');
     }
     if (mobileSigninRow) mobileSigninRow.classList.add('hidden');
@@ -1491,10 +1638,17 @@ async function refreshPremiumStatus() {
       const data = await res.json();
       const prevPremium = localStorage.getItem('isPremium') === 'true';
       const newPremium = !!data.isPremium;
+      // Sync photoURL from server (may have been updated via avatar upload)
+      if (data.photoURL !== undefined) {
+        if (data.photoURL) localStorage.setItem('photoURL', data.photoURL);
+        else localStorage.removeItem('photoURL');
+      }
       if (prevPremium !== newPremium) {
         localStorage.setItem('isPremium', newPremium ? 'true' : 'false');
         initAuthState();
         if (newPremium) showToast('⭐ Premium activated!');
+      } else if (data.photoURL !== localStorage.getItem('photoURL')) {
+        initAuthState(); // re-render with new avatar
       }
     } else if (res.status === 401) {
       // Session expired — sign out silently
@@ -2038,27 +2192,40 @@ async function loadProfileData() {
     bodyEl.innerHTML = '<div class="profile-loading">Not signed in.</div>';
     return;
   }
+
+  // Serve from cache immediately (stale-while-revalidate)
+  const cached = _cacheGet('profile');
+  if (cached) renderProfileData(cached);
+  else bodyEl.innerHTML = '<div class="profile-loading">Loading…</div>';
+
   try {
     const res = await fetch('/api/user/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
-    if (!res.ok) { bodyEl.innerHTML = `<div class="profile-loading">${escapeHtml(data.error || 'Error')}</div>`; return; }
+    if (!res.ok) {
+      if (!cached) bodyEl.innerHTML = `<div class="profile-loading">${escapeHtml(data.error || 'Error')}</div>`;
+      return;
+    }
+    _cacheSet('profile', data, _CACHE_TTL.profile);
     renderProfileData(data);
   } catch (e) {
-    bodyEl.innerHTML = '<div class="profile-loading">Failed to load profile.</div>';
+    if (!cached) bodyEl.innerHTML = '<div class="profile-loading">Failed to load profile.</div>';
   }
 }
 
 function renderProfileData(data) {
   const bodyEl = document.getElementById('profile-body');
   if (!bodyEl) return;
-  const { username, isPremium, premiumExpiry, authProviders } = data;
+  const { username, isPremium, premiumExpiry, authProviders, photoURL: serverPhotoURL,
+          hasEmail, emailVerified, maskedEmail } = data;
+
+  const photoURL = serverPhotoURL || localStorage.getItem('photoURL');
   const avatarLetter = username ? username[0].toUpperCase() : '?';
-  // Determine if user signed in via Google only (no local password)
   const isGoogleOnly = Array.isArray(authProviders)
     ? authProviders.includes('google') && !authProviders.includes('password')
-    : !!localStorage.getItem('photoURL') && !authProviders;
+    : !!photoURL && !authProviders;
+  const isGoogleUser = Array.isArray(authProviders) && authProviders.includes('google');
 
   let remainingStr = 'N/A';
   let expiryStr = 'N/A';
@@ -2079,11 +2246,40 @@ function renderProfileData(data) {
   const planLabel = isPremium ? '⭐ Premium' : 'Free';
   const planClass = isPremium ? 'premium' : '';
 
-  // Password section varies by auth provider
+  // ── Verification nudge — shown when account has no verified email and no Google ──
+  const needsVerificationNudge = !isGoogleUser && (!hasEmail || !emailVerified);
+  const verificationBanner = needsVerificationNudge ? `
+    <div class="profile-verify-banner" id="profile-verify-banner">
+      <div class="pvb-icon">⚠️</div>
+      <div class="pvb-content">
+        <div class="pvb-title">Protect your account</div>
+        <div class="pvb-desc">${!hasEmail
+          ? 'You haven\'t added a recovery email. If you forget your password, <strong>your account cannot be recovered.</strong>'
+          : 'Your recovery email is unverified. Verify it now to secure account recovery.'
+        }</div>
+        <div class="pvb-actions">
+          ${!isGoogleUser ? `<button class="pvb-btn-google" onclick="googleLogin()">
+            <svg width="14" height="14" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+            Link Google (instant)
+          </button>` : ''}
+          <button class="pvb-btn-email" onclick="_showAddEmailForm()">📧 ${hasEmail ? 'Verify Email' : 'Add Recovery Email'}</button>
+        </div>
+      </div>
+    </div>` : '';
+
+  // ── Email status card (shown when has email but not verified, or is Google+email) ──
+  const emailSection = hasEmail && !needsVerificationNudge ? `
+    <div class="profile-email-status">
+      <span class="pes-icon">${emailVerified ? '✅' : '⚠️'}</span>
+      <span class="pes-text">${emailVerified ? `Recovery email: <strong>${escapeHtml(maskedEmail || '')}</strong>` : `Unverified email: ${escapeHtml(maskedEmail || '')}`}</span>
+      ${!emailVerified ? `<button class="pes-verify-btn" onclick="_showAddEmailForm()">Verify</button>` : ''}
+    </div>` : '';
+
+  // ── Password section ──
   const passwordSection = isGoogleOnly
     ? `<div class="profile-section">
         <div class="profile-section-title">🔑 Set a Password</div>
-        <p style="font-size:13px;color:#888;margin-bottom:12px;">Your account was created with Google. You can set a password to also sign in with your username.</p>
+        <p style="font-size:13px;color:#888;margin-bottom:12px;">Your account was created with Google. Set a password to also sign in with your email address.</p>
         <div class="profile-form" id="change-pw-form">
           <input type="password" id="pw-new" class="profile-input" placeholder="New password (min 8 chars)" autocomplete="new-password">
           <input type="password" id="pw-confirm" class="profile-input" placeholder="Confirm new password" autocomplete="new-password">
@@ -2102,7 +2298,7 @@ function renderProfileData(data) {
         </div>
       </div>`;
 
-  // Delete account form: Google users don't need password confirmation
+  // ── Delete account form ──
   const deleteForm = isGoogleOnly
     ? `<div class="profile-form hidden" id="delete-account-form">
         <p style="font-size:13px;color:#888;margin-bottom:12px;">This will permanently delete your account and all associated data.</p>
@@ -2121,15 +2317,29 @@ function renderProfileData(data) {
         </div>
       </div>`;
 
+  const avatarContent = photoURL
+    ? `<img src="${escapeHtml(photoURL)}" alt="Profile" class="profile-big-avatar-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">`
+    : '';
+
   bodyEl.innerHTML = `
+    ${verificationBanner}
+
     <div class="profile-avatar-row">
-      <div class="profile-big-avatar ${planClass}">${escapeHtml(avatarLetter)}</div>
+      <div class="profile-big-avatar-wrap" onclick="document.getElementById('profile-avatar-input').click()" title="Change profile picture">
+        ${avatarContent}
+        <div class="profile-big-avatar ${planClass}" style="${photoURL ? 'display:none;' : ''}">${escapeHtml(avatarLetter)}</div>
+        <div class="profile-avatar-upload-overlay">📷</div>
+      </div>
+      <input type="file" id="profile-avatar-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="uploadProfileAvatar(this)">
       <div>
         <div class="profile-username">@${escapeHtml(username)}</div>
         <div class="profile-plan-badge ${planClass}">${planLabel}</div>
-        ${isGoogleOnly ? `<div style="font-size:11px;color:#888;margin-top:4px;">Signed in with Google</div>` : ''}
+        ${isGoogleUser ? `<div style="font-size:11px;color:#888;margin-top:4px;">Signed in with Google</div>` : ''}
       </div>
     </div>
+
+    ${emailSection}
+
     <div class="profile-info-grid">
       <div class="profile-info-card">
         <div class="profile-info-label">Plan</div>
@@ -2153,8 +2363,34 @@ function renderProfileData(data) {
 
     ${passwordSection}
 
+    <!-- Add Recovery Email form (hidden by default) -->
+    <div class="profile-section hidden" id="add-email-section">
+      <div class="profile-section-title">📧 Recovery Email</div>
+      <div id="add-email-step1">
+        <p style="font-size:13px;color:#888;margin-bottom:12px;">Add a real email address so you can reset your password if you ever get locked out.</p>
+        <div class="profile-form">
+          <input type="email" id="add-email-input" class="profile-input" placeholder="your@email.com" autocomplete="email">
+          <p class="profile-form-error hidden" id="add-email-error"></p>
+          <button class="profile-form-btn" onclick="_sendAddEmailOtp()">Send Verification Code</button>
+        </div>
+      </div>
+      <div id="add-email-step2" class="hidden">
+        <p style="font-size:13px;color:#888;margin-bottom:12px;" id="add-email-otp-desc">Enter the 6-digit code sent to your email.</p>
+        <div class="profile-form">
+          <input type="text" id="add-email-otp" class="profile-input otp-input" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+          <p class="profile-form-error hidden" id="add-email-otp-error"></p>
+          <button class="profile-form-btn" onclick="_verifyAddEmailOtp()">Verify & Save</button>
+          <div class="auth-resend-row" style="margin-top:8px;">
+            <span class="auth-resend-text">Didn't receive it?</span>
+            <button type="button" class="auth-link-btn" onclick="_resendAddEmailOtp()">Resend code</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="profile-actions">
       ${!isPremium ? `<button class="profile-action-btn" onclick="closeProfile();openPremium();">⭐ Upgrade to Premium</button>` : ''}
+      ${needsVerificationNudge && !hasEmail ? `<button class="profile-action-btn" onclick="_showAddEmailForm()">📧 Add Recovery Email</button>` : ''}
       <button class="profile-action-btn danger" onclick="closeProfile();confirmSignOut();">Sign Out</button>
     </div>
 
@@ -2166,6 +2402,144 @@ function renderProfileData(data) {
       ${deleteForm}
     </div>
   `;
+}
+
+// Show/hide add-email form
+function _showAddEmailForm() {
+  const section = document.getElementById('add-email-section');
+  if (section) {
+    section.classList.remove('hidden');
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  const step1 = document.getElementById('add-email-step1');
+  const step2 = document.getElementById('add-email-step2');
+  if (step1) step1.classList.remove('hidden');
+  if (step2) step2.classList.add('hidden');
+  // Hide the banner
+  const banner = document.getElementById('profile-verify-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+let _addEmailOtpToken = null;
+let _addEmailPendingEmail = null;
+
+async function _sendAddEmailOtp() {
+  const emailInput = document.getElementById('add-email-input');
+  const errEl = document.getElementById('add-email-error');
+  const email = emailInput?.value?.trim() || '';
+  if (errEl) errEl.classList.add('hidden');
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (errEl) { errEl.textContent = 'Enter a valid email address.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const btn = document.querySelector('#add-email-step1 .profile-form-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const res = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ type: 'add_email', email })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      _addEmailOtpToken = data.otpToken;
+      _addEmailPendingEmail = email;
+      document.getElementById('add-email-otp-desc').textContent = `Enter the 6-digit code sent to ${data.maskedEmail}.`;
+      document.getElementById('add-email-step1').classList.add('hidden');
+      document.getElementById('add-email-step2').classList.remove('hidden');
+      document.getElementById('add-email-otp').focus();
+    } else {
+      if (errEl) { errEl.textContent = data.error || 'Failed to send code.'; errEl.classList.remove('hidden'); }
+    }
+  } catch (_) {
+    if (errEl) { errEl.textContent = 'Network error. Try again.'; errEl.classList.remove('hidden'); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Verification Code'; }
+  }
+}
+
+async function _resendAddEmailOtp() {
+  document.getElementById('add-email-step2').classList.add('hidden');
+  document.getElementById('add-email-step1').classList.remove('hidden');
+  _addEmailOtpToken = null;
+  await _sendAddEmailOtp();
+}
+
+async function _verifyAddEmailOtp() {
+  const otpInput = document.getElementById('add-email-otp');
+  const errEl = document.getElementById('add-email-otp-error');
+  const code = otpInput?.value?.trim() || '';
+  if (errEl) errEl.classList.add('hidden');
+  if (!code || code.length !== 6) {
+    if (errEl) { errEl.textContent = 'Enter the 6-digit code.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (!_addEmailOtpToken) {
+    if (errEl) { errEl.textContent = 'Session expired. Resend the code.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const btn = document.querySelector('#add-email-step2 .profile-form-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
+  try {
+    const res = await fetch('/api/user/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ addEmail: true, emailOtp: code, otpToken: _addEmailOtpToken })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      _addEmailOtpToken = null;
+      _addEmailPendingEmail = null;
+      showToast('✅ Recovery email verified and saved!');
+      loadProfileData(); // refresh
+    } else {
+      if (errEl) { errEl.textContent = data.error || 'Verification failed.'; errEl.classList.remove('hidden'); }
+    }
+  } catch (_) {
+    if (errEl) { errEl.textContent = 'Network error. Try again.'; errEl.classList.remove('hidden'); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Verify & Save'; }
+  }
+}
+
+// ===== Profile Picture Upload =====
+async function uploadProfileAvatar(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const MAX = 2 * 1024 * 1024;
+  if (file.size > MAX) { showToast('❌ Image must be 2 MB or smaller'); input.value = ''; return; }
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+
+  showToast('⏳ Uploading…');
+
+  const formData = new FormData();
+  formData.append('avatar', file);
+
+  try {
+    const res = await fetch('/api/avatar-upload', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    const data = await res.json();
+    if (res.ok && data.photoURL) {
+      localStorage.setItem('photoURL', data.photoURL);
+      initAuthState();
+      showToast('✅ Profile picture updated!');
+      loadProfileData(); // re-render with new avatar
+    } else {
+      showToast('❌ ' + (data.error || 'Upload failed'));
+    }
+  } catch (_) {
+    showToast('❌ Network error');
+  } finally {
+    input.value = '';
+  }
 }
 
 // ===== Change Password =====
@@ -2682,6 +3056,7 @@ function openCompose() {
 
   // ── Init drag once ────────────────────────────────────────────
   _initComposeDrag();
+  _initComposeMobileDrag();
 
   // ── Populate From dropdown asynchronously (non-blocking) ────
   _populateComposeFrom();
@@ -2905,6 +3280,56 @@ function _setComposeInitialPosition(win) {
   win.style.setProperty('top',  `${Math.round(top)}px`,  'important');
 }
 
+// ===== COMPOSE: Mobile touch drag to resize sheet =====
+let _mobileDragInited = false;
+function _initComposeMobileDrag() {
+  if (_mobileDragInited) return;
+  _mobileDragInited = true;
+
+  const win = document.getElementById('compose-modal');
+  // The drag-handle pill is the first child div of compose-window
+  const handle = win ? win.querySelector('div[style*="border-radius:2px"]')?.parentElement : null;
+  if (!handle || !win) return;
+
+  let touchStartY = 0;
+  let startHeight = 0;
+  const MIN_H = 160;
+  const MAX_H = Math.round(window.innerHeight * 0.92);
+
+  handle.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 560) return; // desktop only uses mouse drag
+    touchStartY = e.touches[0].clientY;
+    startHeight = win.offsetHeight;
+    e.preventDefault();
+  }, { passive: false });
+
+  handle.addEventListener('touchmove', (e) => {
+    if (window.innerWidth > 560) return;
+    e.preventDefault();
+    const dy = touchStartY - e.touches[0].clientY; // positive = dragging up = expand
+    let newH = Math.max(MIN_H, Math.min(MAX_H, startHeight + dy));
+    win.style.setProperty('height', newH + 'px', 'important');
+    win.style.setProperty('max-height', newH + 'px', 'important');
+    // If expanded enough, un-minimize
+    if (newH > MIN_H + 40 && win.classList.contains('minimized')) {
+      win.classList.remove('minimized');
+      composeMinimized = false;
+    }
+  }, { passive: false });
+
+  handle.addEventListener('touchend', (e) => {
+    if (window.innerWidth > 560) return;
+    const dy = touchStartY - e.changedTouches[0].clientY;
+    // Quick flick down → minimize; quick flick up → expand to max
+    if (dy < -60) {
+      toggleComposeMinimize();
+    } else if (dy > 60 && win.classList.contains('minimized')) {
+      win.classList.remove('minimized');
+      composeMinimized = false;
+    }
+  });
+}
+
 // ===== COMPOSE: Drag (desktop only) =====
 function _initComposeDrag() {
   if (_composeDragInited) return;
@@ -3042,6 +3467,14 @@ function toggleComposeMinimize() {
   if (!win) return;
   composeMinimized = !composeMinimized;
   win.classList.toggle('minimized', composeMinimized);
+  // Reset any inline height set by mobile drag
+  if (!composeMinimized) {
+    win.style.removeProperty('height');
+    win.style.removeProperty('max-height');
+  }
+  // Update minimize button tooltip
+  const minBtn = win.querySelector('.cw-ctrl-btn[title="Minimize"]') || win.querySelector('.cw-ctrl-btn[title="Restore"]');
+  if (minBtn) minBtn.title = composeMinimized ? 'Restore' : 'Minimize';
 }
 
 // ===== COMPOSE: Full-screen expand =====
@@ -3301,13 +3734,19 @@ async function deleteSentEmail(event, index) {
 }
 
 // ===== SENT BOX: View sent email with analytics =====
+let _sentSourceVisible = false; // tracks source view state for current sent email
+
 function viewSentEmail(index) {
   const s = sentList[index];
   if (!s) return;
 
-  // Hide the Source button — sent mails don't have raw source
-  const sourceBtn = document.getElementById('source-toggle-btn');
-  if (sourceBtn) sourceBtn.classList.add('hidden');
+  _sentSourceVisible = false; // reset source toggle on each open
+
+  // Hide inbox-only actions (Delete + raw-source toggle — we provide our own)
+  const inboxSourceBtn = document.getElementById('source-toggle-btn');
+  if (inboxSourceBtn) inboxSourceBtn.classList.add('hidden');
+  const deleteLink = document.querySelector('.modal-actions .action-link[onclick="deleteCurrentEmail()"]');
+  if (deleteLink) deleteLink.classList.add('hidden');
 
   const toStr = Array.isArray(s.to) ? s.to.join(', ') : s.to;
   const opens = s.opens || 0;
@@ -3316,102 +3755,163 @@ function viewSentEmail(index) {
   const lastIp = s.lastOpenIp || '—';
   const lastAgent = _parseUserAgent(s.lastOpenAgent || '');
 
+  // ── Fill modal header (avatar, from, date, subject — same slots as inbox) ──
   document.getElementById('modal-avatar').textContent = '📤';
-  document.getElementById('modal-sender-name').textContent = 'Sent Email';
-  document.getElementById('modal-sender-email').textContent = s.from;
+  document.getElementById('modal-sender-name').textContent = s.from || 'You';
+  document.getElementById('modal-sender-email').textContent = '↗ Sent message';
   document.getElementById('modal-date').textContent = formatDate(s.sentAt);
   document.getElementById('modal-subject').textContent = s.subject;
 
-  // Render email body for display
-  let bodyHtml = '';
-  if (s.body) {
-    if (s.isHtml) {
-      bodyHtml = `
-        <div class="sent-email-body-section">
-          <h4>📧 Email Content</h4>
-          <iframe class="sent-email-iframe" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-            srcdoc="${escapeHtml(s.body)}" title="Sent email content"></iframe>
-        </div>`;
-    } else {
-      bodyHtml = `
-        <div class="sent-email-body-section">
-          <h4>📧 Email Content</h4>
-          <pre class="sent-email-plaintext">${escapeHtml(s.body)}</pre>
-        </div>`;
-    }
-  }
-
-  const toStr2 = Array.isArray(s.to) ? s.to.join(', ') : s.to;
-
-  // Build open history rows with IP + UA
-  let historyHtml = '';
-  if (s.openHistory && s.openHistory.length > 0) {
-    historyHtml = `
-      <div class="sent-analytics-section-title">📋 Open History</div>
-      <div class="open-history">
-        ${s.openHistory.slice(0, 20).map((h, idx) => {
-          const ua = _parseUserAgent(h.agent || '');
-          return `<div class="open-history-item">
-            <div class="ohi-index">#${idx + 1}</div>
-            <div class="ohi-details">
-              <div class="ohi-time">${formatDate(h.at)}</div>
-              <div class="ohi-meta">
-                <span class="ohi-flag">📍 ${escapeHtml(h.country || '—')}</span>
-                <span class="ohi-ip">🔗 ${escapeHtml(_maskIp(h.ip || ''))}</span>
-                <span class="ohi-ua">📱 ${escapeHtml(ua)}</span>
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
+  // ── "To" goes in modal-meta-rows (same place inbox puts CC/BCC) ──
+  const metaRowsEl = document.getElementById('modal-meta-rows');
+  if (metaRowsEl) {
+    metaRowsEl.innerHTML = `
+      <div class="meta-row">
+        <span class="meta-label">To</span>
+        <span class="meta-value">${escapeHtml(toStr)}</span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-label">Status</span>
+        <span class="meta-value" style="color:${opens > 0 ? '#00d09c' : '#666'}">${opens > 0 ? `✅ Opened ${opens}×` : '⏳ Not opened yet'}</span>
       </div>`;
   }
 
-  const body = document.getElementById('modal-body');
-  body.innerHTML = `
-    <div class="sent-mail-meta-card">
-      <div class="smm-row"><span class="smm-label">From</span><span class="smm-value">${escapeHtml(s.from || '')}</span></div>
-      <div class="smm-row"><span class="smm-label">To</span><span class="smm-value">${escapeHtml(toStr2)}</span></div>
-      <div class="smm-row"><span class="smm-label">Date</span><span class="smm-value">${formatDate(s.sentAt)}</span></div>
-    </div>
-    ${bodyHtml}
-    <div class="sent-analytics-card" style="margin-top:20px;">
-      <h4>📊 Delivery Analytics</h4>
-      <div class="analytics-grid analytics-grid-3">
-        <div class="analytics-item">
-          <div class="analytics-value ${opens > 0 ? 'green' : ''}">${opens}</div>
-          <div class="analytics-label">Total Opens</div>
+  // ── Clear modal body, then render body exactly like inbox ──
+  const bodyEl = document.getElementById('modal-body');
+  bodyEl.innerHTML = '';
+
+  // Container that _renderEmailBody will write into
+  const emailContentDiv = document.createElement('div');
+  emailContentDiv.id = 'sent-body-rendered';
+  bodyEl.appendChild(emailContentDiv);
+
+  // Build a fake email object that _renderEmailBody understands
+  const fakeEmail = s.isHtml
+    ? { htmlBody: s.body, body: null, rawSource: null }
+    : { htmlBody: null, body: s.body, rawSource: null };
+  _renderEmailBody(fakeEmail, emailContentDiv);
+
+  // Source view container (hidden by default, toggled by button)
+  const sourceDiv = document.createElement('div');
+  sourceDiv.id = 'sent-body-source';
+  sourceDiv.className = 'hidden';
+  sourceDiv.innerHTML = `<pre class="sent-email-source-view">${escapeHtml(_buildSentEmailSource(s))}</pre>`;
+  bodyEl.appendChild(sourceDiv);
+
+  // ── Source-view toolbar (floated above content area) ──
+  if (s.body) {
+    const toolbarDiv = document.createElement('div');
+    toolbarDiv.className = 'sent-body-toolbar';
+    toolbarDiv.innerHTML = `<button class="sent-source-toggle-btn" id="sent-source-btn" onclick="_toggleSentSource(${index})">📄 View Source</button>`;
+    bodyEl.insertBefore(toolbarDiv, emailContentDiv);
+  }
+
+  // ── Open history rows ──
+  let historyHtml = '';
+  if (s.openHistory && s.openHistory.length > 0) {
+    const rows = s.openHistory.slice(0, 30).map((h, idx) => {
+      const ua = _parseUserAgent(h.agent || '');
+      const fullIp = h.ip && h.ip !== 'unknown' ? h.ip : '—';
+      return `<div class="open-history-item">
+        <div class="ohi-index">#${idx + 1}</div>
+        <div class="ohi-details">
+          <div class="ohi-time">${formatDate(h.at)}</div>
+          <div class="ohi-meta">
+            ${h.country ? `<span class="ohi-flag">📍 ${escapeHtml(h.country)}</span>` : ''}
+            <span class="ohi-ip" title="${escapeHtml(h.ip || '')}">🌐 ${escapeHtml(fullIp)}</span>
+            <span class="ohi-ua">💻 ${escapeHtml(ua)}</span>
+            ${h.agent ? `<span class="ohi-ua" title="${escapeHtml(h.agent)}" style="color:#444;font-size:10px;cursor:help;">ⓘ UA</span>` : ''}
+          </div>
         </div>
-        <div class="analytics-item">
-          <div class="analytics-value" style="font-size:14px;">${escapeHtml(lastOpen)}</div>
-          <div class="analytics-label">Last Opened</div>
-        </div>
-        <div class="analytics-item">
-          <div class="analytics-value" style="font-size:16px;">${opens > 0 ? '✅ Read' : '⏳ Pending'}</div>
-          <div class="analytics-label">Status</div>
-        </div>
+      </div>`;
+    }).join('');
+    historyHtml = `
+      <div class="sent-analytics-section-title">📋 Open History (${s.openHistory.length})</div>
+      <div class="open-history">${rows}</div>`;
+  }
+
+  // ── Analytics card ──
+  const analyticsDiv = document.createElement('div');
+  analyticsDiv.className = 'sent-analytics-card';
+  analyticsDiv.innerHTML = `
+    <h4>📊 Delivery Analytics</h4>
+    <div class="analytics-grid analytics-grid-3">
+      <div class="analytics-item">
+        <div class="analytics-value ${opens > 0 ? 'green' : ''}">${opens}</div>
+        <div class="analytics-label">Total Opens</div>
       </div>
-      ${opens > 0 ? `
-      <div class="analytics-grid analytics-grid-3" style="margin-top:10px;">
-        <div class="analytics-item">
-          <div class="analytics-value" style="font-size:15px;">📍 ${escapeHtml(country)}</div>
-          <div class="analytics-label">Last Location</div>
-        </div>
-        <div class="analytics-item">
-          <div class="analytics-value" style="font-size:13px;">🔗 ${escapeHtml(_maskIp(lastIp))}</div>
-          <div class="analytics-label">Last IP</div>
-        </div>
-        <div class="analytics-item">
-          <div class="analytics-value" style="font-size:13px;">📱 ${escapeHtml(lastAgent)}</div>
-          <div class="analytics-label">Last Device</div>
-        </div>
-      </div>` : ''}
-      ${historyHtml}
-    </div>`;
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:11px;word-break:break-all;">${escapeHtml(lastOpen)}</div>
+        <div class="analytics-label">Last Opened</div>
+      </div>
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:18px;">${opens > 0 ? '✅' : '⏳'}</div>
+        <div class="analytics-label">${opens > 0 ? 'Read' : 'Pending'}</div>
+      </div>
+    </div>
+    ${opens > 0 ? `
+    <div class="analytics-grid analytics-grid-3" style="margin-top:10px;">
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:14px;">📍 ${escapeHtml(country)}</div>
+        <div class="analytics-label">Location</div>
+      </div>
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:10px;word-break:break-all;">🌐 ${escapeHtml(lastIp)}</div>
+        <div class="analytics-label">Last IP</div>
+      </div>
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:11px;">💻 ${escapeHtml(lastAgent)}</div>
+        <div class="analytics-label">Device</div>
+      </div>
+    </div>` : ''}
+    ${historyHtml}`;
+  bodyEl.appendChild(analyticsDiv);
+
+  // ── Delete action ──
+  const actionsDiv = document.createElement('div');
+  actionsDiv.className = 'sent-view-actions';
+  actionsDiv.innerHTML = `<button class="sent-view-delete-btn" onclick="_deleteSentEmailFromModal(${index})">🗑 Delete This Email</button>`;
+  bodyEl.appendChild(actionsDiv);
 
   document.getElementById('modal-attachments').classList.add('hidden');
   _pushModalHistory();
   document.getElementById('email-modal').classList.add('show');
   document.body.style.overflow = 'hidden';
+}
+
+// Reconstruct a MIME-like raw source string from stored sent-email fields
+function _buildSentEmailSource(s) {
+  const toStr = Array.isArray(s.to) ? s.to.join(', ') : (s.to || '');
+  const date = s.sentAt ? new Date(s.sentAt).toUTCString() : '';
+  const contentType = s.isHtml ? 'text/html; charset="utf-8"' : 'text/plain; charset="utf-8"';
+  return [
+    `From: ${s.from || ''}`,
+    `To: ${toStr}`,
+    `Subject: ${s.subject || ''}`,
+    `Date: ${date}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: ${contentType}`,
+    ``,
+    s.body || ''
+  ].join('\r\n');
+}
+
+// Toggle between rendered view and raw source view for sent emails
+function _toggleSentSource(index) {
+  _sentSourceVisible = !_sentSourceVisible;
+  const rendered = document.getElementById('sent-body-rendered');
+  const sourceDiv = document.getElementById('sent-body-source');
+  const btn = document.getElementById('sent-source-btn');
+  if (rendered) rendered.classList.toggle('hidden', _sentSourceVisible);
+  if (sourceDiv) sourceDiv.classList.toggle('hidden', !_sentSourceVisible);
+  if (btn) btn.textContent = _sentSourceVisible ? '📧 View Rendered' : '📄 View Source';
+}
+
+function _deleteSentEmailFromModal(index) {
+  if (!confirm('Delete this sent email?')) return;
+  const fakeEvent = { stopPropagation: () => {} };
+  deleteSentEmail(fakeEvent, index);
+  setTimeout(closeModal, 200);
 }
 
 // Parse user-agent string into human-readable device/browser label

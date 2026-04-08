@@ -123,9 +123,7 @@
     <div class="container">
       <div class="inbox-wrapper">
         <div class="inbox-header">
-          <div class="col-sender">SENDER</div>
-          <div class="col-subject">SUBJECT</div>
-          <div class="col-view">VIEW</div>
+          <div class="inbox-header-title">INBOX</div>
         </div>
         <div class="inbox-body" id="inbox-body">
           <div class="empty-inbox">
@@ -655,6 +653,19 @@
                type="text" placeholder="Subject" maxlength="200">
       </div>
 
+      <!-- Attachment button + rate limit — between subject and body -->
+      <div class="cw-between-row">
+        <label class="cw-attach-btn-big" for="compose-file-input" title="Attach files">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+          <span>Attach File</span>
+        </label>
+        <input type="file" id="compose-file-input" multiple style="display:none"
+               onchange="addComposeAttachments(this)">
+        <span class="cw-ratelimit" id="compose-ratelimit"></span>
+      </div>
+
       <!-- Rich editor -->
       <div class="cw-editor-wrap">
         <div class="cw-editor" id="compose-editor"
@@ -702,19 +713,8 @@
         <button class="cw-tool cw-mode-toggle" onclick="toggleComposeMode()" id="compose-mode-btn" title="Toggle HTML/Plain">
           <span>HTML</span>
         </button>
-        <div class="cw-tool-sep"></div>
-        <!-- Attach file -->
-        <button class="cw-tool" onclick="document.getElementById('compose-file-input').click()" title="Attach file">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-          </svg>
-        </button>
-        <input type="file" id="compose-file-input" multiple style="display:none"
-               onchange="addComposeAttachments(this)">
       </div>
 
-      <!-- Rate limit pill -->
-      <span class="cw-ratelimit" id="compose-ratelimit"></span>
     </div>
   </div>
 </body>

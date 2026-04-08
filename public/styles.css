@@ -368,13 +368,15 @@ body {
 /* Inbox Header */
 .inbox-header {
   display: flex;
+  justify-content: center;
+  align-items: center;
   position: relative;
-  background: #202020;
+  background: #0d0d1a;
   color: #fff;
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  padding: 22px 28px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  padding: 14px 28px;
 }
 
 .col-sender {
@@ -4826,12 +4828,46 @@ button,
 }
 .cw-mode-toggle:hover { background: rgba(0,208,156,0.15); border-color: rgba(0,208,156,0.4); }
 .cw-ratelimit {
-  font-size: 10px;
-  color: #3a3a55;
-  margin-left: auto;
+  font-size: 10.5px;
+  color: #4a4a70;
   white-space: nowrap;
   flex-shrink: 0;
+  font-weight: 600;
 }
+
+/* ── Between-row: attachment button + rate limit ── */
+.cw-between-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 4px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+.cw-attach-btn-big {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, rgba(0,208,156,0.12), rgba(0,136,204,0.1));
+  border: 1px solid rgba(0,208,156,0.35);
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #00d09c;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  user-select: none;
+}
+.cw-attach-btn-big:hover {
+  background: linear-gradient(135deg, rgba(0,208,156,0.2), rgba(0,136,204,0.16));
+  border-color: rgba(0,208,156,0.6);
+  transform: translateY(-1px);
+}
+.cw-attach-btn-big:active { transform: scale(0.97); }
+.cw-attach-btn-big svg { flex-shrink: 0; }
 
 /* ── Attachment chips ── */
 .cw-attach-list {
@@ -5037,20 +5073,21 @@ button,
   max-height: 400px;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 10px;
-  background: #fff;
+  background: #0a0a14;
 }
 .sent-email-plaintext {
-  background: #08080f;
+  background: #07070f;
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
-  padding: 14px;
+  padding: 14px 16px;
   font-size: 13px;
-  color: #bbb;
+  color: #c0c0d8;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 300px;
+  line-height: 1.7;
+  max-height: 340px;
   overflow-y: auto;
-  font-family: inherit;
+  font-family: 'Segoe UI Emoji','Apple Color Emoji',Arial,sans-serif;
   margin: 0;
 }
 
@@ -5242,4 +5279,312 @@ button,
     max-height: 88vh !important;
   }
   /* When compose is open, FAB is hidden via JS — no additional CSS needed */
+}
+
+/* ══════════════════════════════════════════════════
+   INBOX HEADER — centered bold "INBOX" title
+══════════════════════════════════════════════════ */
+.inbox-header-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #fff;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════════════════
+   ACCOUNT BUTTON — btn-avatar / btn-username classes
+   (used by initAuthState to populate auth-action-btn)
+══════════════════════════════════════════════════ */
+.btn-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: block;
+}
+.btn-avatar-initial {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00d09c, #0088cc);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+.btn-username {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+/* free: green border accent */
+.auth-action-btn.user-free {
+  border-color: rgba(0, 208, 156, 0.45);
+  color: #00d09c;
+  padding: 6px 14px;
+  max-width: 170px;
+}
+/* premium: gold border accent */
+.auth-action-btn.user-premium {
+  border-color: rgba(255, 215, 0, 0.5);
+  color: #ffd700;
+  padding: 6px 14px;
+  max-width: 170px;
+}
+.auth-action-btn.user-premium .btn-avatar-initial {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #1a1a2e;
+}
+.auth-action-btn.user-free:hover,
+.auth-action-btn.user-premium:hover {
+  background: rgba(255,255,255,0.06);
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════════════════
+   PROFILE — avatar upload wrap
+══════════════════════════════════════════════════ */
+.profile-big-avatar-wrap {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.profile-big-avatar-wrap:hover .profile-avatar-upload-overlay { opacity: 1; }
+.profile-big-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+.profile-avatar-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.profile-big-avatar-wrap .profile-big-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  font-size: 26px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #00d09c, #0088cc);
+  color: #fff;
+  user-select: none;
+}
+.profile-big-avatar-wrap .profile-big-avatar.premium {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #1a1a2e;
+}
+
+/* ══════════════════════════════════════════════════
+   PROFILE — verification nudge banner
+══════════════════════════════════════════════════ */
+.profile-verify-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: linear-gradient(135deg, rgba(255,165,0,0.1) 0%, rgba(255,100,0,0.08) 100%);
+  border: 1px solid rgba(255,165,0,0.25);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.pvb-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
+.pvb-content { flex: 1; min-width: 0; }
+.pvb-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #ffb347;
+  margin-bottom: 5px;
+}
+.pvb-desc {
+  font-size: 12.5px;
+  color: #9090b0;
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+.pvb-desc strong { color: #ff7070; }
+.pvb-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pvb-btn-google {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e8e8f0;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  font-family: inherit;
+}
+.pvb-btn-google:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.25);
+}
+.pvb-btn-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,208,156,0.1);
+  border: 1px solid rgba(0,208,156,0.3);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #00d09c;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: inherit;
+}
+.pvb-btn-email:hover { background: rgba(0,208,156,0.18); }
+
+/* ══════════════════════════════════════════════════
+   PROFILE — email status row (when email present)
+══════════════════════════════════════════════════ */
+.profile-email-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 9px 14px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  color: #888;
+}
+.pes-icon { font-size: 15px; flex-shrink: 0; }
+.pes-text { flex: 1; }
+.pes-text strong { color: #c0c0d8; }
+.pes-verify-btn {
+  background: rgba(255,165,0,0.1);
+  border: 1px solid rgba(255,165,0,0.3);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffb347;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.pes-verify-btn:hover { background: rgba(255,165,0,0.2); }
+
+/* ══════════════════════════════════════════════════
+   SENT MAIL VIEW — source toggle + action row
+══════════════════════════════════════════════════ */
+.sent-view-wrap { display: flex; flex-direction: column; gap: 0; }
+.sent-email-body-section { margin-top: 16px; }
+.sent-body-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sent-body-toolbar h4 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #00d09c;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+.sent-source-toggle-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.sent-source-toggle-btn:hover {
+  background: rgba(0,208,156,0.08);
+  border-color: rgba(0,208,156,0.25);
+  color: #00d09c;
+}
+/* Dark iframe for sent HTML content */
+.sent-email-iframe-dark {
+  width: 100%;
+  min-height: 200px;
+  max-height: 420px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: #0a0a14;
+}
+/* Raw source pre-formatted block */
+.sent-email-source-view {
+  background: #07070f;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 12px;
+  color: #9090b0;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 380px;
+  overflow-y: auto;
+  margin: 0;
+  line-height: 1.6;
+}
+/* Bottom actions row in sent view */
+.sent-view-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.sent-view-delete-btn {
+  background: rgba(255,70,70,0.08);
+  border: 1px solid rgba(255,70,70,0.25);
+  border-radius: 10px;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ff8888;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sent-view-delete-btn:hover {
+  background: rgba(255,70,70,0.15);
+  border-color: rgba(255,70,70,0.4);
 }
