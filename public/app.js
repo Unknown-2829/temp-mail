@@ -2250,17 +2250,24 @@ document.addEventListener('DOMContentLoaded', initAuthState);
 
 // ===== COMPOSE: State =====
 // (composeMinimized, composeIsHtml, sentList, sentBoxOpen declared at top of file)
+let _composeFullscreen = false;
 
 // ===== COMPOSE: Open =====
 async function openCompose() {
-  const modal = document.getElementById('compose-modal');
-  if (!modal) return;
+  const win = document.getElementById('compose-modal');
+  if (!win) return;
+
+  // If already open and minimized — just un-minimize
+  if (win.classList.contains('show') && win.classList.contains('minimized')) {
+    win.classList.remove('minimized');
+    composeMinimized = false;
+    setTimeout(() => document.getElementById('compose-to').focus(), 80);
+    return;
+  }
 
   // Populate From dropdown
   const fromSelect = document.getElementById('compose-from');
   fromSelect.innerHTML = '';
-
-  // Always add current temp email
   if (currentEmail) {
     const opt = document.createElement('option');
     opt.value = currentEmail;
@@ -2268,7 +2275,6 @@ async function openCompose() {
     fromSelect.appendChild(opt);
   }
 
-  // If premium, also load saved addresses
   const token = localStorage.getItem('authToken');
   const isPremium = localStorage.getItem('isPremium') === 'true';
   if (token && isPremium) {
@@ -2288,59 +2294,56 @@ async function openCompose() {
     } catch (_) {}
   }
 
-  // Show rate limit info
-  const rateLimitEl = document.getElementById('compose-ratelimit');
-  if (rateLimitEl) {
-    rateLimitEl.textContent = isPremium
-      ? '⭐ Premium: 50 emails/day'
-      : 'Free: 3 emails/day · Upgrade for more';
-  }
+  // Rate limit label
+  const rl = document.getElementById('compose-ratelimit');
+  if (rl) rl.textContent = isPremium ? '⭐ 50/day' : '3/day free';
 
-  // Clear previous content
+  // Reset fields
   document.getElementById('compose-to').value = '';
   document.getElementById('compose-subject').value = '';
   document.getElementById('compose-editor').innerHTML = '';
   document.getElementById('compose-textarea').value = '';
   document.getElementById('compose-error').classList.add('hidden');
 
+  // Reset mode
   composeMinimized = false;
   composeIsHtml = true;
-  const editor = document.getElementById('compose-editor');
-  const textarea = document.getElementById('compose-textarea');
+  _composeFullscreen = false;
+  document.getElementById('compose-editor').classList.remove('hidden');
+  document.getElementById('compose-textarea').classList.add('hidden');
   const modeBtn = document.getElementById('compose-mode-btn');
-  const toolbar = document.querySelector('.compose-toolbar');
-  if (editor) editor.classList.remove('hidden');
-  if (textarea) textarea.classList.add('hidden');
-  if (toolbar) toolbar.classList.remove('hidden');
-  if (modeBtn) modeBtn.textContent = 'HTML';
+  if (modeBtn) modeBtn.querySelector('span').textContent = 'HTML';
+  win.classList.remove('minimized', 'fullscreen');
+  win.classList.add('show');
 
-  document.getElementById('compose-body').classList.remove('hidden');
-  const footer = document.querySelector('.compose-footer');
-  if (footer) footer.classList.remove('hidden');
-
-  modal.classList.add('show');
-  document.body.style.overflow = 'hidden';
-
-  // Focus To field
-  setTimeout(() => document.getElementById('compose-to').focus(), 100);
+  setTimeout(() => document.getElementById('compose-to').focus(), 120);
 }
 
 // ===== COMPOSE: Close =====
 function closeCompose() {
-  const modal = document.getElementById('compose-modal');
-  if (modal) modal.classList.remove('show');
-  document.body.style.overflow = '';
+  const win = document.getElementById('compose-modal');
+  if (!win) return;
+  win.classList.remove('show', 'minimized', 'fullscreen');
+  composeMinimized = false;
+  _composeFullscreen = false;
 }
 
-// ===== COMPOSE: Minimize =====
+// ===== COMPOSE: Minimize / restore on header click =====
 function toggleComposeMinimize() {
+  const win = document.getElementById('compose-modal');
+  if (!win) return;
   composeMinimized = !composeMinimized;
-  const body = document.getElementById('compose-body');
-  const footer = document.querySelector('.compose-footer');
-  const btn = document.querySelector('.compose-minimize');
-  if (body) body.classList.toggle('hidden', composeMinimized);
-  if (footer) footer.classList.toggle('hidden', composeMinimized);
-  if (btn) btn.textContent = composeMinimized ? '□' : '—';
+  win.classList.toggle('minimized', composeMinimized);
+}
+
+// ===== COMPOSE: Full-screen expand =====
+function expandComposeFullscreen() {
+  const win = document.getElementById('compose-modal');
+  if (!win) return;
+  _composeFullscreen = !_composeFullscreen;
+  win.classList.toggle('fullscreen', _composeFullscreen);
+  win.classList.remove('minimized');
+  composeMinimized = false;
 }
 
 // ===== COMPOSE: Toggle HTML / Plain Text =====
@@ -2349,22 +2352,17 @@ function toggleComposeMode() {
   const editor = document.getElementById('compose-editor');
   const textarea = document.getElementById('compose-textarea');
   const btn = document.getElementById('compose-mode-btn');
-  const toolbar = document.querySelector('.compose-toolbar');
 
   if (composeIsHtml) {
-    // Plain → HTML: copy text into editor
     editor.innerHTML = (textarea.value || '').replace(/\n/g, '<br>');
     editor.classList.remove('hidden');
     textarea.classList.add('hidden');
-    if (toolbar) toolbar.classList.remove('hidden');
-    if (btn) btn.textContent = 'HTML';
+    if (btn) btn.querySelector('span').textContent = 'HTML';
   } else {
-    // HTML → Plain: strip tags
     textarea.value = editor.innerText || '';
     editor.classList.add('hidden');
     textarea.classList.remove('hidden');
-    if (toolbar) toolbar.classList.add('hidden');
-    if (btn) btn.textContent = 'TXT';
+    if (btn) btn.querySelector('span').textContent = 'TXT';
   }
 }
 
@@ -2396,26 +2394,24 @@ async function sendComposedEmail() {
 
   errEl.classList.add('hidden');
 
-  // Validate
   if (!to || !to.includes('@')) {
-    errEl.textContent = '❌ Enter a valid recipient email';
+    errEl.textContent = 'Enter a valid recipient email';
     errEl.classList.remove('hidden');
     return;
   }
   if (!subject) {
-    errEl.textContent = '❌ Subject is required';
+    errEl.textContent = 'Subject is required';
     errEl.classList.remove('hidden');
     return;
   }
   if (!body || body.replace(/<[^>]*>/g, '').trim().length === 0) {
-    errEl.textContent = '❌ Message body is empty';
+    errEl.textContent = 'Message body is empty';
     errEl.classList.remove('hidden');
     return;
   }
 
-  // Send
   sendBtn.disabled = true;
-  sendLabel.textContent = 'Sending...';
+  sendLabel.textContent = 'Sending…';
 
   try {
     const token = localStorage.getItem('authToken');
@@ -2433,17 +2429,13 @@ async function sendComposedEmail() {
     if (res.ok) {
       showToast('📤 Email sent!');
       closeCompose();
-      // Refresh sent list
       setTimeout(() => loadSentEmails(), 500);
-    } else if (res.status === 429) {
-      errEl.textContent = '❌ ' + data.error;
-      errEl.classList.remove('hidden');
     } else {
-      errEl.textContent = '❌ ' + (data.error || 'Failed to send');
+      errEl.textContent = data.error || 'Failed to send';
       errEl.classList.remove('hidden');
     }
   } catch (e) {
-    errEl.textContent = '❌ Network error. Try again.';
+    errEl.textContent = 'Network error — try again';
     errEl.classList.remove('hidden');
   } finally {
     sendBtn.disabled = false;

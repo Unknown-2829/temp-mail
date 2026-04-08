@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -37,9 +37,6 @@
         <span class="auth-status-text" id="auth-status-text" onclick="openProfile()"></span>
         <button class="auth-action-btn" id="auth-action-btn" onclick="openAuth()"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><title>Account icon</title><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Sign In</button>
       </div>
-      <button class="compose-btn" id="compose-btn" onclick="openCompose()">
-        ✉️ Compose
-      </button>
       <button class="about-btn" onclick="openAbout()">About</button>
     </div>
   </header>
@@ -109,9 +106,6 @@
           </button>
           <button class="action-btn-small save-email-btn" id="save-email-btn" onclick="saveCurrentEmail()" title="Save to Account">
             <span>💾</span> Save Email
-          </button>
-          <button class="action-btn-small compose-mobile-btn" onclick="openCompose()">
-            <span>✉️</span> Compose
           </button>
         </div>
 
@@ -554,93 +548,97 @@
     <div class="att-lb-filename" id="att-lb-filename"></div>
   </div>
 
-  <!-- Compose Modal -->
-  <div class="compose-modal" id="compose-modal"
-       onclick="if(event.target===this)closeCompose()">
-    <div class="compose-content">
+  <!-- Gmail-style Floating Compose FAB -->
+  <button class="compose-fab" id="compose-fab" onclick="openCompose()" title="Compose">
+    <svg class="compose-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+      <polyline points="22,6 12,13 2,6"/>
+    </svg>
+    <span class="compose-fab-label">Compose</span>
+  </button>
 
-      <!-- Header -->
-      <div class="compose-header">
-        <h2 class="compose-title">✉️ New Message</h2>
-        <div class="compose-header-actions">
-          <button class="compose-minimize" onclick="toggleComposeMinimize()"
-                  title="Minimize">—</button>
-          <button class="compose-close" onclick="closeCompose()">✕</button>
-        </div>
+  <!-- Compose Window (Gmail-style bottom-right panel) -->
+  <div class="compose-window" id="compose-modal">
+    <!-- Header bar (drag handle + controls) -->
+    <div class="cw-header" onclick="toggleComposeMinimize()">
+      <span class="cw-title">New Message</span>
+      <div class="cw-controls" onclick="event.stopPropagation()">
+        <button class="cw-ctrl-btn" onclick="toggleComposeMinimize()" title="Minimize">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="4" y="11" width="16" height="2" rx="1"/></svg>
+        </button>
+        <button class="cw-ctrl-btn" onclick="expandComposeFullscreen()" title="Full screen" id="compose-expand-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+        <button class="cw-ctrl-btn cw-ctrl-close" onclick="closeCompose()" title="Close">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Fields -->
+    <div class="cw-body" id="compose-body">
+      <div class="cw-field">
+        <span class="cw-field-label">From</span>
+        <select class="cw-select" id="compose-from"></select>
+      </div>
+      <div class="cw-field">
+        <span class="cw-field-label">To</span>
+        <input class="cw-input" id="compose-to" type="email"
+               placeholder="Recipients" autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="cw-field cw-field-subject">
+        <input class="cw-subject-input" id="compose-subject"
+               type="text" placeholder="Subject" maxlength="200">
       </div>
 
-      <!-- Form -->
-      <div class="compose-body" id="compose-body">
-
-        <!-- FROM -->
-        <div class="compose-field">
-          <label class="compose-label">From</label>
-          <select class="compose-select" id="compose-from">
-            <!-- Populated by JS -->
-          </select>
-        </div>
-
-        <!-- TO -->
-        <div class="compose-field">
-          <label class="compose-label">To</label>
-          <input type="email" class="compose-input" id="compose-to"
-                 placeholder="recipient@example.com" autocomplete="off">
-        </div>
-
-        <!-- SUBJECT -->
-        <div class="compose-field">
-          <label class="compose-label">Subject</label>
-          <input type="text" class="compose-input" id="compose-subject"
-                 placeholder="Subject" maxlength="200">
-        </div>
-
-        <!-- BODY -->
-        <div class="compose-field compose-body-field">
-          <div class="compose-toolbar">
-            <button class="compose-tool-btn" onclick="composeFormat('bold')"
-                    title="Bold">B</button>
-            <button class="compose-tool-btn italic" onclick="composeFormat('italic')"
-                    title="Italic">I</button>
-            <button class="compose-tool-btn" onclick="composeFormat('underline')"
-                    title="Underline">U</button>
-            <div class="compose-tool-sep"></div>
-            <button class="compose-tool-btn" onclick="composeInsertLink()"
-                    title="Insert link">🔗</button>
-            <div class="compose-tool-sep"></div>
-            <button class="compose-tool-btn small"
-                    onclick="toggleComposeMode()" id="compose-mode-btn"
-                    title="Switch to plain text">HTML</button>
-          </div>
-          <div class="compose-editor" id="compose-editor"
-               contenteditable="true"
-               data-placeholder="Write your message here..."
-               spellcheck="true"></div>
-          <textarea class="compose-textarea hidden" id="compose-textarea"
-                    placeholder="Write your message here..."></textarea>
-        </div>
-
-        <!-- Error -->
-        <p class="compose-error hidden" id="compose-error"></p>
-
-        <!-- Rate limit info -->
-        <p class="compose-ratelimit" id="compose-ratelimit"></p>
-
+      <!-- Rich editor -->
+      <div class="cw-editor-wrap">
+        <div class="cw-editor" id="compose-editor"
+             contenteditable="true"
+             data-placeholder="Write your message…"
+             spellcheck="true"></div>
+        <textarea class="cw-textarea hidden" id="compose-textarea"
+                  placeholder="Write your message…"></textarea>
       </div>
 
-      <!-- Footer -->
-      <div class="compose-footer">
-        <div class="compose-footer-left">
-          <button class="compose-discard" onclick="closeCompose()">Discard</button>
-        </div>
-        <div class="compose-footer-right">
-          <button class="compose-send-btn" id="compose-send-btn"
-                  onclick="sendComposedEmail()">
-            <span id="compose-send-icon">📤</span>
-            <span id="compose-send-label">Send</span>
-          </button>
-        </div>
+      <!-- Error toast inside window -->
+      <div class="cw-error hidden" id="compose-error"></div>
+    </div>
+
+    <!-- Toolbar + Send footer -->
+    <div class="cw-footer">
+      <!-- Send button -->
+      <button class="cw-send-btn" id="compose-send-btn" onclick="sendComposedEmail()">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+        <span id="compose-send-label">Send</span>
+      </button>
+
+      <!-- Formatting toolbar -->
+      <div class="cw-toolbar">
+        <button class="cw-tool" onclick="composeFormat('bold')" title="Bold">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+        </button>
+        <button class="cw-tool cw-tool-italic" onclick="composeFormat('italic')" title="Italic">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><line x1="19" y1="4" x2="10" y2="4" stroke="currentColor" stroke-width="2"/><line x1="14" y1="20" x2="5" y2="20" stroke="currentColor" stroke-width="2"/><line x1="15" y1="4" x2="9" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="cw-tool" onclick="composeFormat('underline')" title="Underline">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>
+        </button>
+        <div class="cw-tool-sep"></div>
+        <button class="cw-tool" onclick="composeInsertLink()" title="Link">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </button>
+        <div class="cw-tool-sep"></div>
+        <button class="cw-tool cw-mode-toggle" onclick="toggleComposeMode()" id="compose-mode-btn" title="Toggle HTML/Plain">
+          <span>HTML</span>
+        </button>
       </div>
 
+      <!-- Rate limit pill -->
+      <span class="cw-ratelimit" id="compose-ratelimit"></span>
     </div>
   </div>
 </body>
