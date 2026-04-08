@@ -185,6 +185,8 @@ export async function onRequestPost(context) {
     from,
     to: recipients,
     subject,
+    body: emailBody.slice(0, 10000), // store up to 10 KB for preview/display
+    isHtml,
     sentAt: Date.now(),
     opens: 0,
     lastOpenAt: null,
@@ -192,12 +194,12 @@ export async function onRequestPost(context) {
     lastOpenAgent: null
   };
   await env.EMAILS.put(sentKey, JSON.stringify(sentRecord), {
-    expirationTtl: 30 * 24 * 3600 // keep for 30 days
+    expirationTtl: 15 * 24 * 3600 // keep for 15 days
   });
 
   // Store trackingId → sentKey mapping for open tracking lookup
   await env.EMAILS.put(`track:${trackingId}`, sentKey, {
-    expirationTtl: 30 * 24 * 3600
+    expirationTtl: 15 * 24 * 3600
   });
 
   // ── Update rate limit ─────────────────────────────────────────

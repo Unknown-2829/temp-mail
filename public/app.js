@@ -2253,7 +2253,7 @@ document.addEventListener('DOMContentLoaded', initAuthState);
 let _composeFullscreen = false;
 
 // ===== COMPOSE: Open =====
-async function openCompose() {
+function openCompose() {
   const win = document.getElementById('compose-modal');
   if (!win) return;
 
@@ -2265,8 +2265,34 @@ async function openCompose() {
     return;
   }
 
-  // Populate From dropdown
+  // ── Show window IMMEDIATELY (no awaiting anything) ──────────
+  document.getElementById('compose-to').value = '';
+  document.getElementById('compose-subject').value = '';
+  document.getElementById('compose-editor').innerHTML = '';
+  document.getElementById('compose-textarea').value = '';
+  document.getElementById('compose-error').classList.add('hidden');
+
+  composeMinimized = false;
+  composeIsHtml = true;
+  _composeFullscreen = false;
+  document.getElementById('compose-editor').classList.remove('hidden');
+  document.getElementById('compose-textarea').classList.add('hidden');
+  const modeBtn = document.getElementById('compose-mode-btn');
+  if (modeBtn) modeBtn.querySelector('span').textContent = 'HTML';
+  win.classList.remove('minimized', 'fullscreen');
+  // Force display via inline style so it always works regardless of CSS cascade
+  win.style.display = 'flex';
+  win.classList.add('show');
+
+  setTimeout(() => document.getElementById('compose-to').focus(), 80);
+
+  // ── Populate From dropdown asynchronously (non-blocking) ────
+  _populateComposeFrom();
+}
+
+async function _populateComposeFrom() {
   const fromSelect = document.getElementById('compose-from');
+  if (!fromSelect) return;
   fromSelect.innerHTML = '';
   if (currentEmail) {
     const opt = document.createElement('option');
@@ -2277,6 +2303,10 @@ async function openCompose() {
 
   const token = localStorage.getItem('authToken');
   const isPremium = localStorage.getItem('isPremium') === 'true';
+
+  const rl = document.getElementById('compose-ratelimit');
+  if (rl) rl.textContent = isPremium ? '⭐ 50/day' : '3/day free';
+
   if (token && isPremium) {
     try {
       const res = await fetch('/api/user/saved-emails', {
@@ -2293,36 +2323,13 @@ async function openCompose() {
       });
     } catch (_) {}
   }
-
-  // Rate limit label
-  const rl = document.getElementById('compose-ratelimit');
-  if (rl) rl.textContent = isPremium ? '⭐ 50/day' : '3/day free';
-
-  // Reset fields
-  document.getElementById('compose-to').value = '';
-  document.getElementById('compose-subject').value = '';
-  document.getElementById('compose-editor').innerHTML = '';
-  document.getElementById('compose-textarea').value = '';
-  document.getElementById('compose-error').classList.add('hidden');
-
-  // Reset mode
-  composeMinimized = false;
-  composeIsHtml = true;
-  _composeFullscreen = false;
-  document.getElementById('compose-editor').classList.remove('hidden');
-  document.getElementById('compose-textarea').classList.add('hidden');
-  const modeBtn = document.getElementById('compose-mode-btn');
-  if (modeBtn) modeBtn.querySelector('span').textContent = 'HTML';
-  win.classList.remove('minimized', 'fullscreen');
-  win.classList.add('show');
-
-  setTimeout(() => document.getElementById('compose-to').focus(), 120);
 }
 
 // ===== COMPOSE: Close =====
 function closeCompose() {
   const win = document.getElementById('compose-modal');
   if (!win) return;
+  win.style.display = 'none'; // clear the inline style set by openCompose
   win.classList.remove('show', 'minimized', 'fullscreen');
   composeMinimized = false;
   _composeFullscreen = false;
@@ -2491,19 +2498,58 @@ function renderSentBox() {
     const openBadge = opens > 0
       ? `<span class="sent-opened-badge">👁 ${opens} open${opens > 1 ? 's' : ''}</span>`
       : `<span class="sent-unopened-badge">Not opened</span>`;
+    // Extract plain-text preview safely via DOM (avoids regex-based incomplete sanitization)
+    let bodyPreview = '';
+    if (s.body) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = s.body;
+      const plainText = (tmp.textContent || tmp.innerText || '').trim();
+      bodyPreview = escapeHtml(plainText.slice(0, 80)) + (plainText.length > 80 ? '…' : '');
+    }
 
     return `
-      <div class="sent-row" onclick="viewSentEmail(${i})">
-        <div class="sent-row-main">
+      <div class="sent-row">
+        <div class="sent-row-main" onclick="viewSentEmail(${i})" style="cursor:pointer;">
           <div class="sent-to">To: ${escapeHtml(toStr)}</div>
           <div class="sent-subject">${escapeHtml(s.subject)}</div>
+          ${bodyPreview ? `<div class="sent-body-preview">${bodyPreview}</div>` : ''}
         </div>
         <div class="sent-row-meta">
           ${openBadge}
           <div class="sent-date">${dateStr}</div>
+          <button class="sent-delete-btn" onclick="deleteSentEmail(event,${i})" title="Delete this sent email">🗑</button>
         </div>
       </div>`;
   }).join('');
+}
+
+// ===== SENT BOX: Delete a sent email =====
+async function deleteSentEmail(event, index) {
+  event.stopPropagation();
+  const s = sentList[index];
+  if (!s || !s._kvKey) return;
+  if (!confirm('Delete this sent email?')) return;
+  try {
+    const res = await fetch(`/api/sent?address=${encodeURIComponent(currentEmail)}&key=${encodeURIComponent(s._kvKey)}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (data.success) {
+      sentList.splice(index, 1);
+      const badge = document.getElementById('sent-count-badge');
+      if (badge) badge.textContent = sentList.length;
+      if (sentList.length === 0) {
+        const wrapper = document.getElementById('sent-box-wrapper');
+        if (wrapper) wrapper.classList.add('hidden');
+      }
+      renderSentBox();
+      showToast('🗑 Sent email deleted');
+    } else {
+      showToast('❌ ' + (data.error || 'Failed to delete'));
+    }
+  } catch (_) {
+    showToast('❌ Network error');
+  }
 }
 
 // ===== SENT BOX: View sent email with analytics =====
@@ -2521,6 +2567,25 @@ function viewSentEmail(index) {
   document.getElementById('modal-sender-email').textContent = s.from;
   document.getElementById('modal-date').textContent = formatDate(s.sentAt);
   document.getElementById('modal-subject').textContent = s.subject;
+
+  // Render email body for display
+  let bodyHtml = '';
+  if (s.body) {
+    if (s.isHtml) {
+      bodyHtml = `
+        <div class="sent-email-body-section">
+          <h4>📧 Email Content</h4>
+          <iframe class="sent-email-iframe" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            srcdoc="${escapeHtml(s.body)}" title="Sent email content"></iframe>
+        </div>`;
+    } else {
+      bodyHtml = `
+        <div class="sent-email-body-section">
+          <h4>📧 Email Content</h4>
+          <pre class="sent-email-plaintext">${escapeHtml(s.body)}</pre>
+        </div>`;
+    }
+  }
 
   const body = document.getElementById('modal-body');
   body.innerHTML = `
@@ -2555,7 +2620,8 @@ function viewSentEmail(index) {
           `).join('')}
         </div>
       ` : ''}
-    </div>`;
+    </div>
+    ${bodyHtml}`;
 
   document.getElementById('modal-attachments').classList.add('hidden');
   document.getElementById('email-modal').classList.add('show');
