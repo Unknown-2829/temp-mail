@@ -2258,7 +2258,7 @@ let _handlingPopstate = false;
 
 function _pushModalHistory() {
   _modalHistoryDepth++;
-  history.pushState({ phantomModal: true, depth: _modalHistoryDepth }, '');
+  history.pushState({ phantomModal: true }, '');
 }
 
 function _popModalHistory() {
@@ -2268,6 +2268,9 @@ function _popModalHistory() {
   _handlingPopstate = true;
   // history.back() fires popstate asynchronously; the flag prevents the handler
   // from treating this programmatic navigation as a user back-press.
+  // Safety: reset the flag after 500 ms in case history.back() never fires
+  // (e.g. already at the beginning of the session history).
+  setTimeout(() => { _handlingPopstate = false; }, 500);
   history.back();
 }
 
@@ -2427,7 +2430,11 @@ async function _populateComposeFrom() {
     rl.textContent = isPremium ? '⭐ 50/day' : '3/day free'; // initial placeholder
     try {
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      const limitUrl = token ? '/api/send' : (currentEmail ? `/api/send?address=${encodeURIComponent(currentEmail)}` : null);
+      const limitUrl = token
+        ? '/api/send'
+        : currentEmail
+          ? `/api/send?address=${encodeURIComponent(currentEmail)}`
+          : null;
       if (limitUrl) {
         const res = await fetch(limitUrl, { headers });
         const data = await res.json();
@@ -2495,8 +2502,9 @@ function _setComposeInitialPosition(win) {
   // --- Bottom clearance: let portrait/square-ish screens breathe a little ---
   // Standard landscape (ratio ≥ 1.5) → sit flush at the bottom
   // Near-square / portrait → float up slightly
-  // Standard landscape (ratio ≥ 1.4) → leave a small gap from the bottom edge
-  // (16px) so the window never appears flush against the taskbar / safe area.
+  // Portrait/square (ratio < 1.4) → float up 4 % of viewport height.
+  // Landscape (ratio ≥ 1.4) → leave a small 16 px gap from the bottom edge
+  // so the window never appears flush against the taskbar / safe area.
   const bottomClearance = ratio < 1.4 ? Math.round(vh * 0.04) : 16;
 
   // Base position: bottom-right with adaptive margins

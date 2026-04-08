@@ -19,7 +19,7 @@ export async function onRequestGet(context) {
       if (session && session.expiresAt > Date.now()) {
         const username = session.username;
         // List all sentidx entries for this user
-        const idxKeys = await env.EMAILS.list({ prefix: `sentidx:user:${username}:`, limit: 100 });
+        const idxKeys = await env.EMAILS.list({ prefix: `sentidx:user:${username}:`, limit: 200 });
         const sent = (await Promise.all(
           idxKeys.keys.map(async k => {
             const sentKey = await env.EMAILS.get(k.name, { type: 'text' });
