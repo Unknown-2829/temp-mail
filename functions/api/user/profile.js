@@ -43,7 +43,8 @@ export async function onRequestGet(context) {
         username,
         isPremium,
         premiumExpiry: user.premiumExpiry || null,
-        photoURL: user.photoURL || null
+        photoURL: user.photoURL || null,
+        authProviders: user.authProviders || (user.passwordHash ? ['password'] : [])
     });
 }
 
@@ -62,21 +63,29 @@ export async function onRequestPatch(context) {
     let body;
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
 
-    const { oldPassword, newPassword } = body;
-    if (!oldPassword || !newPassword) return jsonResponse({ error: 'Old and new passwords are required' }, 400);
+    const { oldPassword, newPassword, isGoogleUser } = body;
+    if (!newPassword) return jsonResponse({ error: 'New password is required' }, 400);
     if (newPassword.length < 8) return jsonResponse({ error: 'New password must be at least 8 characters' }, 400);
 
-    // Verify old password first, then validate new password
-    const oldHash = await hashPassword(oldPassword, user.salt);
-    if (oldHash !== user.passwordHash) return jsonResponse({ error: 'Incorrect current password' }, 401);
+    // Google-only users: set a password without needing an old one
+    const isGoogle = isGoogleUser ||
+        (Array.isArray(user.authProviders) && user.authProviders.includes('google') && !user.passwordHash);
 
-    if (oldPassword === newPassword) return jsonResponse({ error: 'New password must be different from the current password' }, 400);
+    if (!isGoogle) {
+        if (!oldPassword) return jsonResponse({ error: 'Old and new passwords are required' }, 400);
+        const oldHash = await hashPassword(oldPassword, user.salt);
+        if (oldHash !== user.passwordHash) return jsonResponse({ error: 'Incorrect current password' }, 401);
+        if (oldPassword === newPassword) return jsonResponse({ error: 'New password must be different from the current password' }, 400);
+    }
 
     // Update password with a fresh salt
     const newSalt = crypto.randomUUID().replace(/-/g, '');
     const newHash = await hashPassword(newPassword, newSalt);
     user.passwordHash = newHash;
     user.salt = newSalt;
+    // Add 'password' to authProviders if not already present
+    if (!user.authProviders) user.authProviders = [];
+    if (!user.authProviders.includes('password')) user.authProviders.push('password');
     await env.EMAILS.put(session.username, JSON.stringify(user));
 
     return jsonResponse({ success: true });
@@ -97,12 +106,18 @@ export async function onRequestDelete(context) {
     let body;
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
 
-    const { password } = body;
-    if (!password) return jsonResponse({ error: 'Password is required to delete your account' }, 400);
+    const { password, googleDelete } = body;
 
-    // Verify password before deletion
-    const hash = await hashPassword(password, user.salt);
-    if (hash !== user.passwordHash) return jsonResponse({ error: 'Incorrect password' }, 401);
+    // Google-only users (no passwordHash) can delete without password
+    const isGoogleOnly = Array.isArray(user.authProviders)
+        ? user.authProviders.includes('google') && !user.authProviders.includes('password')
+        : !user.passwordHash;
+
+    if (!isGoogleOnly && !googleDelete) {
+        if (!password) return jsonResponse({ error: 'Password is required to delete your account' }, 400);
+        const hash = await hashPassword(password, user.salt);
+        if (hash !== user.passwordHash) return jsonResponse({ error: 'Incorrect password' }, 401);
+    }
 
     // Delete user record, current session, and all standalone email address records
     const savedEmails = user.savedEmails || [];

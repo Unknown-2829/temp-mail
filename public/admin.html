@@ -371,13 +371,13 @@
                 actionBtn.className = u.isPremium ? 'tbl-revoke' : 'tbl-grant';
                 actionBtn.textContent = u.isPremium ? 'Revoke' : '\u2b50 Grant';
                 actionBtn.addEventListener('click', function() {
-                    if (u.isPremium) quickRevoke(u.username);
-                    else openGrantModal(u.username);
+                    if (u.isPremium) quickRevoke(u.internalKey || u.username);
+                    else openGrantModal(u.internalKey || u.username);
                 });
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'tbl-delete';
                 deleteBtn.textContent = '🗑️ Delete';
-                deleteBtn.addEventListener('click', function() { openDeleteModal(u.username); });
+                deleteBtn.addEventListener('click', function() { openDeleteModal(u.internalKey || u.username); });
                 row.innerHTML = '<td><div class="tbl-username">' + esc(u.username) + '</div><div class="tbl-email">' + esc(u.email||'') + '</div></td>' +
                     '<td><span class="tbl-badge ' + (u.isPremium ? 'premium' : 'free') + '">' + (u.isPremium ? '\u2b50 Premium' : 'Free') + '</span>' +
                     (u.isPremium && expiry ? '<div style="font-size:11px;color:#888;margin-top:2px;">Until ' + expiry + '</div>' : '') + '</td>' +
@@ -407,7 +407,7 @@
                 const res = await apiFetch('/api/admin/grant-premium', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ username: grantModalUsername, days })
+                    body: JSON.stringify({ internalKey: grantModalUsername, days })
                 });
                 if (!res) return;
                 const data = await res.json();
@@ -422,13 +422,13 @@
             } catch(e) { msgEl.textContent = '❌ Network error'; msgEl.style.cssText = 'display:block;color:#ff6b6b;'; }
         }
 
-        async function quickRevoke(username) {
-            if (!confirm('Revoke premium from @' + username + '?')) return;
+        async function quickRevoke(internalKey) {
+            if (!confirm('Revoke premium from @' + internalKey + '?')) return;
             try {
                 const res = await apiFetch('/api/admin/revoke-premium', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ username })
+                    body: JSON.stringify({ internalKey })
                 });
                 if (!res) return;
                 const data = await res.json();
@@ -454,7 +454,7 @@
                 const res = await apiFetch('/api/admin/delete-user', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ username: deleteModalUsername })
+                    body: JSON.stringify({ internalKey: deleteModalUsername })
                 });
                 if (!res) return;
                 const data = await res.json();
@@ -471,7 +471,7 @@
 
         function deleteSearchedUser() {
             if (!currentUser) return;
-            openDeleteModal(currentUser.username);
+            openDeleteModal(currentUser.internalKey || currentUser.username);
         }
 
         async function searchUser() {
@@ -519,7 +519,7 @@
                 const res = await apiFetch('/api/admin/grant-premium', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ username: currentUser.username, days })
+                    body: JSON.stringify({ internalKey: currentUser.internalKey || currentUser.username, days })
                 });
                 if (!res) return;
                 const data = await res.json();
@@ -534,7 +534,7 @@
                 const res = await apiFetch('/api/admin/revoke-premium', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ username: currentUser.username })
+                    body: JSON.stringify({ internalKey: currentUser.internalKey || currentUser.username })
                 });
                 if (!res) return;
                 const data = await res.json();

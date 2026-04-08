@@ -442,6 +442,9 @@ async function viewEmail(index) {
   // Always start in rendered-email view (not source)
   _isSourceView = false;
   _updateSourceBtn(false);
+  // Restore source button visibility (may have been hidden by viewSentEmail)
+  const sourceBtn = document.getElementById('source-toggle-btn');
+  if (sourceBtn) sourceBtn.classList.remove('hidden');
 
   currentViewIndex = index;
   email.read = true;
@@ -1858,8 +1861,12 @@ async function loadProfileData() {
 function renderProfileData(data) {
   const bodyEl = document.getElementById('profile-body');
   if (!bodyEl) return;
-  const { username, isPremium, premiumExpiry } = data;
+  const { username, isPremium, premiumExpiry, authProviders } = data;
   const avatarLetter = username ? username[0].toUpperCase() : '?';
+  // Determine if user signed in via Google only (no local password)
+  const isGoogleOnly = Array.isArray(authProviders)
+    ? authProviders.includes('google') && !authProviders.includes('password')
+    : !!localStorage.getItem('photoURL') && !authProviders;
 
   let remainingStr = 'N/A';
   let expiryStr = 'N/A';
@@ -1880,12 +1887,55 @@ function renderProfileData(data) {
   const planLabel = isPremium ? '⭐ Premium' : 'Free';
   const planClass = isPremium ? 'premium' : '';
 
+  // Password section varies by auth provider
+  const passwordSection = isGoogleOnly
+    ? `<div class="profile-section">
+        <div class="profile-section-title">🔑 Set a Password</div>
+        <p style="font-size:13px;color:#888;margin-bottom:12px;">Your account was created with Google. You can set a password to also sign in with your username.</p>
+        <div class="profile-form" id="change-pw-form">
+          <input type="password" id="pw-new" class="profile-input" placeholder="New password (min 8 chars)" autocomplete="new-password">
+          <input type="password" id="pw-confirm" class="profile-input" placeholder="Confirm new password" autocomplete="new-password">
+          <p class="profile-form-error hidden" id="pw-error"></p>
+          <button class="profile-form-btn" onclick="setPasswordForGoogleUser()">Set Password</button>
+        </div>
+      </div>`
+    : `<div class="profile-section">
+        <div class="profile-section-title">🔑 Change Password</div>
+        <div class="profile-form" id="change-pw-form">
+          <input type="password" id="pw-old" class="profile-input" placeholder="Current password" autocomplete="current-password">
+          <input type="password" id="pw-new" class="profile-input" placeholder="New password (min 8 chars)" autocomplete="new-password">
+          <input type="password" id="pw-confirm" class="profile-input" placeholder="Confirm new password" autocomplete="new-password">
+          <p class="profile-form-error hidden" id="pw-error"></p>
+          <button class="profile-form-btn" onclick="changePassword()">Update Password</button>
+        </div>
+      </div>`;
+
+  // Delete account form: Google users don't need password confirmation
+  const deleteForm = isGoogleOnly
+    ? `<div class="profile-form hidden" id="delete-account-form">
+        <p style="font-size:13px;color:#888;margin-bottom:12px;">This will permanently delete your account and all associated data.</p>
+        <p class="profile-form-error hidden" id="del-error"></p>
+        <div class="confirm-actions" style="margin-top:10px;">
+          <button class="confirm-cancel-btn" onclick="hideDeleteAccountForm()">Cancel</button>
+          <button class="confirm-ok-btn danger" onclick="deleteAccount(true)">Delete My Account</button>
+        </div>
+      </div>`
+    : `<div class="profile-form hidden" id="delete-account-form">
+        <input type="password" id="del-pw" class="profile-input" placeholder="Enter your password to confirm" autocomplete="current-password">
+        <p class="profile-form-error hidden" id="del-error"></p>
+        <div class="confirm-actions" style="margin-top:10px;">
+          <button class="confirm-cancel-btn" onclick="hideDeleteAccountForm()">Cancel</button>
+          <button class="confirm-ok-btn danger" onclick="deleteAccount()">Delete My Account</button>
+        </div>
+      </div>`;
+
   bodyEl.innerHTML = `
     <div class="profile-avatar-row">
       <div class="profile-big-avatar ${planClass}">${escapeHtml(avatarLetter)}</div>
       <div>
         <div class="profile-username">@${escapeHtml(username)}</div>
         <div class="profile-plan-badge ${planClass}">${planLabel}</div>
+        ${isGoogleOnly ? `<div style="font-size:11px;color:#888;margin-top:4px;">Signed in with Google</div>` : ''}
       </div>
     </div>
     <div class="profile-info-grid">
@@ -1909,17 +1959,7 @@ function renderProfileData(data) {
       ` : ''}
     </div>
 
-    <!-- Change Password -->
-    <div class="profile-section">
-      <div class="profile-section-title">🔑 Change Password</div>
-      <div class="profile-form" id="change-pw-form">
-        <input type="password" id="pw-old" class="profile-input" placeholder="Current password" autocomplete="current-password">
-        <input type="password" id="pw-new" class="profile-input" placeholder="New password (min 8 chars)" autocomplete="new-password">
-        <input type="password" id="pw-confirm" class="profile-input" placeholder="Confirm new password" autocomplete="new-password">
-        <p class="profile-form-error hidden" id="pw-error"></p>
-        <button class="profile-form-btn" onclick="changePassword()">Update Password</button>
-      </div>
-    </div>
+    ${passwordSection}
 
     <div class="profile-actions">
       ${!isPremium ? `<button class="profile-action-btn" onclick="closeProfile();openPremium();">⭐ Upgrade to Premium</button>` : ''}
@@ -1931,14 +1971,7 @@ function renderProfileData(data) {
       <div class="profile-section-title danger">⚠️ Danger Zone</div>
       <p class="profile-danger-desc">Deleting your account is permanent and cannot be undone. All saved emails and settings will be removed.</p>
       <button class="profile-action-btn danger" onclick="showDeleteAccountForm()">🗑️ Delete Account</button>
-      <div class="profile-form hidden" id="delete-account-form">
-        <input type="password" id="del-pw" class="profile-input" placeholder="Enter your password to confirm" autocomplete="current-password">
-        <p class="profile-form-error hidden" id="del-error"></p>
-        <div class="confirm-actions" style="margin-top:10px;">
-          <button class="confirm-cancel-btn" onclick="hideDeleteAccountForm()">Cancel</button>
-          <button class="confirm-ok-btn danger" onclick="deleteAccount()">Delete My Account</button>
-        </div>
-      </div>
+      ${deleteForm}
     </div>
   `;
 }
@@ -2006,15 +2039,9 @@ function hideDeleteAccountForm() {
   if (errEl) errEl.classList.add('hidden');
 }
 
-async function deleteAccount() {
-  const pw = document.getElementById('del-pw')?.value || '';
+async function deleteAccount(isGoogleUser = false) {
   const errEl = document.getElementById('del-error');
   if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
-
-  if (!pw) {
-    if (errEl) { errEl.textContent = 'Password is required.'; errEl.classList.remove('hidden'); }
-    return;
-  }
 
   const token = localStorage.getItem('authToken');
   if (!token) return;
@@ -2022,11 +2049,24 @@ async function deleteAccount() {
   const btn = document.querySelector('#delete-account-form .confirm-ok-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
 
+  let body;
+  if (isGoogleUser) {
+    body = JSON.stringify({ googleDelete: true });
+  } else {
+    const pw = document.getElementById('del-pw')?.value || '';
+    if (!pw) {
+      if (errEl) { errEl.textContent = 'Password is required.'; errEl.classList.remove('hidden'); }
+      if (btn) { btn.disabled = false; btn.textContent = 'Delete My Account'; }
+      return;
+    }
+    body = JSON.stringify({ password: pw });
+  }
+
   try {
     const res = await fetch('/api/user/profile', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ password: pw })
+      body
     });
     const data = await res.json();
     if (res.ok) {
@@ -2034,6 +2074,7 @@ async function deleteAccount() {
       localStorage.removeItem('authToken');
       localStorage.removeItem('username');
       localStorage.removeItem('isPremium');
+      localStorage.removeItem('photoURL');
       initAuthState();
       showToast('🗑️ Account deleted.');
     } else {
@@ -2043,6 +2084,51 @@ async function deleteAccount() {
     if (errEl) { errEl.textContent = 'Network error. Try again.'; errEl.classList.remove('hidden'); }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Delete My Account'; }
+  }
+}
+
+// Set a password for a Google-only account so they can also sign in by username/password
+async function setPasswordForGoogleUser() {
+  const newPw = document.getElementById('pw-new')?.value || '';
+  const confirmPw = document.getElementById('pw-confirm')?.value || '';
+  const errEl = document.getElementById('pw-error');
+  if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
+
+  if (!newPw || !confirmPw) {
+    if (errEl) { errEl.textContent = 'All fields are required.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (newPw.length < 8) {
+    if (errEl) { errEl.textContent = 'Password must be at least 8 characters.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (newPw !== confirmPw) {
+    if (errEl) { errEl.textContent = 'Passwords do not match.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+
+  const btn = document.querySelector('#change-pw-form .profile-form-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Setting…'; }
+
+  try {
+    const res = await fetch('/api/user/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ newPassword: newPw, isGoogleUser: true })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (errEl) { errEl.textContent = '✅ Password set! You can now sign in with your username.'; errEl.style.color = '#00d09c'; errEl.classList.remove('hidden'); }
+    } else {
+      if (errEl) { errEl.textContent = data.error || 'Failed to set password.'; errEl.classList.remove('hidden'); }
+    }
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Network error. Try again.'; errEl.classList.remove('hidden'); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Set Password'; }
   }
 }
 
@@ -2390,7 +2476,7 @@ function openCompose() {
   win.style.display = 'flex';
   win.classList.add('show');
   const fab = document.getElementById('compose-fab');
-  if (fab) fab.style.display = 'none';
+  if (fab) fab.classList.add('compose-fab--hidden');
   _pushModalHistory();
 
   // Apply smart initial position on desktop (after the element is visible so
@@ -2398,6 +2484,9 @@ function openCompose() {
   requestAnimationFrame(() => _setComposeInitialPosition(win));
 
   setTimeout(() => document.getElementById('compose-to').focus(), 80);
+
+  // ── Restore draft if available ────────────────────────────────
+  _restoreComposeDraftIfAny();
 
   // ── Init drag once ────────────────────────────────────────────
   _initComposeDrag();
@@ -2466,9 +2555,10 @@ async function _populateComposeFrom() {
 
 // ===== COMPOSE: Close =====
 function closeCompose() {
+  _saveComposeDraft(); // save draft before clearing
   _popModalHistory();
   const fab = document.getElementById('compose-fab');
-  if (fab) fab.style.removeProperty('display');
+  if (fab) fab.classList.remove('compose-fab--hidden');
   const win = document.getElementById('compose-modal');
   if (!win) return;
   win.style.display = 'none'; // clear the inline style set by openCompose
@@ -2478,6 +2568,95 @@ function closeCompose() {
   composeMinimized = false;
   _composeFullscreen = false;
   _composeDragActive = false;
+}
+
+// ===== COMPOSE: Draft save/restore =====
+const _DRAFT_KEY = 'composeDraft';
+
+function _saveComposeDraft() {
+  const to = (document.getElementById('compose-to')?.value || '').trim();
+  const subject = (document.getElementById('compose-subject')?.value || '').trim();
+  const body = composeIsHtml
+    ? (document.getElementById('compose-editor')?.innerHTML || '')
+    : (document.getElementById('compose-textarea')?.value || '');
+  const customFromWrap = document.getElementById('compose-custom-from-wrap');
+  const hasCustomFrom = customFromWrap && !customFromWrap.classList.contains('hidden');
+  const customUsername = hasCustomFrom
+    ? (document.getElementById('compose-custom-username')?.value || '').trim()
+    : '';
+  const from = document.getElementById('compose-from')?.value || '';
+
+  const hasContent = to || subject || (body && body.replace(/<[^>]*>/g, '').trim());
+  if (hasContent) {
+    localStorage.setItem(_DRAFT_KEY, JSON.stringify({ to, subject, body, isHtml: composeIsHtml, from, customUsername, savedAt: Date.now() }));
+  } else {
+    localStorage.removeItem(_DRAFT_KEY);
+  }
+}
+
+function _restoreComposeDraftIfAny() {
+  try {
+    const raw = localStorage.getItem(_DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (!draft || !draft.savedAt) return;
+    // Only offer drafts newer than 7 days
+    if (Date.now() - draft.savedAt > 7 * 24 * 3600 * 1000) { localStorage.removeItem(_DRAFT_KEY); return; }
+
+    const toEl = document.getElementById('compose-to');
+    const subEl = document.getElementById('compose-subject');
+    const editorEl = document.getElementById('compose-editor');
+    const textareaEl = document.getElementById('compose-textarea');
+
+    if (draft.to && toEl) toEl.value = draft.to;
+    if (draft.subject && subEl) subEl.value = draft.subject;
+
+    if (draft.isHtml) {
+      if (editorEl) editorEl.innerHTML = draft.body || '';
+      if (textareaEl) textareaEl.classList.add('hidden');
+      if (editorEl) editorEl.classList.remove('hidden');
+      composeIsHtml = true;
+      const modeBtn = document.getElementById('compose-mode-btn');
+      if (modeBtn) modeBtn.querySelector('span').textContent = 'HTML';
+    } else {
+      if (textareaEl) textareaEl.value = draft.body || '';
+      if (editorEl) editorEl.classList.add('hidden');
+      if (textareaEl) textareaEl.classList.remove('hidden');
+      composeIsHtml = false;
+      const modeBtn = document.getElementById('compose-mode-btn');
+      if (modeBtn) modeBtn.querySelector('span').textContent = 'TXT';
+    }
+
+    if (draft.customUsername) {
+      const wrap = document.getElementById('compose-custom-from-wrap');
+      const sel = document.getElementById('compose-from');
+      const inp = document.getElementById('compose-custom-username');
+      if (wrap) wrap.classList.remove('hidden');
+      if (sel) sel.classList.add('hidden');
+      if (inp) inp.value = draft.customUsername;
+    }
+
+    // Show a discard-draft button in the error bar area
+    const errEl = document.getElementById('compose-error');
+    if (errEl) {
+      errEl.innerHTML = '📝 Draft restored. <button onclick="discardComposeDraft()" style="background:none;border:none;color:#00d09c;cursor:pointer;font-size:inherit;padding:0;text-decoration:underline;">Discard draft</button>';
+      errEl.classList.remove('hidden');
+    }
+  } catch (_) {}
+}
+
+function discardComposeDraft() {
+  localStorage.removeItem(_DRAFT_KEY);
+  const errEl = document.getElementById('compose-error');
+  if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+  document.getElementById('compose-to').value = '';
+  document.getElementById('compose-subject').value = '';
+  document.getElementById('compose-editor').innerHTML = '';
+  document.getElementById('compose-textarea').value = '';
+  const wrap = document.getElementById('compose-custom-from-wrap');
+  const sel = document.getElementById('compose-from');
+  if (wrap) wrap.classList.add('hidden');
+  if (sel) sel.classList.remove('hidden');
 }
 
 // ===== COMPOSE: Smart initial position (desktop only) =====
@@ -2507,13 +2686,20 @@ function _setComposeInitialPosition(win) {
   // so the window never appears flush against the taskbar / safe area.
   const bottomClearance = ratio < 1.4 ? Math.round(vh * 0.04) : 16;
 
-  // Base position: bottom-right with adaptive margins
-  let left = vw - winW - rightMargin;
-  let top  = vh - winH - bottomClearance;
+  // Large screens (≥ 1080 px wide): open centered for a more natural feel
+  let left, top;
+  if (vw >= 1080) {
+    left = Math.round((vw - winW) / 2);
+    top  = Math.round((vh - winH) / 2);
+  } else {
+    // Base position: bottom-right with adaptive margins
+    left = vw - winW - rightMargin;
+    top  = vh - winH - bottomClearance;
 
-  // Ultra-wide (21:9+, ratio ≥ 2.1): pull a bit further inward from the edge
-  if (ratio >= 2.1) {
-    left = vw - winW - Math.round(Math.min(vw * 0.03, 80));
+    // Ultra-wide (21:9+, ratio ≥ 2.1): pull a bit further inward from the edge
+    if (ratio >= 2.1) {
+      left = vw - winW - Math.round(Math.min(vw * 0.03, 80));
+    }
   }
 
   // Clamp strictly inside viewport so no part of the window goes off-screen
@@ -2794,6 +2980,7 @@ async function sendComposedEmail() {
 
     if (res.ok) {
       showToast('📤 Email sent!');
+      localStorage.removeItem(_DRAFT_KEY); // discard draft on successful send
       closeCompose();
       setTimeout(() => loadSentEmails(), 500);
     } else {
@@ -2926,10 +3113,16 @@ function viewSentEmail(index) {
   const s = sentList[index];
   if (!s) return;
 
+  // Hide the Source button — sent mails don't have raw source
+  const sourceBtn = document.getElementById('source-toggle-btn');
+  if (sourceBtn) sourceBtn.classList.add('hidden');
+
   const toStr = Array.isArray(s.to) ? s.to.join(', ') : s.to;
   const opens = s.opens || 0;
   const lastOpen = s.lastOpenAt ? formatDate(s.lastOpenAt) : 'Never';
   const country = s.lastOpenCountry || '—';
+  const lastIp = s.lastOpenIp || '—';
+  const lastAgent = _parseUserAgent(s.lastOpenAgent || '');
 
   document.getElementById('modal-avatar').textContent = '📤';
   document.getElementById('modal-sender-name').textContent = 'Sent Email';
@@ -2957,6 +3150,30 @@ function viewSentEmail(index) {
   }
 
   const toStr2 = Array.isArray(s.to) ? s.to.join(', ') : s.to;
+
+  // Build open history rows with IP + UA
+  let historyHtml = '';
+  if (s.openHistory && s.openHistory.length > 0) {
+    historyHtml = `
+      <div class="sent-analytics-section-title">📋 Open History</div>
+      <div class="open-history">
+        ${s.openHistory.slice(0, 20).map((h, idx) => {
+          const ua = _parseUserAgent(h.agent || '');
+          return `<div class="open-history-item">
+            <div class="ohi-index">#${idx + 1}</div>
+            <div class="ohi-details">
+              <div class="ohi-time">${formatDate(h.at)}</div>
+              <div class="ohi-meta">
+                <span class="ohi-flag">📍 ${escapeHtml(h.country || '—')}</span>
+                <span class="ohi-ip">🔗 ${escapeHtml(_maskIp(h.ip || ''))}</span>
+                <span class="ohi-ua">📱 ${escapeHtml(ua)}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
   const body = document.getElementById('modal-body');
   body.innerHTML = `
     <div class="sent-mail-meta-card">
@@ -2967,39 +3184,84 @@ function viewSentEmail(index) {
     ${bodyHtml}
     <div class="sent-analytics-card" style="margin-top:20px;">
       <h4>📊 Delivery Analytics</h4>
-      <div class="analytics-grid">
+      <div class="analytics-grid analytics-grid-3">
         <div class="analytics-item">
           <div class="analytics-value ${opens > 0 ? 'green' : ''}">${opens}</div>
-          <div class="analytics-label">Opens</div>
+          <div class="analytics-label">Total Opens</div>
         </div>
         <div class="analytics-item">
-          <div class="analytics-value">${lastOpen}</div>
+          <div class="analytics-value" style="font-size:14px;">${escapeHtml(lastOpen)}</div>
           <div class="analytics-label">Last Opened</div>
         </div>
         <div class="analytics-item">
-          <div class="analytics-value">${country}</div>
-          <div class="analytics-label">Location</div>
-        </div>
-        <div class="analytics-item">
-          <div class="analytics-value">${opens > 0 ? '✅' : '⏳'}</div>
+          <div class="analytics-value" style="font-size:16px;">${opens > 0 ? '✅ Read' : '⏳ Pending'}</div>
           <div class="analytics-label">Status</div>
         </div>
       </div>
-      ${s.openHistory && s.openHistory.length > 0 ? `
-        <h4 style="margin-top:16px;">Open History</h4>
-        <div class="open-history">
-          ${s.openHistory.slice(0, 5).map(h => `
-            <div class="open-history-item">
-              <span>${formatDate(h.at)}</span>
-              <span>${h.country || '—'}</span>
-            </div>
-          `).join('')}
+      ${opens > 0 ? `
+      <div class="analytics-grid analytics-grid-3" style="margin-top:10px;">
+        <div class="analytics-item">
+          <div class="analytics-value" style="font-size:15px;">📍 ${escapeHtml(country)}</div>
+          <div class="analytics-label">Last Location</div>
         </div>
-      ` : ''}
+        <div class="analytics-item">
+          <div class="analytics-value" style="font-size:13px;">🔗 ${escapeHtml(_maskIp(lastIp))}</div>
+          <div class="analytics-label">Last IP</div>
+        </div>
+        <div class="analytics-item">
+          <div class="analytics-value" style="font-size:13px;">📱 ${escapeHtml(lastAgent)}</div>
+          <div class="analytics-label">Last Device</div>
+        </div>
+      </div>` : ''}
+      ${historyHtml}
     </div>`;
 
   document.getElementById('modal-attachments').classList.add('hidden');
   _pushModalHistory();
   document.getElementById('email-modal').classList.add('show');
   document.body.style.overflow = 'hidden';
+}
+
+// Parse user-agent string into human-readable device/browser label
+function _parseUserAgent(ua) {
+  if (!ua || ua === 'unknown') return '—';
+  // Mobile OS
+  if (/iPhone/i.test(ua)) return 'iPhone';
+  if (/iPad/i.test(ua)) return 'iPad';
+  if (/Android/i.test(ua) && /Mobile/i.test(ua)) return 'Android Phone';
+  if (/Android/i.test(ua)) return 'Android Tablet';
+  // Desktop OS + browser
+  if (/Windows/i.test(ua)) {
+    if (/Edg/i.test(ua)) return 'Windows / Edge';
+    if (/Chrome/i.test(ua)) return 'Windows / Chrome';
+    if (/Firefox/i.test(ua)) return 'Windows / Firefox';
+    return 'Windows';
+  }
+  if (/Macintosh/i.test(ua) || /Mac OS/i.test(ua)) {
+    if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) return 'Mac / Safari';
+    if (/Chrome/i.test(ua)) return 'Mac / Chrome';
+    if (/Firefox/i.test(ua)) return 'Mac / Firefox';
+    return 'Mac';
+  }
+  if (/Linux/i.test(ua)) return 'Linux';
+  if (/bot|crawl|spider|preview/i.test(ua)) return 'Bot / Preview';
+  // Email client proxies
+  if (/YahooMailProxy/i.test(ua)) return 'Yahoo Mail';
+  if (/Googlebot|Google Image/i.test(ua)) return 'Google';
+  // Fallback: first meaningful word
+  const first = ua.split(/[\s/]/)[0];
+  return first.length > 30 ? first.slice(0, 28) + '…' : first;
+}
+
+// Mask IP for privacy — show first 2 octets only
+function _maskIp(ip) {
+  if (!ip || ip === 'unknown') return '—';
+  if (ip.includes(':')) {
+    // IPv6 — show first segment only
+    const segs = ip.split(':');
+    return segs.slice(0, 2).join(':') + ':…';
+  }
+  const parts = ip.split('.');
+  if (parts.length === 4) return `${parts[0]}.${parts[1]}.*.*`;
+  return ip;
 }
