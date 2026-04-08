@@ -2,6 +2,11 @@
  * Signin - Username/Password Auth
  * POST /api/auth/signin
  * Body: { username, password }
+ *
+ * Username lookup rules (mirrors signup normalisation):
+ *   - trim + lowercase
+ *   - If no '@', replace spaces with underscores (regular username)
+ *   - If contains '@', treat as email (Google users whose KV key is their email)
  */
 
 export async function onRequestPost(context) {
@@ -14,7 +19,14 @@ export async function onRequestPost(context) {
             return jsonResponse({ error: 'Username and password required' }, 400);
         }
 
-        const userKey = `user:${username.toLowerCase()}`;
+        // Normalise username: trim + lowercase; replace spaces with underscores
+        // unless it looks like an email (Google users sign in with their email address)
+        let normalised = username.trim().toLowerCase();
+        if (!normalised.includes('@')) {
+            normalised = normalised.replace(/\s+/g, '_');
+        }
+
+        const userKey = `user:${normalised}`;
         const user = await env.EMAILS.get(userKey, { type: 'json' });
 
         if (!user) {
@@ -48,7 +60,13 @@ export async function onRequestPost(context) {
             expirationTtl: 7 * 24 * 60 * 60
         });
 
-        return jsonResponse({ success: true, token, username: username.toLowerCase(), isPremium });
+        return jsonResponse({
+            success: true,
+            token,
+            username: user.displayUsername || normalised,
+            isPremium,
+            photoURL: user.photoURL || null
+        });
 
     } catch (error) {
         console.error('Signin error:', error);

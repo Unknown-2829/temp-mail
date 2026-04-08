@@ -11,19 +11,24 @@ export async function onRequestPost(context) {
         const { username, password, email, emailOtp, otpToken } = await request.json();
 
         // Validate username
-        if (!username || username.length < 3 || username.length > 20) {
-            return jsonResponse({ error: 'Username must be 3-20 characters' }, 400);
+        if (!username || username.trim().length < 3 || username.trim().length > 30) {
+            return jsonResponse({ error: 'Username must be 3–30 characters' }, 400);
         }
-        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-            return jsonResponse({ error: 'Username can only contain letters, numbers, and underscores' }, 400);
+        // Allow letters, numbers, underscores, hyphens, periods, and spaces
+        if (!/^[a-zA-Z0-9_.\s-]+$/.test(username)) {
+            return jsonResponse({ error: 'Username can only contain letters, numbers, spaces, underscores, hyphens, and periods' }, 400);
         }
+
+        // Normalise: lowercase + spaces → underscores (the KV key)
+        const normalised = username.trim().toLowerCase().replace(/\s+/g, '_');
+        const displayUsername = username.trim(); // keeps original casing/spaces for display
 
         // Validate password
         if (!password || password.length < 8) {
             return jsonResponse({ error: 'Password must be at least 8 characters' }, 400);
         }
 
-        const userKey = `user:${username.toLowerCase()}`;
+        const userKey = `user:${normalised}`;
 
         // Check if username already taken
         const existing = await env.EMAILS.get(userKey);
@@ -74,7 +79,7 @@ export async function onRequestPost(context) {
         // Create user
         const user = {
             username: userKey,
-            displayUsername: username,
+            displayUsername,
             passwordHash,
             salt,
             email: email || null,
@@ -100,7 +105,7 @@ export async function onRequestPost(context) {
             expirationTtl: 7 * 24 * 60 * 60
         });
 
-        return jsonResponse({ success: true, token, username: username.toLowerCase(), isPremium: false });
+        return jsonResponse({ success: true, token, username: displayUsername, isPremium: false });
 
     } catch (error) {
         console.error('Signup error:', error);

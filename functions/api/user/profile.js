@@ -44,7 +44,10 @@ export async function onRequestGet(context) {
         isPremium,
         premiumExpiry: user.premiumExpiry || null,
         photoURL: user.photoURL || null,
-        authProviders: user.authProviders || (user.passwordHash ? ['password'] : [])
+        authProviders: user.authProviders || (user.passwordHash ? ['password'] : []),
+        hasEmail: !!user.email,
+        emailVerified: !!user.emailVerified,
+        maskedEmail: user.email ? maskEmail(user.email) : null
     });
 }
 
@@ -63,7 +66,56 @@ export async function onRequestPatch(context) {
     let body;
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
 
-    const { oldPassword, newPassword, isGoogleUser } = body;
+    const { oldPassword, newPassword, isGoogleUser, addEmail, emailOtp, otpToken, photoURL } = body;
+
+    // ── Avatar update ──────────────────────────────────────────────
+    if (photoURL !== undefined) {
+        // photoURL can be null (remove) or a URL string (set)
+        if (photoURL !== null && typeof photoURL !== 'string') {
+            return jsonResponse({ error: 'Invalid photoURL' }, 400);
+        }
+        user.photoURL = photoURL || null;
+        await env.EMAILS.put(session.username, JSON.stringify(user));
+        return jsonResponse({ success: true });
+    }
+
+    // ── Add / verify recovery email ────────────────────────────────
+    if (addEmail) {
+        if (!emailOtp || !otpToken) {
+            return jsonResponse({ error: 'OTP code and token are required' }, 400);
+        }
+        const otpKey = `otp:${otpToken}`;
+        const otpRaw = await env.EMAILS.get(otpKey);
+        if (!otpRaw) return jsonResponse({ error: 'Invalid or expired verification code' }, 400);
+        const otpData = JSON.parse(otpRaw);
+        if (otpData.type !== 'add_email') return jsonResponse({ error: 'Invalid verification token' }, 400);
+        if (Date.now() > otpData.expiresAt) {
+            await env.EMAILS.delete(otpKey);
+            return jsonResponse({ error: 'Verification code has expired' }, 400);
+        }
+        if (otpData.attempts >= 5) {
+            await env.EMAILS.delete(otpKey);
+            return jsonResponse({ error: 'Too many wrong attempts. Request a new code.' }, 400);
+        }
+        if (!constantTimeEqual(otpData.code, String(emailOtp).trim())) {
+            otpData.attempts += 1;
+            await env.EMAILS.put(otpKey, JSON.stringify(otpData), { expirationTtl: 600 });
+            const remaining = 5 - otpData.attempts;
+            return jsonResponse({
+                error: remaining > 0
+                    ? `Incorrect code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+                    : 'Too many wrong attempts. Request a new code.'
+            }, 400);
+        }
+        // OTP valid — save email
+        user.email = otpData.email;
+        user.emailVerified = true;
+        await env.EMAILS.delete(otpKey);
+        await env.EMAILS.put(session.username, JSON.stringify(user));
+        return jsonResponse({ success: true, maskedEmail: maskEmail(otpData.email) });
+    }
+
+    // ── Password change ────────────────────────────────────────────
     if (!newPassword) return jsonResponse({ error: 'New password is required' }, 400);
     if (newPassword.length < 8) return jsonResponse({ error: 'New password must be at least 8 characters' }, 400);
 
@@ -145,6 +197,19 @@ async function hashPassword(password, salt) {
         256
     );
     return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function constantTimeEqual(a, b) {
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return diff === 0;
+}
+
+function maskEmail(email) {
+    const [local, domain] = email.split('@');
+    if (local.length <= 2) return `${local[0]}*@${domain}`;
+    return `${local[0]}${'*'.repeat(Math.min(local.length - 2, 4))}${local[local.length - 1]}@${domain}`;
 }
 
 function jsonResponse(data, status = 200) {
