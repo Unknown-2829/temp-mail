@@ -48,6 +48,36 @@ let _iframeResizeObserver = null;
 // Tracks whether the email modal is currently showing raw source instead of rendered email.
 let _isSourceView = false;
 
+// ═══════════════════════════════════════════════════════════════
+// CLIENT-SIDE TTL CACHE
+// Saves bandwidth by serving recent API data from localStorage
+// while a fresh fetch runs in the background.
+// Keys are prefixed with '_c:' to avoid collisions.
+// ═══════════════════════════════════════════════════════════════
+const _CACHE_TTL = {
+  profile:     5 * 60 * 1000,   // 5 minutes
+  savedEmails: 2 * 60 * 1000,   // 2 minutes
+  inbox:       30 * 1000,        // 30 seconds
+};
+
+function _cacheGet(key) {
+  try {
+    const raw = localStorage.getItem('_c:' + key);
+    if (!raw) return null;
+    const { v, exp } = JSON.parse(raw);
+    if (Date.now() > exp) { localStorage.removeItem('_c:' + key); return null; }
+    return v;
+  } catch { return null; }
+}
+
+function _cacheSet(key, value, ttlMs) {
+  try {
+    localStorage.setItem('_c:' + key, JSON.stringify({ v: value, exp: Date.now() + ttlMs }));
+  } catch { /* storage full — silently ignore */ }
+}
+
+function _cacheDel(key) { localStorage.removeItem('_c:' + key); }
+
 // Regex constants reused during HTML email pre-processing
 const _NUMERIC_ATTR_RE = /^\d+$/;          // matches bare integer attribute values like "600"
 const _PIXEL_STYLE_RE  = /^\d+(\.\d+)?px$/i; // matches inline pixel values like "600px", "12.5px"
@@ -218,27 +248,38 @@ async function refreshEmails() {
 
   try {
     const since = emailsList.length > 0 ? emailsList.reduce((max, e) => Math.max(max, e.timestamp || 0), 0) : 0;
+
+    // On first load (no emails yet), show cached list immediately so inbox feels instant
+    if (since === 0) {
+      const cachedKey = 'inbox:' + currentEmail;
+      const cached = _cacheGet(cachedKey);
+      if (cached && emailsList.length === 0) {
+        const validCached = cached.filter(e => !deletedIds.includes(e._key || e.id || e.timestamp));
+        validCached.forEach(e => { if (readIds.includes(e._key || e.id || e.timestamp)) e.read = true; });
+        emailsList = validCached;
+        scheduleRender();
+      }
+    }
+
     const url = `/api/emails?address=${encodeURIComponent(currentEmail)}${since ? `&since=${since}` : ''}`;
     const response = await fetch(url);
     const data = await response.json();
 
-    _refreshErrorCount = 0; // Reset on success
+    _refreshErrorCount = 0;
 
     const rawEmails = data.emails || [];
-    // When using since= we get only new emails — merge with existing list
     let merged;
     if (since > 0 && rawEmails.length > 0) {
       const existingKeys = new Set(emailsList.map(e => e._key || e.timestamp));
       const newOnly = rawEmails.filter(e => !existingKeys.has(e._key || e.timestamp));
       merged = [...newOnly, ...emailsList];
     } else if (since > 0) {
-      merged = emailsList; // nothing new
+      merged = emailsList;
     } else {
       merged = rawEmails;
     }
 
     const validEmails = merged.filter(e => !deletedIds.includes(e._key || e.id || e.timestamp));
-
     validEmails.forEach(e => {
       if (readIds.includes(e._key || e.id || e.timestamp)) e.read = true;
     });
@@ -247,11 +288,13 @@ async function refreshEmails() {
     emailsList = validEmails;
     const newCount = emailsList.length;
 
+    // Persist inbox to cache after each successful fetch
+    try { _cacheSet('inbox:' + currentEmail, emailsList, _CACHE_TTL.inbox); } catch (_) {}
+
     if (newCount > oldCount && oldCount > 0) {
       const diff = newCount - oldCount;
       showToast(`📧 ${diff} new!`);
       showNotification('New Email!', `You have ${diff} new email(s)`);
-      // Re-poll in case more emails arrive in rapid succession
       setTimeout(() => { if (!document.hidden && currentEmail) refreshEmails(); }, 3000);
     }
 
@@ -263,16 +306,14 @@ async function refreshEmails() {
   } catch (e) {
     _refreshErrorCount++;
     if (_refreshErrorCount === 1) console.error('Refresh error #' + _refreshErrorCount, e);
-    // Back off: 5s → 10s → 20s → 60s cap
     if (_refreshErrorCount > 1) {
       stopAutoRefresh();
       const delay = Math.min(5000 * Math.pow(2, _refreshErrorCount - 1), 60000);
       const backoffTimer = setTimeout(() => {
-        // Restart normal interval then fire immediately
         startAutoRefresh();
         refreshEmails();
       }, delay);
-      autoRefreshInterval = backoffTimer; // Track so stopAutoRefresh() can cancel it
+      autoRefreshInterval = backoffTimer;
     }
   }
 }
@@ -2151,15 +2192,25 @@ async function loadProfileData() {
     bodyEl.innerHTML = '<div class="profile-loading">Not signed in.</div>';
     return;
   }
+
+  // Serve from cache immediately (stale-while-revalidate)
+  const cached = _cacheGet('profile');
+  if (cached) renderProfileData(cached);
+  else bodyEl.innerHTML = '<div class="profile-loading">Loading…</div>';
+
   try {
     const res = await fetch('/api/user/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
-    if (!res.ok) { bodyEl.innerHTML = `<div class="profile-loading">${escapeHtml(data.error || 'Error')}</div>`; return; }
+    if (!res.ok) {
+      if (!cached) bodyEl.innerHTML = `<div class="profile-loading">${escapeHtml(data.error || 'Error')}</div>`;
+      return;
+    }
+    _cacheSet('profile', data, _CACHE_TTL.profile);
     renderProfileData(data);
   } catch (e) {
-    bodyEl.innerHTML = '<div class="profile-loading">Failed to load profile.</div>';
+    if (!cached) bodyEl.innerHTML = '<div class="profile-loading">Failed to load profile.</div>';
   }
 }
 
@@ -3704,105 +3755,123 @@ function viewSentEmail(index) {
   const lastIp = s.lastOpenIp || '—';
   const lastAgent = _parseUserAgent(s.lastOpenAgent || '');
 
+  // ── Fill modal header (avatar, from, date, subject — same slots as inbox) ──
   document.getElementById('modal-avatar').textContent = '📤';
-  document.getElementById('modal-sender-name').textContent = 'Sent Email';
-  document.getElementById('modal-sender-email').textContent = s.from;
+  document.getElementById('modal-sender-name').textContent = s.from || 'You';
+  document.getElementById('modal-sender-email').textContent = '↗ Sent message';
   document.getElementById('modal-date').textContent = formatDate(s.sentAt);
   document.getElementById('modal-subject').textContent = s.subject;
-  document.getElementById('modal-meta-rows').innerHTML = '';
 
-  // ── Body HTML (rendered view) ──
-  const bodyRenderedHtml = _buildSentBodyHtml(s);
-
-  // ── Open history ──
-  let historyHtml = '';
-  if (s.openHistory && s.openHistory.length > 0) {
-    historyHtml = `
-      <div class="sent-analytics-section-title">📋 Open History (${s.openHistory.length})</div>
-      <div class="open-history">
-        ${s.openHistory.slice(0, 30).map((h, idx) => {
-          const ua = _parseUserAgent(h.agent || '');
-          const fullIp = h.ip && h.ip !== 'unknown' ? h.ip : '—';
-          return `<div class="open-history-item">
-            <div class="ohi-index">#${idx + 1}</div>
-            <div class="ohi-details">
-              <div class="ohi-time">${formatDate(h.at)}</div>
-              <div class="ohi-meta">
-                ${h.country ? `<span class="ohi-flag">📍 ${escapeHtml(h.country)}</span>` : ''}
-                <span class="ohi-ip" title="Full IP address">🌐 ${escapeHtml(fullIp)}</span>
-                <span class="ohi-ua">💻 ${escapeHtml(ua)}</span>
-                ${h.agent ? `<span class="ohi-ua ohi-ua-detail" title="${escapeHtml(h.agent)}" style="color:#555;font-size:10px;cursor:help;">ⓘ UA</span>` : ''}
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
+  // ── "To" goes in modal-meta-rows (same place inbox puts CC/BCC) ──
+  const metaRowsEl = document.getElementById('modal-meta-rows');
+  if (metaRowsEl) {
+    metaRowsEl.innerHTML = `
+      <div class="meta-row">
+        <span class="meta-label">To</span>
+        <span class="meta-value">${escapeHtml(toStr)}</span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-label">Status</span>
+        <span class="meta-value" style="color:${opens > 0 ? '#00d09c' : '#666'}">${opens > 0 ? `✅ Opened ${opens}×` : '⏳ Not opened yet'}</span>
       </div>`;
   }
 
-  const body = document.getElementById('modal-body');
-  body.innerHTML = `
-    <div class="sent-view-wrap">
-      <!-- Meta card -->
-      <div class="sent-mail-meta-card">
-        <div class="smm-row"><span class="smm-label">From</span><span class="smm-value">${escapeHtml(s.from || '')}</span></div>
-        <div class="smm-row"><span class="smm-label">To</span><span class="smm-value">${escapeHtml(toStr)}</span></div>
-        <div class="smm-row"><span class="smm-label">Date</span><span class="smm-value">${formatDate(s.sentAt)}</span></div>
-        <div class="smm-row"><span class="smm-label">Status</span><span class="smm-value" style="color:${opens > 0 ? '#00d09c' : '#888'}">${opens > 0 ? `✅ Opened ${opens}×` : '⏳ Not opened yet'}</span></div>
-      </div>
+  // ── Clear modal body, then render body exactly like inbox ──
+  const bodyEl = document.getElementById('modal-body');
+  bodyEl.innerHTML = '';
 
-      <!-- Body: rendered (default) / source (toggled) -->
-      <div class="sent-email-body-section">
-        <div class="sent-body-toolbar">
-          <h4 id="sent-body-heading">📧 Email Content</h4>
-          ${s.body ? `<button class="sent-source-toggle-btn" id="sent-source-btn" onclick="_toggleSentSource(${index})" title="View raw source">📄 View Source</button>` : ''}
-        </div>
-        <div id="sent-body-rendered">${bodyRenderedHtml}</div>
-        <div id="sent-body-source" class="hidden">
-          <pre class="sent-email-source-view">${escapeHtml(_buildSentEmailSource(s))}</pre>
-        </div>
-      </div>
+  // Container that _renderEmailBody will write into
+  const emailContentDiv = document.createElement('div');
+  emailContentDiv.id = 'sent-body-rendered';
+  bodyEl.appendChild(emailContentDiv);
 
-      <!-- Analytics -->
-      <div class="sent-analytics-card">
-        <h4>📊 Delivery Analytics</h4>
-        <div class="analytics-grid analytics-grid-3">
-          <div class="analytics-item">
-            <div class="analytics-value ${opens > 0 ? 'green' : ''}">${opens}</div>
-            <div class="analytics-label">Total Opens</div>
-          </div>
-          <div class="analytics-item">
-            <div class="analytics-value" style="font-size:12px;word-break:break-all;">${escapeHtml(lastOpen)}</div>
-            <div class="analytics-label">Last Opened</div>
-          </div>
-          <div class="analytics-item">
-            <div class="analytics-value" style="font-size:16px;">${opens > 0 ? '✅' : '⏳'}</div>
-            <div class="analytics-label">${opens > 0 ? 'Read' : 'Pending'}</div>
+  // Build a fake email object that _renderEmailBody understands
+  const fakeEmail = s.isHtml
+    ? { htmlBody: s.body, body: null, rawSource: null }
+    : { htmlBody: null, body: s.body, rawSource: null };
+  _renderEmailBody(fakeEmail, emailContentDiv);
+
+  // Source view container (hidden by default, toggled by button)
+  const sourceDiv = document.createElement('div');
+  sourceDiv.id = 'sent-body-source';
+  sourceDiv.className = 'hidden';
+  sourceDiv.innerHTML = `<pre class="sent-email-source-view">${escapeHtml(_buildSentEmailSource(s))}</pre>`;
+  bodyEl.appendChild(sourceDiv);
+
+  // ── Source-view toolbar (floated above content area) ──
+  if (s.body) {
+    const toolbarDiv = document.createElement('div');
+    toolbarDiv.className = 'sent-body-toolbar';
+    toolbarDiv.innerHTML = `<button class="sent-source-toggle-btn" id="sent-source-btn" onclick="_toggleSentSource(${index})">📄 View Source</button>`;
+    bodyEl.insertBefore(toolbarDiv, emailContentDiv);
+  }
+
+  // ── Open history rows ──
+  let historyHtml = '';
+  if (s.openHistory && s.openHistory.length > 0) {
+    const rows = s.openHistory.slice(0, 30).map((h, idx) => {
+      const ua = _parseUserAgent(h.agent || '');
+      const fullIp = h.ip && h.ip !== 'unknown' ? h.ip : '—';
+      return `<div class="open-history-item">
+        <div class="ohi-index">#${idx + 1}</div>
+        <div class="ohi-details">
+          <div class="ohi-time">${formatDate(h.at)}</div>
+          <div class="ohi-meta">
+            ${h.country ? `<span class="ohi-flag">📍 ${escapeHtml(h.country)}</span>` : ''}
+            <span class="ohi-ip" title="${escapeHtml(h.ip || '')}">🌐 ${escapeHtml(fullIp)}</span>
+            <span class="ohi-ua">💻 ${escapeHtml(ua)}</span>
+            ${h.agent ? `<span class="ohi-ua" title="${escapeHtml(h.agent)}" style="color:#444;font-size:10px;cursor:help;">ⓘ UA</span>` : ''}
           </div>
         </div>
-        ${opens > 0 ? `
-        <div class="analytics-grid analytics-grid-3" style="margin-top:10px;">
-          <div class="analytics-item">
-            <div class="analytics-value" style="font-size:14px;">📍 ${escapeHtml(country)}</div>
-            <div class="analytics-label">Location</div>
-          </div>
-          <div class="analytics-item">
-            <div class="analytics-value" style="font-size:11px;word-break:break-all;">🌐 ${escapeHtml(lastIp)}</div>
-            <div class="analytics-label">Last IP</div>
-          </div>
-          <div class="analytics-item">
-            <div class="analytics-value" style="font-size:12px;">💻 ${escapeHtml(lastAgent)}</div>
-            <div class="analytics-label">Device</div>
-          </div>
-        </div>` : ''}
-        ${historyHtml}
-      </div>
+      </div>`;
+    }).join('');
+    historyHtml = `
+      <div class="sent-analytics-section-title">📋 Open History (${s.openHistory.length})</div>
+      <div class="open-history">${rows}</div>`;
+  }
 
-      <!-- Bottom actions -->
-      <div class="sent-view-actions">
-        ${s.body ? `<button class="sent-source-toggle-btn" onclick="_toggleSentSource(${index})">📄 View Source</button>` : ''}
-        <button class="sent-view-delete-btn" onclick="_deleteSentEmailFromModal(${index})">🗑 Delete</button>
+  // ── Analytics card ──
+  const analyticsDiv = document.createElement('div');
+  analyticsDiv.className = 'sent-analytics-card';
+  analyticsDiv.innerHTML = `
+    <h4>📊 Delivery Analytics</h4>
+    <div class="analytics-grid analytics-grid-3">
+      <div class="analytics-item">
+        <div class="analytics-value ${opens > 0 ? 'green' : ''}">${opens}</div>
+        <div class="analytics-label">Total Opens</div>
       </div>
-    </div>`;
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:11px;word-break:break-all;">${escapeHtml(lastOpen)}</div>
+        <div class="analytics-label">Last Opened</div>
+      </div>
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:18px;">${opens > 0 ? '✅' : '⏳'}</div>
+        <div class="analytics-label">${opens > 0 ? 'Read' : 'Pending'}</div>
+      </div>
+    </div>
+    ${opens > 0 ? `
+    <div class="analytics-grid analytics-grid-3" style="margin-top:10px;">
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:14px;">📍 ${escapeHtml(country)}</div>
+        <div class="analytics-label">Location</div>
+      </div>
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:10px;word-break:break-all;">🌐 ${escapeHtml(lastIp)}</div>
+        <div class="analytics-label">Last IP</div>
+      </div>
+      <div class="analytics-item">
+        <div class="analytics-value" style="font-size:11px;">💻 ${escapeHtml(lastAgent)}</div>
+        <div class="analytics-label">Device</div>
+      </div>
+    </div>` : ''}
+    ${historyHtml}`;
+  bodyEl.appendChild(analyticsDiv);
+
+  // ── Delete action ──
+  const actionsDiv = document.createElement('div');
+  actionsDiv.className = 'sent-view-actions';
+  actionsDiv.innerHTML = `<button class="sent-view-delete-btn" onclick="_deleteSentEmailFromModal(${index})">🗑 Delete This Email</button>`;
+  bodyEl.appendChild(actionsDiv);
 
   document.getElementById('modal-attachments').classList.add('hidden');
   _pushModalHistory();
@@ -3810,22 +3879,12 @@ function viewSentEmail(index) {
   document.body.style.overflow = 'hidden';
 }
 
-// Build the rendered-body HTML for a sent email
-function _buildSentBodyHtml(s) {
-  if (!s.body) return '<p style="color:#888;font-size:13px;">No body content.</p>';
-  if (s.isHtml) {
-    const wrappedHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:12px;background:#0a0a14;color:#e0e0f0;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;}img{max-width:100%;}a{color:#00d09c;}</style></head><body>${s.body}</body></html>`;
-    return `<iframe class="sent-email-iframe sent-email-iframe-dark" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcdoc="${escapeHtml(wrappedHtml)}" title="Sent email content"></iframe>`;
-  }
-  return `<pre class="sent-email-plaintext">${escapeHtml(s.body)}</pre>`;
-}
-
-// Build a reconstructed MIME-like raw source for a sent email
+// Reconstruct a MIME-like raw source string from stored sent-email fields
 function _buildSentEmailSource(s) {
   const toStr = Array.isArray(s.to) ? s.to.join(', ') : (s.to || '');
   const date = s.sentAt ? new Date(s.sentAt).toUTCString() : '';
   const contentType = s.isHtml ? 'text/html; charset="utf-8"' : 'text/plain; charset="utf-8"';
-  const lines = [
+  return [
     `From: ${s.from || ''}`,
     `To: ${toStr}`,
     `Subject: ${s.subject || ''}`,
@@ -3834,23 +3893,18 @@ function _buildSentEmailSource(s) {
     `Content-Type: ${contentType}`,
     ``,
     s.body || ''
-  ];
-  return lines.join('\r\n');
+  ].join('\r\n');
 }
 
-// Toggle between rendered and source view for sent emails
+// Toggle between rendered view and raw source view for sent emails
 function _toggleSentSource(index) {
   _sentSourceVisible = !_sentSourceVisible;
   const rendered = document.getElementById('sent-body-rendered');
   const sourceDiv = document.getElementById('sent-body-source');
-  const heading = document.getElementById('sent-body-heading');
-  // Update both toggle buttons (top toolbar + bottom actions)
-  document.querySelectorAll('[onclick^="_toggleSentSource"]').forEach(btn => {
-    btn.textContent = _sentSourceVisible ? '📧 View Rendered' : '📄 View Source';
-  });
+  const btn = document.getElementById('sent-source-btn');
   if (rendered) rendered.classList.toggle('hidden', _sentSourceVisible);
   if (sourceDiv) sourceDiv.classList.toggle('hidden', !_sentSourceVisible);
-  if (heading) heading.textContent = _sentSourceVisible ? '📄 Raw Source' : '📧 Email Content';
+  if (btn) btn.textContent = _sentSourceVisible ? '📧 View Rendered' : '📄 View Source';
 }
 
 function _deleteSentEmailFromModal(index) {

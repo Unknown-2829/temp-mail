@@ -368,13 +368,15 @@ body {
 /* Inbox Header */
 .inbox-header {
   display: flex;
+  justify-content: center;
+  align-items: center;
   position: relative;
-  background: #202020;
+  background: #0d0d1a;
   color: #fff;
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  padding: 22px 28px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  padding: 14px 28px;
 }
 
 .col-sender {
@@ -5071,20 +5073,21 @@ button,
   max-height: 400px;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 10px;
-  background: #fff;
+  background: #0a0a14;
 }
 .sent-email-plaintext {
-  background: #08080f;
+  background: #07070f;
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
-  padding: 14px;
+  padding: 14px 16px;
   font-size: 13px;
-  color: #bbb;
+  color: #c0c0d8;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 300px;
+  line-height: 1.7;
+  max-height: 340px;
   overflow-y: auto;
-  font-family: inherit;
+  font-family: 'Segoe UI Emoji','Apple Color Emoji',Arial,sans-serif;
   margin: 0;
 }
 
@@ -5281,9 +5284,6 @@ button,
 /* ══════════════════════════════════════════════════
    INBOX HEADER — centered bold "INBOX" title
 ══════════════════════════════════════════════════ */
-.inbox-header {
-  justify-content: center;
-}
 .inbox-header-title {
   font-size: 13px;
   font-weight: 800;
