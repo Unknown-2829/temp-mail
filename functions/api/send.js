@@ -11,6 +11,52 @@
  */
 
 /**
+ * GET /api/send
+ * Returns the remaining daily send quota for the current user / address.
+ *
+ * Auth (optional): Bearer token in Authorization header (signed-in users)
+ * Query param (fallback): ?address=EMAIL (anonymous users)
+ */
+export async function onRequestGet(context) {
+  const { request, env } = context;
+
+  const authHeader = request.headers.get('Authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  let username = null;
+  let isPremium = false;
+
+  if (token) {
+    try {
+      const session = await env.EMAILS.get(`session:${token}`, { type: 'json' });
+      if (session && session.expiresAt > Date.now()) {
+        username = session.username;
+        const user = await env.EMAILS.get(session.username, { type: 'json' });
+        if (user) isPremium = !!(user.isPremium && (!user.premiumExpiry || user.premiumExpiry > Date.now()));
+      }
+    } catch (_) {}
+  }
+
+  const url = new URL(request.url);
+  const address = url.searchParams.get('address');
+  const rateLimitKey = username
+    ? `send_rate:user:${username}`
+    : address ? `send_rate:addr:${address}` : null;
+
+  const dailyLimit = isPremium ? 50 : 3;
+  let used = 0;
+
+  if (rateLimitKey) {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const rateData = await env.EMAILS.get(rateLimitKey, { type: 'json' });
+      if (rateData && rateData.date === today) used = rateData.count || 0;
+    } catch (_) {}
+  }
+
+  return jsonResponse({ remaining: Math.max(0, dailyLimit - used), limit: dailyLimit, used, isPremium });
+}
+
+/**
  * POST /api/send
  * Sends an email via Resend API.
  *
@@ -40,10 +86,11 @@ export async function onRequestPost(context) {
 
   if (token) {
     try {
-      const userData = await env.EMAILS.get(`auth:token:${token}`, { type: 'json' });
-      if (userData) {
-        username = userData.username;
-        isPremium = !!userData.isPremium;
+      const session = await env.EMAILS.get(`session:${token}`, { type: 'json' });
+      if (session && session.expiresAt > Date.now()) {
+        username = session.username;
+        const user = await env.EMAILS.get(session.username, { type: 'json' });
+        if (user) isPremium = !!(user.isPremium && (!user.premiumExpiry || user.premiumExpiry > Date.now()));
       }
     } catch (_) {}
   }
