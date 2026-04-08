@@ -4359,28 +4359,28 @@ button,
 }
 
 /* ══════════════════════════════════════════════════
-   COMPOSE WINDOW — Gmail-style bottom-right panel
+   COMPOSE WINDOW — bottom-right panel, inspired by
+   auth-modal / profile-modal / pv-box design language
 ══════════════════════════════════════════════════ */
 .compose-window {
-  /* Hidden by default — JS toggles style.display */
   display: none;
-  /* Fixed positioning — inline style is source of truth, CSS is fallback */
   position: fixed !important;
   bottom: 0 !important;
   right: 24px !important;
   z-index: 99998 !important;
-  /* Size */
-  width: 480px;
+  width: 460px;
   max-width: calc(100vw - 32px);
-  height: 520px;
-  max-height: 90vh;
-  /* Appearance */
-  background: #1e1e32 !important;
-  border-radius: 12px 12px 0 0;
+  height: 540px;
+  max-height: 92vh;
+  /* Same glass-dark background as auth-content / profile-content */
+  background: rgba(20, 20, 42, 0.97) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  /* Rounded top corners matching pv-box / about-content */
+  border-radius: 20px 20px 0 0;
   border: 1px solid rgba(255,255,255,0.1);
   border-bottom: none;
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.06);
-  /* Layout */
+  box-shadow: 0 -20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
   flex-direction: column;
   overflow: hidden;
   float: none !important;
@@ -4390,14 +4390,21 @@ button,
   font-family: inherit;
   font-size: 14px;
 }
-/* JS adds .show + sets style.display='flex' to open it */
+/* JS adds .show + style.display='flex' */
 .compose-window.show {
   display: flex !important;
-  animation: cwSlideUp 0.25s cubic-bezier(.4,0,.2,1);
+  animation: cwSlideUp 0.3s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+/* Match pvSlideUp family */
+@keyframes cwSlideUp {
+  from { opacity: 0; transform: translateY(32px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 /* Minimized = only header visible */
 .compose-window.minimized .cw-body,
 .compose-window.minimized .cw-footer { display: none !important; }
+/* Also hide the drag-handle pill when minimized */
+.compose-window.minimized > div:first-child { display: none !important; }
 /* Fullscreen */
 .compose-window.fullscreen {
   right: 0 !important;
@@ -4408,10 +4415,6 @@ button,
   border-radius: 0 !important;
   border: none !important;
 }
-@keyframes cwSlideUp {
-  from { transform: translateY(20px); opacity: 0.4; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
 /* Mobile: full-width bottom sheet */
 @media (max-width: 560px) {
   .compose-window, .compose-window.show {
@@ -4419,76 +4422,92 @@ button,
     left: 0 !important;
     width: 100% !important;
     max-width: 100vw !important;
-    border-radius: 16px 16px 0 0 !important;
+    border-radius: 20px 20px 0 0 !important;
   }
 }
 
-/* ── Header ── */
+/* ── Header — matches auth-header / profile-header pattern ── */
 .cw-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10px 0 16px;
-  height: 50px;
-  min-height: 50px;
-  background: #252542;
-  cursor: pointer;
+  padding: 16px 16px 16px 20px;
   flex-shrink: 0;
-  user-select: none;
   border-bottom: 1px solid rgba(255,255,255,0.07);
+  cursor: pointer;
+  user-select: none;
+  /* Subtle green accent line at top like a card */
+  background: linear-gradient(180deg, rgba(0,208,156,0.06) 0%, transparent 100%);
+  transition: background 0.2s;
 }
-.cw-header:hover { background: #2a2a4a; }
+.cw-header:hover { background: linear-gradient(180deg, rgba(0,208,156,0.10) 0%, rgba(255,255,255,0.02) 100%); }
 .cw-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e8e8f0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.cw-controls { display: flex; align-items: center; gap: 2px; }
+.cw-title::before {
+  content: '✏️';
+  font-size: 15px;
+}
+/* Controls — match auth-close / profile-close button style */
+.cw-controls { display: flex; align-items: center; gap: 6px; }
 .cw-ctrl-btn {
   width: 30px;
   height: 30px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
   color: #888;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s;
+  transition: all 0.2s;
   padding: 0;
   flex-shrink: 0;
 }
-.cw-ctrl-btn:hover { background: rgba(255,255,255,0.1); color: #ddd; }
-.cw-ctrl-close:hover { background: rgba(255,60,60,0.15); color: #ff6b6b; }
+.cw-ctrl-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #ddd; }
+.cw-ctrl-close:hover { background: rgba(255,107,107,0.15); border-color: #ff6b6b; color: #ff6b6b; }
 
-/* ── Body / Fields ── */
+/* ── Body / Fields — matches auth-body padding, auth-input style ── */
 .cw-body {
   display: flex;
   flex-direction: column;
   flex: 1;
   overflow: hidden;
   min-height: 0;
-  background: #1e1e32;
+  background: transparent;
+  padding: 12px 16px 4px;
+  gap: 8px;
 }
+/* Each field is a pill row like auth-input */
 .cw-field {
   display: flex;
   align-items: center;
+  background: #131320;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
   padding: 0 14px;
-  min-height: 40px;
+  min-height: 42px;
   flex-shrink: 0;
-  border-bottom: 1px solid rgba(255,255,255,0.055);
   gap: 10px;
-  background: #1e1e32;
+  transition: border-color 0.2s;
+}
+.cw-field:focus-within {
+  border-color: #00d09c;
 }
 .cw-field-label {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: #555;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  min-width: 36px;
+  letter-spacing: 0.08em;
+  min-width: 38px;
   flex-shrink: 0;
 }
 .cw-select {
@@ -4496,7 +4515,7 @@ button,
   background: transparent;
   border: none;
   outline: none;
-  color: #999;
+  color: #ccc;
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
@@ -4505,7 +4524,7 @@ button,
   min-width: 0;
   padding: 2px 0;
 }
-.cw-select option { background: #1e1e32; color: #e0e0f0; }
+.cw-select option { background: #14142a; color: #e0e0f0; }
 .cw-input {
   flex: 1;
   background: transparent;
@@ -4518,52 +4537,56 @@ button,
   min-width: 0;
 }
 .cw-input::placeholder { color: #444; }
-.cw-field-subject { border-bottom: 2px solid rgba(255,255,255,0.07); }
+/* Subject row — slightly taller with bolder text */
+.cw-field-subject { min-height: 46px; }
 .cw-subject-input {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
-  color: #e8e8f4;
+  color: #fff;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   font-family: inherit;
   padding: 2px 0;
   width: 100%;
 }
 .cw-subject-input::placeholder { color: #3a3a55; font-weight: 400; }
 
-/* ── Editor ── */
+/* ── Editor area ── */
 .cw-editor-wrap {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  background: #1e1e32;
+  background: #131320;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  transition: border-color 0.2s;
 }
+.cw-editor-wrap:focus-within { border-color: #00d09c; }
 .cw-editor {
   min-height: 100%;
   padding: 12px 14px 8px;
   color: #d0d0e8;
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.7;
   outline: none;
   font-family: inherit;
   word-break: break-word;
 }
 .cw-editor:empty::before {
   content: attr(data-placeholder);
-  color: #333350;
+  color: #383855;
   pointer-events: none;
   display: block;
-  font-style: italic;
 }
 .cw-editor a { color: #00d09c; }
 .cw-textarea {
   width: 100%;
   height: 100%;
-  min-height: 140px;
+  min-height: 120px;
   padding: 12px 14px;
-  background: #1e1e32;
+  background: transparent;
   border: none;
   outline: none;
   color: #d0d0e8;
@@ -4576,27 +4599,28 @@ button,
 
 /* ── Error ── */
 .cw-error {
-  margin: 6px 12px;
-  padding: 7px 12px;
+  margin: 0 0 4px;
+  padding: 8px 12px;
   background: rgba(255,70,70,0.1);
-  border-left: 3px solid #ff4444;
-  border-radius: 4px;
+  border: 1px solid rgba(255,70,70,0.25);
+  border-radius: 8px;
   color: #ff8888;
   font-size: 12.5px;
   flex-shrink: 0;
 }
 
-/* ── Footer ── */
+/* ── Footer — matches auth-body bottom area ── */
 .cw-footer {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 10px 16px 14px;
   border-top: 1px solid rgba(255,255,255,0.07);
-  background: #191928;
+  background: rgba(10,10,24,0.5);
   flex-shrink: 0;
   flex-wrap: nowrap;
 }
+/* Send button — full gradient like auth-send-btn */
 .cw-send-btn {
   display: inline-flex;
   align-items: center;
@@ -4604,30 +4628,35 @@ button,
   background: linear-gradient(135deg, #00d09c, #00a87a);
   color: #000;
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
+  border-radius: 10px;
+  padding: 9px 18px;
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: opacity 0.15s, transform 0.12s;
+  box-shadow: 0 4px 14px rgba(0,208,156,0.35);
+  transition: box-shadow 0.2s, transform 0.15s, opacity 0.15s;
 }
-.cw-send-btn:hover { opacity: 0.88; transform: translateY(-1px); }
-.cw-send-btn:active { transform: scale(0.96); }
-.cw-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.cw-send-btn:hover {
+  box-shadow: 0 6px 20px rgba(0,208,156,0.5);
+  transform: translateY(-1px);
+}
+.cw-send-btn:active { transform: scale(0.96); box-shadow: none; }
+.cw-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+/* Toolbar */
 .cw-toolbar {
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 .cw-tool {
   width: 28px;
   height: 28px;
-  border-radius: 5px;
+  border-radius: 6px;
   border: none;
   background: transparent;
   color: #555;
@@ -4645,18 +4674,21 @@ button,
   width: 1px;
   height: 14px;
   background: rgba(255,255,255,0.08);
-  margin: 0 2px;
+  margin: 0 3px;
   flex-shrink: 0;
 }
 .cw-mode-toggle {
   width: auto;
-  padding: 0 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-size: 10px;
   font-weight: 700;
   color: #00d09c;
   letter-spacing: 0.05em;
+  border: 1px solid rgba(0,208,156,0.25);
+  background: rgba(0,208,156,0.07);
 }
-.cw-mode-toggle:hover { background: rgba(0,208,156,0.1); color: #00d09c; }
+.cw-mode-toggle:hover { background: rgba(0,208,156,0.15); border-color: rgba(0,208,156,0.4); }
 .cw-ratelimit {
   font-size: 10px;
   color: #3a3a55;

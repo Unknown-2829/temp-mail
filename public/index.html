@@ -558,20 +558,25 @@
     <span class="compose-fab-label">Compose</span>
   </button>
 
-  <!-- Compose Window (Gmail-style bottom-right panel) -->
+  <!-- Compose Window — inspired by auth-modal / profile-modal design language -->
   <div class="compose-window" id="compose-modal" style="display:none;position:fixed;bottom:0;right:24px;z-index:99998;">
-    <!-- Header bar (drag handle + controls) -->
+    <!-- Drag-handle pill (same as bottom-sheet convention) -->
+    <div style="display:flex;justify-content:center;padding:10px 0 4px;flex-shrink:0;cursor:pointer;" onclick="toggleComposeMinimize()">
+      <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);"></div>
+    </div>
+
+    <!-- Header bar — matches auth-header / profile-header -->
     <div class="cw-header" onclick="toggleComposeMinimize()">
       <span class="cw-title">New Message</span>
       <div class="cw-controls" onclick="event.stopPropagation()">
         <button class="cw-ctrl-btn" onclick="toggleComposeMinimize()" title="Minimize">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="4" y="11" width="16" height="2" rx="1"/></svg>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><rect x="4" y="11" width="16" height="2" rx="1"/></svg>
         </button>
         <button class="cw-ctrl-btn" onclick="expandComposeFullscreen()" title="Full screen" id="compose-expand-btn">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         </button>
         <button class="cw-ctrl-btn cw-ctrl-close" onclick="closeCompose()" title="Close">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
     </div>
