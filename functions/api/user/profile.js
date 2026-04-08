@@ -39,15 +39,21 @@ export async function onRequestGet(context) {
 
     const username = user.displayUsername || (session.username.replace(/^user:/, ''));
 
+    const userKey = session.username;
+    const googleEmail = Array.isArray(user.authProviders) && user.authProviders.includes('google') && userKey.includes('@')
+        ? userKey.replace(/^user:/, '')
+        : null;
+
     return jsonResponse({
         username,
         isPremium,
         premiumExpiry: user.premiumExpiry || null,
         photoURL: user.photoURL || null,
         authProviders: user.authProviders || (user.passwordHash ? ['password'] : []),
-        hasEmail: !!user.email,
-        emailVerified: !!user.emailVerified,
-        maskedEmail: user.email ? maskEmail(user.email) : null
+        hasEmail: !!(user.email || googleEmail),
+        emailVerified: !!(user.emailVerified || googleEmail),
+        maskedEmail: user.email ? maskEmail(user.email) : (googleEmail ? maskEmail(googleEmail) : null),
+        googleEmail: googleEmail ? maskEmail(googleEmail) : null
     });
 }
 
@@ -108,6 +114,10 @@ export async function onRequestPatch(context) {
             }, 400);
         }
         // OTP valid — save email
+        if (isReservedEmail(otpData.email)) {
+            await env.EMAILS.delete(otpKey);
+            return jsonResponse({ error: 'This email address cannot be used as a recovery email.' }, 400);
+        }
         user.email = otpData.email;
         user.emailVerified = true;
         await env.EMAILS.delete(otpKey);
@@ -139,6 +149,17 @@ export async function onRequestPatch(context) {
     if (!user.authProviders) user.authProviders = [];
     if (!user.authProviders.includes('password')) user.authProviders.push('password');
     await env.EMAILS.put(session.username, JSON.stringify(user));
+
+    // For Google users: create username pointer so they can sign in by display name
+    if (isGoogle && user.displayUsername) {
+        const aliasNorm = user.displayUsername.trim().toLowerCase().replace(/\s+/g, '_');
+        const aliasKey = `user_ptr:${aliasNorm}`;
+        const existing = await env.EMAILS.get(`user:${aliasNorm}`);
+        const existingPtr = await env.EMAILS.get(aliasKey);
+        if (!existing && !existingPtr) {
+            await env.EMAILS.put(aliasKey, session.username);
+        }
+    }
 
     return jsonResponse({ success: true });
 }
@@ -204,6 +225,12 @@ function constantTimeEqual(a, b) {
     let diff = 0;
     for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
     return diff === 0;
+}
+
+function isReservedEmail(email) {
+    const lower = email.toLowerCase();
+    return ['noreply@unknownlll2829.qzz.io', 'phantom-mail@unknownlll2829.qzz.io'].includes(lower)
+        || lower.endsWith('@unknownlll2829.qzz.io');
 }
 
 function maskEmail(email) {

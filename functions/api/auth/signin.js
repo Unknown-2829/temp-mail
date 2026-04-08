@@ -27,7 +27,17 @@ export async function onRequestPost(context) {
         }
 
         const userKey = `user:${normalised}`;
-        const user = await env.EMAILS.get(userKey, { type: 'json' });
+        let user = await env.EMAILS.get(userKey, { type: 'json' });
+        let resolvedKey = userKey;
+
+        if (!user && !normalised.includes('@')) {
+            // Try username alias (for Google users who set a password and registered an alias)
+            const aliasTarget = await env.EMAILS.get(`user_ptr:${normalised}`);
+            if (aliasTarget) {
+                resolvedKey = aliasTarget;
+                user = await env.EMAILS.get(aliasTarget, { type: 'json' });
+            }
+        }
 
         if (!user) {
             return jsonResponse({ error: 'Invalid username or password' }, 401);
@@ -45,14 +55,14 @@ export async function onRequestPost(context) {
             // Premium expired — update user
             user.isPremium = false;
             user.premiumExpiry = null;
-            await env.EMAILS.put(userKey, JSON.stringify(user));
+            await env.EMAILS.put(resolvedKey, JSON.stringify(user));
             isPremium = false;
         }
 
         // Create session
         const token = generateToken();
         const sessionData = {
-            username: userKey,
+            username: resolvedKey,
             createdAt: Date.now(),
             expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000)
         };

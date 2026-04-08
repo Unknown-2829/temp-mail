@@ -10,6 +10,10 @@ export async function onRequestPost(context) {
     try {
         const { username, password, email, emailOtp, otpToken } = await request.json();
 
+        if (email && isReservedEmail(email)) {
+            return jsonResponse({ error: 'This email address cannot be used as a recovery email.' }, 400);
+        }
+
         // Validate username
         if (!username || username.trim().length < 3 || username.trim().length > 30) {
             return jsonResponse({ error: 'Username must be 3–30 characters' }, 400);
@@ -111,6 +115,12 @@ export async function onRequestPost(context) {
         console.error('Signup error:', error);
         return jsonResponse({ error: 'Server error' }, 500);
     }
+}
+
+function isReservedEmail(e) {
+    const lower = e.toLowerCase();
+    return ['noreply@unknownlll2829.qzz.io', 'phantom-mail@unknownlll2829.qzz.io'].includes(lower)
+        || lower.endsWith('@unknownlll2829.qzz.io');
 }
 
 async function hashPassword(password, salt) {
