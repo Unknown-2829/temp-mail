@@ -28,6 +28,11 @@ let renderPending = false;
 // ── Compose / Sent state ──────────────────────────────────────
 let composeMinimized = false;
 let composeIsHtml = true;
+
+// ── Auth OTP state ────────────────────────────────────────────
+let _signupOtpToken = null;
+let _forgotOtpToken = null;
+let _forgotUsername = null;
 let sentList = [];
 let sentBoxOpen = false;
 let composeAttachments = []; // {filename, content (base64), size, type}
@@ -72,6 +77,28 @@ function init() {
     localStorage.removeItem('tempEmail');
     localStorage.removeItem('emailCreatedAt');
     generateEmail();
+  }
+
+  // Wire up signup email input dynamic behavior
+  const signupEmailInput = document.getElementById('signup-email');
+  if (signupEmailInput) {
+    signupEmailInput.addEventListener('input', _updateSignupEmailUI);
+  }
+}
+
+function _updateSignupEmailUI() {
+  const email = document.getElementById('signup-email').value.trim();
+  const warning = document.getElementById('signup-no-email-warning');
+  const notice = document.getElementById('signup-email-notice');
+  const btn = document.getElementById('signup-submit-btn');
+  if (email) {
+    if (warning) warning.classList.add('hidden');
+    if (notice) notice.classList.remove('hidden');
+    if (btn) btn.textContent = 'Continue →';
+  } else {
+    if (warning) warning.classList.remove('hidden');
+    if (notice) notice.classList.add('hidden');
+    if (btn) btn.textContent = 'Create Account';
   }
 }
 
@@ -1726,6 +1753,23 @@ function closeAuth() {
   document.getElementById('signup-password').value = '';
   document.getElementById('signup-email').value = '';
   document.getElementById('auth-error').classList.add('hidden');
+  // Reset OTP state
+  _signupOtpToken = null;
+  _forgotOtpToken = null;
+  _forgotUsername = null;
+  // Reset sections
+  document.getElementById('forgot-section').classList.add('hidden');
+  document.getElementById('reset-section').classList.add('hidden');
+  document.getElementById('signup-step-2').classList.add('hidden');
+  document.getElementById('signup-step-1').classList.remove('hidden');
+  // Reset forgot inputs
+  document.getElementById('forgot-username').value = '';
+  document.getElementById('reset-otp').value = '';
+  document.getElementById('reset-new-password').value = '';
+  document.getElementById('reset-confirm-password').value = '';
+  document.getElementById('signup-otp').value = '';
+  // Reset to sign-in tab
+  switchAuthTab('signin');
 }
 
 function switchAuthTab(tab) {
@@ -1736,6 +1780,9 @@ function switchAuthTab(tab) {
   document.getElementById('tab-signup').classList.toggle('active', !isSignin);
   document.getElementById('auth-modal-title').textContent = isSignin ? '👻 Sign In' : '👻 Create Account';
   document.getElementById('auth-error').classList.add('hidden');
+  // Hide forgot/reset sections when switching tabs
+  document.getElementById('forgot-section').classList.add('hidden');
+  document.getElementById('reset-section').classList.add('hidden');
 }
 
 async function signIn() {
@@ -1776,20 +1823,71 @@ async function signUp() {
   const email = document.getElementById('signup-email').value.trim();
   if (!username || !password) { showAuthError('Username and password are required'); return; }
 
-  const btn = document.querySelector('#signup-section .auth-verify-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  if (email) {
+    const btn = document.getElementById('signup-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending code…'; }
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'email_verify', username, email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        _signupOtpToken = data.otpToken;
+        document.getElementById('signup-otp-desc').textContent =
+          `We sent a 6-digit code to ${data.maskedEmail}. Enter it below.`;
+        document.getElementById('signup-step-1').classList.add('hidden');
+        document.getElementById('signup-step-2').classList.remove('hidden');
+        document.getElementById('signup-otp').value = '';
+        document.getElementById('signup-otp').focus();
+        document.getElementById('auth-error').classList.add('hidden');
+      } else {
+        showAuthError(data.error || 'Failed to send verification code');
+      }
+    } catch (e) { showAuthError('Network error. Try again.'); }
+    finally {
+      const btn2 = document.getElementById('signup-submit-btn');
+      if (btn2) { btn2.disabled = false; btn2.textContent = 'Continue →'; }
+    }
+  } else {
+    await _doCreateAccount(username, password, '', null, null);
+  }
+}
 
+async function verifyEmailAndSignUp() {
+  const username = document.getElementById('signup-username').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const email = document.getElementById('signup-email').value.trim();
+  const otp = document.getElementById('signup-otp').value.trim();
+  if (!otp || otp.length !== 6) { showAuthError('Enter the 6-digit code'); return; }
+  const btn = document.querySelector('#signup-step-2 .auth-verify-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
   try {
+    await _doCreateAccount(username, password, email, otp, _signupOtpToken);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Verify & Create Account'; }
+  }
+}
+
+async function _doCreateAccount(username, password, email, emailOtp, otpToken) {
+  try {
+    const body = { username, password };
+    if (email) body.email = email;
+    if (emailOtp) body.emailOtp = emailOtp;
+    if (otpToken) body.otpToken = otpToken;
+
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, email: email || "" })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if (res.ok) {
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('username', data.username);
       localStorage.setItem('isPremium', 'false');
+      _signupOtpToken = null;
       closeAuth();
       initAuthState();
       showToast('🎉 Account created!');
@@ -1797,9 +1895,103 @@ async function signUp() {
       showAuthError(data.error || 'Signup failed');
     }
   } catch (e) { showAuthError('Network error. Try again.'); }
-  finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Create Account'; }
-  }
+}
+
+function signupGoBack() {
+  document.getElementById('signup-step-2').classList.add('hidden');
+  document.getElementById('signup-step-1').classList.remove('hidden');
+  document.getElementById('signup-otp').value = '';
+  document.getElementById('auth-error').classList.add('hidden');
+  _signupOtpToken = null;
+}
+
+async function resendSignupOtp() {
+  document.getElementById('signup-step-2').classList.add('hidden');
+  document.getElementById('signup-step-1').classList.remove('hidden');
+  _signupOtpToken = null;
+  await signUp();
+}
+
+function showForgotPassword() {
+  document.getElementById('signin-section').classList.add('hidden');
+  document.getElementById('signup-section').classList.add('hidden');
+  document.getElementById('reset-section').classList.add('hidden');
+  document.getElementById('forgot-section').classList.remove('hidden');
+  document.getElementById('forgot-username').value = '';
+  document.getElementById('auth-error').classList.add('hidden');
+}
+
+function showForgotBack() {
+  document.getElementById('forgot-section').classList.add('hidden');
+  document.getElementById('reset-section').classList.add('hidden');
+  document.getElementById('signin-section').classList.remove('hidden');
+  document.getElementById('auth-error').classList.add('hidden');
+}
+
+async function submitForgotPassword() {
+  const username = document.getElementById('forgot-username').value.trim();
+  if (!username) { showAuthError('Enter your username'); return; }
+  const btn = document.querySelector('#forgot-section .auth-verify-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const res = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'password_reset', username })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      _forgotOtpToken = data.otpToken;
+      _forgotUsername = username;
+      document.getElementById('reset-step-desc').textContent =
+        `We sent a 6-digit code to ${data.maskedEmail}. Enter it below.`;
+      document.getElementById('forgot-section').classList.add('hidden');
+      document.getElementById('reset-section').classList.remove('hidden');
+      document.getElementById('reset-otp').focus();
+      document.getElementById('auth-error').classList.add('hidden');
+    } else {
+      showAuthError(data.error || 'Failed to send reset code');
+    }
+  } catch (e) { showAuthError('Network error. Try again.'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Code'; } }
+}
+
+async function submitResetPassword() {
+  const code = document.getElementById('reset-otp').value.trim();
+  const newPassword = document.getElementById('reset-new-password').value;
+  const confirmPassword = document.getElementById('reset-confirm-password').value;
+  if (!code || code.length !== 6) { showAuthError('Enter the 6-digit code'); return; }
+  if (!newPassword || newPassword.length < 8) { showAuthError('Password must be at least 8 characters'); return; }
+  if (newPassword !== confirmPassword) { showAuthError('Passwords do not match'); return; }
+  const btn = document.querySelector('#reset-section .auth-verify-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
+  try {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ otpToken: _forgotOtpToken, code, newPassword })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      _forgotOtpToken = null;
+      _forgotUsername = null;
+      closeAuth();
+      showToast('✅ Password reset! Please sign in with your new password.');
+      setTimeout(() => { openAuth(); switchAuthTab('signin'); }, 300);
+    } else {
+      showAuthError(data.error || 'Reset failed');
+    }
+  } catch (e) { showAuthError('Network error. Try again.'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Reset Password'; } }
+}
+
+async function resendForgotOtp() {
+  if (!_forgotUsername) return;
+  document.getElementById('forgot-username').value = _forgotUsername;
+  document.getElementById('reset-section').classList.add('hidden');
+  document.getElementById('forgot-section').classList.remove('hidden');
+  _forgotOtpToken = null;
+  await submitForgotPassword();
 }
 
 function showAuthError(msg) {

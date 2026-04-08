@@ -357,6 +357,9 @@
               autocomplete="current-password">
             <button type="submit" class="auth-verify-btn">Sign In</button>
           </form>
+          <div class="auth-forgot-row">
+            <button type="button" class="auth-link-btn" onclick="showForgotPassword()">Forgot password?</button>
+          </div>
         </div>
 
         <!-- Sign Up -->
@@ -371,22 +374,72 @@
             Continue with Google
           </button>
           <div class="auth-divider"><span>or</span></div>
-          <form id="signup-form" onsubmit="signUp(); return false;" autocomplete="on">
-            <label class="auth-label" for="signup-username">Username</label>
-            <input type="text" id="signup-username" name="username" placeholder="Username (3-20 chars, a-z 0-9 _)" class="auth-input"
-              autocomplete="username">
-            <label class="auth-label" for="signup-password">Password</label>
-            <input type="password" id="signup-password" name="password" placeholder="Password (min 8 chars)" class="auth-input"
-              autocomplete="new-password">
-            <label class="auth-label" for="signup-email">Recovery Email <span class="auth-optional">(optional)</span></label>
-            <input type="email" id="signup-email" name="email" placeholder="Leave blank to stay anonymous"
-              class="auth-input" autocomplete="email">
-            <div class="auth-warning">
-              ⚠️ <strong>Important:</strong> Save your username and password securely. We have <strong>no recovery
-                option</strong> — if you lose them, your account cannot be restored.
+
+          <!-- Step 1: credentials -->
+          <div id="signup-step-1">
+            <form id="signup-form" onsubmit="signUp(); return false;" autocomplete="on">
+              <label class="auth-label" for="signup-username">Username <span class="auth-required">*</span></label>
+              <input type="text" id="signup-username" name="username" placeholder="3–20 chars, letters/numbers/_" class="auth-input" autocomplete="username">
+              <label class="auth-label" for="signup-password">Password <span class="auth-required">*</span></label>
+              <input type="password" id="signup-password" name="password" placeholder="Min 8 characters" class="auth-input" autocomplete="new-password">
+              <label class="auth-label" for="signup-email">Recovery Email <span class="auth-optional">(optional but recommended)</span></label>
+              <input type="email" id="signup-email" name="email" placeholder="your@email.com" class="auth-input" autocomplete="email">
+              <div class="auth-warning" id="signup-no-email-warning">
+                ⚠️ <strong>No recovery email.</strong> If you forget your password, <strong>your account cannot be recovered.</strong> Consider adding one.
+              </div>
+              <div class="auth-email-notice hidden" id="signup-email-notice">
+                ✉️ We'll send a verification code to confirm your email address.
+              </div>
+              <button type="submit" class="auth-verify-btn" id="signup-submit-btn">Create Account</button>
+            </form>
+          </div>
+
+          <!-- Step 2: OTP verification (shown when email provided) -->
+          <div id="signup-step-2" class="hidden">
+            <div class="auth-step-header">
+              <button type="button" class="auth-back-btn" onclick="signupGoBack()">← Back</button>
+              <span>Verify Email</span>
             </div>
-            <button type="submit" class="auth-verify-btn">Create Account</button>
-          </form>
+            <p class="auth-step-desc" id="signup-otp-desc">Enter the 6-digit code sent to your email.</p>
+            <label class="auth-label" for="signup-otp">Verification Code</label>
+            <input type="text" id="signup-otp" class="auth-input otp-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+            <button type="button" class="auth-verify-btn" onclick="verifyEmailAndSignUp()">Verify & Create Account</button>
+            <div class="auth-resend-row">
+              <span class="auth-resend-text">Didn't receive it?</span>
+              <button type="button" class="auth-link-btn" onclick="resendSignupOtp()">Resend code</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Forgot Password — step 1: enter username -->
+        <div id="forgot-section" class="hidden">
+          <div class="auth-step-header">
+            <button type="button" class="auth-back-btn" onclick="showForgotBack()">← Back</button>
+            <span>Reset Password</span>
+          </div>
+          <p class="auth-step-desc">Enter your username. We'll send a reset code to your recovery email.</p>
+          <label class="auth-label" for="forgot-username">Username</label>
+          <input type="text" id="forgot-username" class="auth-input" placeholder="Your username" autocomplete="username">
+          <button type="button" class="auth-verify-btn" onclick="submitForgotPassword()">Send Reset Code</button>
+        </div>
+
+        <!-- Reset Password — step 2: OTP + new password -->
+        <div id="reset-section" class="hidden">
+          <div class="auth-step-header">
+            <button type="button" class="auth-back-btn" onclick="showForgotPassword()">← Back</button>
+            <span>Enter Code</span>
+          </div>
+          <p class="auth-step-desc" id="reset-step-desc">Enter the 6-digit code sent to your email.</p>
+          <label class="auth-label" for="reset-otp">Verification Code</label>
+          <input type="text" id="reset-otp" class="auth-input otp-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+          <label class="auth-label" for="reset-new-password">New Password</label>
+          <input type="password" id="reset-new-password" class="auth-input" placeholder="New password (min 8 chars)" autocomplete="new-password">
+          <input type="password" id="reset-confirm-password" class="auth-input" placeholder="Confirm new password" autocomplete="new-password">
+          <button type="button" class="auth-verify-btn" onclick="submitResetPassword()">Reset Password</button>
+          <div class="auth-resend-row">
+            <span class="auth-resend-text">Didn't receive it?</span>
+            <button type="button" class="auth-link-btn" onclick="resendForgotOtp()">Resend code</button>
+          </div>
         </div>
 
         <p class="auth-error hidden" id="auth-error"></p>
