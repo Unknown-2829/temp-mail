@@ -30,6 +30,11 @@ let composeMinimized = false;
 let composeIsHtml = true;
 let sentList = [];
 let sentBoxOpen = false;
+let composeAttachments = []; // {filename, content (base64), size, type}
+let _composeDragInited = false;
+let _composeDragActive = false;
+let _composeDragStartX = 0, _composeDragStartY = 0;
+let _composeDragWinX = 0, _composeDragWinY = 0;
 
 // ResizeObserver used to keep the email iframe height in sync with its content.
 // Stored here so closeModal() can disconnect it and prevent memory leaks.
@@ -219,8 +224,8 @@ async function refreshEmails() {
       const diff = newCount - oldCount;
       showToast(`📧 ${diff} new!`);
       showNotification('New Email!', `You have ${diff} new email(s)`);
-      // Re-poll quickly in case more emails arrive in rapid succession
-      setTimeout(() => { if (!document.hidden && currentEmail) refreshEmails(); }, 1500);
+      // Re-poll in case more emails arrive in rapid succession
+      setTimeout(() => { if (!document.hidden && currentEmail) refreshEmails(); }, 3000);
     }
 
     const unreadCount = emailsList.filter(e => !e.read).length;
@@ -1209,7 +1214,7 @@ function startAutoRefresh() {
   stopAutoRefresh();
   autoRefreshInterval = setInterval(() => {
     if (!document.hidden) refreshEmails();
-  }, 3000);
+  }, 6000);
 }
 
 function stopAutoRefresh() {
@@ -2239,6 +2244,23 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Re-position compose window on resize so it never goes off-screen
+window.addEventListener('resize', () => {
+  const win = document.getElementById('compose-modal');
+  if (!win || !win.classList.contains('show') || _composeFullscreen) return;
+  // Only nudge when the window is already using top/left (i.e. dragging class is set)
+  if (!win.classList.contains('dragging')) return;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const winW = win.offsetWidth;
+  const curLeft = parseFloat(win.style.getPropertyValue('left')) || 0;
+  const curTop = parseFloat(win.style.getPropertyValue('top')) || 0;
+  const clampedLeft = Math.max(8, Math.min(vw - winW - 8, curLeft));
+  const clampedTop = Math.max(8, Math.min(vh - 56, curTop));
+  if (clampedLeft !== curLeft) win.style.setProperty('left', `${clampedLeft}px`, 'important');
+  if (clampedTop !== curTop) win.style.setProperty('top', `${clampedTop}px`, 'important');
+});
+
 document.getElementById('email-modal')?.addEventListener('click', e => { if (e.target.id === 'email-modal') closeModal(); });
 document.getElementById('about-modal')?.addEventListener('click', e => { if (e.target.id === 'about-modal') closeAbout(); });
 document.getElementById('qr-modal')?.addEventListener('click', e => { if (e.target.id === 'qr-modal') closeQR(); });
@@ -2272,6 +2294,23 @@ function openCompose() {
   document.getElementById('compose-textarea').value = '';
   document.getElementById('compose-error').classList.add('hidden');
 
+  // Reset attachments
+  composeAttachments = [];
+  renderComposeAttachments();
+
+  // Reset custom-from
+  const customFromWrap = document.getElementById('compose-custom-from-wrap');
+  const customFromInput = document.getElementById('compose-custom-username');
+  const fromSelect = document.getElementById('compose-from');
+  if (customFromWrap) customFromWrap.classList.add('hidden');
+  if (customFromInput) customFromInput.value = '';
+  if (fromSelect) fromSelect.classList.remove('hidden');
+
+  // Reset drag position (clears any previous drag state)
+  win.classList.remove('dragging');
+  win.style.removeProperty('left');
+  win.style.removeProperty('top');
+
   composeMinimized = false;
   composeIsHtml = true;
   _composeFullscreen = false;
@@ -2284,7 +2323,14 @@ function openCompose() {
   win.style.display = 'flex';
   win.classList.add('show');
 
+  // Apply smart initial position on desktop (after the element is visible so
+  // the browser has laid it out and we can read its dimensions)
+  requestAnimationFrame(() => _setComposeInitialPosition(win));
+
   setTimeout(() => document.getElementById('compose-to').focus(), 80);
+
+  // ── Init drag once ────────────────────────────────────────────
+  _initComposeDrag();
 
   // ── Populate From dropdown asynchronously (non-blocking) ────
   _populateComposeFrom();
@@ -2306,6 +2352,10 @@ async function _populateComposeFrom() {
 
   const rl = document.getElementById('compose-ratelimit');
   if (rl) rl.textContent = isPremium ? '⭐ 50/day' : '3/day free';
+
+  // Show/hide custom-from pencil button based on premium status
+  const customFromBtn = document.getElementById('compose-custom-from-btn');
+  if (customFromBtn) customFromBtn.classList.toggle('hidden', !isPremium);
 
   if (token && isPremium) {
     try {
@@ -2330,9 +2380,178 @@ function closeCompose() {
   const win = document.getElementById('compose-modal');
   if (!win) return;
   win.style.display = 'none'; // clear the inline style set by openCompose
-  win.classList.remove('show', 'minimized', 'fullscreen');
+  win.classList.remove('show', 'minimized', 'fullscreen', 'dragging');
+  win.style.removeProperty('left');
+  win.style.removeProperty('top');
   composeMinimized = false;
   _composeFullscreen = false;
+  _composeDragActive = false;
+}
+
+// ===== COMPOSE: Smart initial position (desktop only) =====
+// Calculates the best place to open the compose window based on the viewport's
+// width/height ratio so it never feels crammed in a corner on large displays.
+function _setComposeInitialPosition(win) {
+  if (!win) return;
+  if (window.innerWidth <= 560) return; // mobile: CSS bottom-sheet handles it
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const ratio = vw / vh;
+
+  // Actual rendered dimensions (fall back to CSS defaults if not yet known)
+  const winW = win.offsetWidth  || Math.min(460, vw - 32);
+  const winH = win.offsetHeight || Math.min(540, vh * 0.92);
+
+  // --- Right margin: scales gently with screen width, capped at 60px ---
+  // On a 1366px screen → ~24px; on a 1920px screen → ~29px; on 2560px → ~46px
+  const rightMargin = Math.round(Math.max(24, Math.min(vw * 0.018, 60)));
+
+  // --- Bottom clearance: let portrait/square-ish screens breathe a little ---
+  // Standard landscape (ratio ≥ 1.5) → sit flush at the bottom
+  // Near-square / portrait → float up slightly
+  const bottomClearance = ratio < 1.4 ? Math.round(vh * 0.04) : 0;
+
+  // Base position: bottom-right with adaptive margins
+  let left = vw - winW - rightMargin;
+  let top  = vh - winH - bottomClearance;
+
+  // Ultra-wide (21:9+, ratio ≥ 2.1): pull a bit further inward from the edge
+  if (ratio >= 2.1) {
+    left = vw - winW - Math.round(Math.min(vw * 0.03, 80));
+  }
+
+  // Clamp strictly inside viewport so no part of the window goes off-screen
+  left = Math.max(8, Math.min(vw - winW - 8, left));
+  top  = Math.max(8, Math.min(vh - 56, top));
+
+  // Switch the window to top/left anchoring (the .dragging class un-sets
+  // the CSS `bottom !important` and `right !important` rules)
+  win.classList.add('dragging');
+  win.style.setProperty('left', `${Math.round(left)}px`, 'important');
+  win.style.setProperty('top',  `${Math.round(top)}px`,  'important');
+}
+
+// ===== COMPOSE: Drag (desktop only) =====
+function _initComposeDrag() {
+  if (_composeDragInited) return;
+  _composeDragInited = true;
+
+  const win = document.getElementById('compose-modal');
+  const header = win ? win.querySelector('.cw-header') : null;
+  if (!header) return;
+
+  header.addEventListener('mousedown', (e) => {
+    // Don't drag when clicking control buttons or on small/mobile screens
+    if (e.target.closest('.cw-controls')) return;
+    if (_composeFullscreen) return;
+    if (window.innerWidth <= 560) return;
+
+    e.preventDefault();
+    const rect = win.getBoundingClientRect();
+    _composeDragWinX = rect.left;
+    _composeDragWinY = rect.top;
+    _composeDragStartX = e.clientX;
+    _composeDragStartY = e.clientY;
+    _composeDragActive = true;
+
+    // Switch from bottom/right anchoring to top/left so we can move freely
+    win.classList.add('dragging');
+    win.style.setProperty('left', `${rect.left}px`, 'important');
+    win.style.setProperty('top', `${rect.top}px`, 'important');
+    header.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!_composeDragActive) return;
+    const win2 = document.getElementById('compose-modal');
+    if (!win2) return;
+    const dx = e.clientX - _composeDragStartX;
+    const dy = e.clientY - _composeDragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - win2.offsetWidth, _composeDragWinX + dx));
+    const newY = Math.max(0, Math.min(window.innerHeight - 48, _composeDragWinY + dy));
+    win2.style.setProperty('left', `${newX}px`, 'important');
+    win2.style.setProperty('top', `${newY}px`, 'important');
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!_composeDragActive) return;
+    _composeDragActive = false;
+    const hdr = document.querySelector('#compose-modal .cw-header');
+    if (hdr) hdr.style.cursor = '';
+  });
+}
+
+// ===== COMPOSE: Premium custom sender =====
+function toggleCustomFrom() {
+  const wrap = document.getElementById('compose-custom-from-wrap');
+  const sel = document.getElementById('compose-from');
+  if (!wrap || !sel) return;
+  const isShowing = !wrap.classList.contains('hidden');
+  if (isShowing) {
+    wrap.classList.add('hidden');
+    sel.classList.remove('hidden');
+  } else {
+    wrap.classList.remove('hidden');
+    sel.classList.add('hidden');
+    const inp = document.getElementById('compose-custom-username');
+    if (inp) inp.focus();
+  }
+}
+
+// ===== COMPOSE: Attachments =====
+async function addComposeAttachments(input) {
+  const MAX_TOTAL = 10 * 1024 * 1024; // 10 MB total (raw bytes)
+  const files = Array.from(input.files);
+  for (const file of files) {
+    const currentTotal = composeAttachments.reduce((s, a) => s + a.size, 0);
+    if (currentTotal + file.size > MAX_TOTAL) {
+      showToast(`❌ Total attachments exceed ${MAX_TOTAL / (1024 * 1024)} MB limit`);
+      break;
+    }
+    const content = await _readFileBase64(file);
+    composeAttachments.push({ filename: file.name, content, size: file.size, type: file.type });
+  }
+  renderComposeAttachments();
+  input.value = ''; // reset so the same file can be re-attached
+}
+
+function _readFileBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeComposeAttachment(index) {
+  composeAttachments.splice(index, 1);
+  renderComposeAttachments();
+}
+
+function renderComposeAttachments() {
+  const el = document.getElementById('compose-attach-list');
+  if (!el) return;
+  if (composeAttachments.length === 0) {
+    el.innerHTML = '';
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+  el.innerHTML = composeAttachments.map((a, i) => `
+    <div class="cw-attach-chip">
+      <span class="cw-attach-icon">📎</span>
+      <span class="cw-attach-name" title="${escapeHtml(a.filename)}">${escapeHtml(a.filename)}</span>
+      <span class="cw-attach-size">${_fmtFileSize(a.size)}</span>
+      <button class="cw-attach-remove" onclick="removeComposeAttachment(${i})" title="Remove attachment">✕</button>
+    </div>`).join('');
+}
+
+function _fmtFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 // ===== COMPOSE: Minimize / restore on header click =====
@@ -2351,6 +2570,15 @@ function expandComposeFullscreen() {
   win.classList.toggle('fullscreen', _composeFullscreen);
   win.classList.remove('minimized');
   composeMinimized = false;
+
+  // When leaving fullscreen, re-apply the smart initial position so the window
+  // lands back at the calculated sweet-spot rather than snapping to CSS defaults.
+  if (!_composeFullscreen) {
+    win.classList.remove('dragging');
+    win.style.removeProperty('left');
+    win.style.removeProperty('top');
+    requestAnimationFrame(() => _setComposeInitialPosition(win));
+  }
 }
 
 // ===== COMPOSE: Toggle HTML / Plain Text =====
@@ -2389,7 +2617,28 @@ function composeInsertLink() {
 
 // ===== COMPOSE: Send =====
 async function sendComposedEmail() {
-  const from = document.getElementById('compose-from').value;
+  // Resolve "from" — prefer custom address if premium toggle is active
+  let from = document.getElementById('compose-from').value;
+  const customFromWrap = document.getElementById('compose-custom-from-wrap');
+  if (customFromWrap && !customFromWrap.classList.contains('hidden')) {
+    const customUsername = (document.getElementById('compose-custom-username').value || '').trim();
+    if (customUsername) {
+      // Only allow safe characters; reject leading/trailing dots and consecutive dots
+      if (
+        !/^[a-zA-Z0-9._+-]+$/.test(customUsername) ||
+        customUsername.startsWith('.') ||
+        customUsername.endsWith('.') ||
+        customUsername.includes('..')
+      ) {
+        const errEl = document.getElementById('compose-error');
+        errEl.textContent = 'Username may only contain letters, numbers, dots, underscores, plus and hyphens — no leading/trailing/consecutive dots';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      from = `${customUsername}@unknownlll2829.qzz.io`;
+    }
+  }
+
   const to = document.getElementById('compose-to').value.trim();
   const subject = document.getElementById('compose-subject').value.trim();
   const body = composeIsHtml
@@ -2422,13 +2671,19 @@ async function sendComposedEmail() {
 
   try {
     const token = localStorage.getItem('authToken');
+    const payload = {
+      from, to, subject, body, isHtml: composeIsHtml,
+      ...(composeAttachments.length > 0 && {
+        attachments: composeAttachments.map(a => ({ filename: a.filename, content: a.content }))
+      })
+    };
     const res = await fetch('/api/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
-      body: JSON.stringify({ from, to, subject, body, isHtml: composeIsHtml })
+      body: JSON.stringify(payload)
     });
 
     const data = await res.json();

@@ -586,6 +586,14 @@
       <div class="cw-field">
         <span class="cw-field-label">From</span>
         <select class="cw-select" id="compose-from"></select>
+        <!-- Premium: custom username input (hidden by default) -->
+        <div class="cw-custom-from hidden" id="compose-custom-from-wrap">
+          <input class="cw-custom-username" id="compose-custom-username" type="text"
+                 placeholder="username" maxlength="64" spellcheck="false" autocomplete="off">
+          <span class="cw-custom-domain">@unknownlll2829.qzz.io</span>
+        </div>
+        <button class="cw-custom-from-btn hidden" id="compose-custom-from-btn"
+                onclick="toggleCustomFrom()" title="Use custom sender address">✏️</button>
       </div>
       <div class="cw-field">
         <span class="cw-field-label">To</span>
@@ -606,6 +614,9 @@
         <textarea class="cw-textarea hidden" id="compose-textarea"
                   placeholder="Write your message…"></textarea>
       </div>
+
+      <!-- Attachment chips list -->
+      <div class="cw-attach-list hidden" id="compose-attach-list"></div>
 
       <!-- Error toast inside window -->
       <div class="cw-error hidden" id="compose-error"></div>
@@ -641,6 +652,15 @@
         <button class="cw-tool cw-mode-toggle" onclick="toggleComposeMode()" id="compose-mode-btn" title="Toggle HTML/Plain">
           <span>HTML</span>
         </button>
+        <div class="cw-tool-sep"></div>
+        <!-- Attach file -->
+        <button class="cw-tool" onclick="document.getElementById('compose-file-input').click()" title="Attach file">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
+        <input type="file" id="compose-file-input" multiple style="display:none"
+               onchange="addComposeAttachments(this)">
       </div>
 
       <!-- Rate limit pill -->
