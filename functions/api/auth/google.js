@@ -55,6 +55,7 @@ export async function onRequestPost(context) {
                 username: userKey,
                 displayUsername: verifiedName,
                 email,
+                emailVerified: true,
                 googleUid: verifiedUid,
                 authProviders: ['google'],
                 isPremium: false,
@@ -72,6 +73,11 @@ export async function onRequestPost(context) {
                 const providers = Array.isArray(user.authProviders) ? user.authProviders : [];
                 if (!providers.includes('google')) providers.push('google');
                 user.authProviders = providers;
+                // If no recovery email yet, use the Google email (it's already verified)
+                if (!user.email) {
+                    user.email = email;
+                    user.emailVerified = true;
+                }
                 needsSave = true;
             }
 

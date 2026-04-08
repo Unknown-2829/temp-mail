@@ -37,6 +37,9 @@ export async function onRequestPost(context) {
                 return jsonResponse({ error: 'Invalid email address' }, 400);
             }
             targetEmail = email.toLowerCase();
+            if (isReservedEmail(targetEmail)) {
+                return jsonResponse({ error: 'This email address cannot be used as a recovery email.' }, 400);
+            }
 
         } else if (type === 'password_reset') {
             if (!username) return jsonResponse({ error: 'Username is required' }, 400);
@@ -44,15 +47,36 @@ export async function onRequestPost(context) {
             let normalised = username.trim().toLowerCase();
             if (!normalised.includes('@')) normalised = normalised.replace(/\s+/g, '_');
             userKey = `user:${normalised}`;
-            // Look up stored email
-            const user = await env.EMAILS.get(userKey, { type: 'json' });
+            // Look up user
+            let user = await env.EMAILS.get(userKey, { type: 'json' });
+            // Try username alias (for Google users who set a password and registered a display-name alias)
+            if (!user) {
+                const aliasKey = `user_ptr:${normalised}`;
+                const aliasTarget = await env.EMAILS.get(aliasKey);
+                if (aliasTarget) {
+                    userKey = aliasTarget;
+                    const aliasedUser = await env.EMAILS.get(aliasTarget, { type: 'json' });
+                    if (aliasedUser) {
+                        user = aliasedUser;
+                    }
+                }
+            }
             if (!user) {
                 return jsonResponse({ error: 'Username not found' }, 404);
             }
-            if (!user.email) {
+            if (!user.email && Array.isArray(user.authProviders) && user.authProviders.includes('google')) {
+                // Google user — use their Google email (extracted from userKey: user:email@gmail.com)
+                const googleEmail = userKey.replace(/^user:/, '');
+                if (googleEmail.includes('@')) {
+                    targetEmail = googleEmail.toLowerCase();
+                } else {
+                    return jsonResponse({ error: 'No recovery email on file for this account' }, 400);
+                }
+            } else if (!user.email) {
                 return jsonResponse({ error: 'No recovery email on file for this account' }, 400);
+            } else {
+                targetEmail = user.email.toLowerCase();
             }
-            targetEmail = user.email.toLowerCase();
 
         } else {
             // add_email — requires auth token from a logged-in user
@@ -65,6 +89,9 @@ export async function onRequestPost(context) {
                 return jsonResponse({ error: 'Invalid email address' }, 400);
             }
             targetEmail = email.toLowerCase();
+            if (isReservedEmail(targetEmail)) {
+                return jsonResponse({ error: 'This email address cannot be used as a recovery email.' }, 400);
+            }
         }
 
         // Rate limit: max 3 OTPs per 10 minutes per email
@@ -74,7 +101,6 @@ export async function onRequestPost(context) {
         if (rateCount >= 3) {
             return jsonResponse({ error: 'Too many codes requested. Please wait 10 minutes.' }, 429);
         }
-        await env.EMAILS.put(rateLimitKey, String(rateCount + 1), { expirationTtl: 600 });
 
         // Generate 6-digit OTP using rejection sampling to avoid modulo bias
         const code = generateOtpCode();
@@ -117,12 +143,23 @@ export async function onRequestPost(context) {
             return jsonResponse({ error: 'Failed to send email. Please try again.' }, 500);
         }
 
+        // Increment rate limit only after successful send
+        await env.EMAILS.put(rateLimitKey, String(rateCount + 1), { expirationTtl: 600 });
+
         const maskedEmail = maskEmail(targetEmail);
         return jsonResponse({ success: true, otpToken, maskedEmail });
 
     } catch (error) {
         return jsonResponse({ error: 'Server error' }, 500);
     }
+}
+
+const RESERVED_EMAILS = ['noreply@unknownlll2829.qzz.io', 'phantom-mail@unknownlll2829.qzz.io'];
+const APP_DOMAIN = 'unknownlll2829.qzz.io';
+
+function isReservedEmail(email) {
+    const lower = email.toLowerCase();
+    return RESERVED_EMAILS.includes(lower) || lower.endsWith('@' + APP_DOMAIN);
 }
 
 function generateOtpCode() {

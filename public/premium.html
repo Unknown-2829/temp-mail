@@ -701,6 +701,27 @@
 
     .prem-back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
+    .google-login-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      width: 100%;
+    }
+    .google-login-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+    .google-login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .otp-input { letter-spacing: 0.3em; font-size: 20px; text-align: center; }
+
     /* ---- Responsive ---- */
     @media (max-width: 600px) {
       .prem-hero { padding: 40px 20px 30px; }
@@ -872,27 +893,84 @@
           <h2 style="font-size:22px;font-weight:800;margin-bottom:6px;">Create or Sign In</h2>
           <p style="color:#8b8baf;font-size:14px;margin-bottom:20px;">An account is required to link your Premium subscription.</p>
 
+          <!-- Google Auth Button -->
+          <button onclick="ppGoogleLogin()" class="google-login-btn pp-google-btn" type="button" style="width:100%;margin-bottom:12px;">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+              <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+              <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+            </svg>
+            Continue with Google
+          </button>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;"><hr style="flex:1;border-color:rgba(255,255,255,0.1);"><span style="font-size:12px;color:#666;">or</span><hr style="flex:1;border-color:rgba(255,255,255,0.1);"></div>
+
           <div class="prem-auth-tabs">
             <button class="prem-auth-tab active" id="pp-tab-signup" onclick="ppSwitchTab('signup')">Create Account</button>
             <button class="prem-auth-tab" id="pp-tab-signin" onclick="ppSwitchTab('signin')">Sign In</button>
           </div>
 
-          <!-- Sign Up -->
+          <!-- Sign Up Step 1: credentials -->
           <div id="pp-signup">
-            <input type="text" id="pp-su-username" class="auth-field" placeholder="Username (3–20 chars, a-z 0-9 _)" autocomplete="username">
-            <input type="password" id="pp-su-password" class="auth-field" placeholder="Password (min 8 chars)" autocomplete="new-password">
-            <input type="email" id="pp-su-email" class="auth-field" placeholder="Email (optional)" autocomplete="email">
-            <div class="auth-warn">
-              ⚠️ <strong>Save your credentials.</strong> There is no password recovery option.
+            <div id="pp-su-step1">
+              <input type="text" id="pp-su-username" class="auth-field" placeholder="Username (3–20 chars, a-z 0-9 _)" autocomplete="username">
+              <input type="password" id="pp-su-password" class="auth-field" placeholder="Password (min 8 chars)" autocomplete="new-password">
+              <input type="email" id="pp-su-email" class="auth-field" placeholder="Recovery Email (recommended)" autocomplete="email" oninput="ppUpdateSignupBtn()">
+              <div class="auth-warn" id="pp-su-no-email-warn">
+                ⚠️ <strong>No recovery email.</strong> If you forget your password, your account cannot be recovered.
+              </div>
+              <div class="auth-warn" id="pp-su-email-notice" style="display:none;background:rgba(0,208,156,0.08);border-color:rgba(0,208,156,0.3);color:#00d09c;">
+                ✉️ We'll send a verification code to confirm your email.
+              </div>
+              <button class="prem-cta-btn" id="pp-su-btn" onclick="ppSignUp()">Create Account & Continue →</button>
             </div>
-            <button class="prem-cta-btn" onclick="ppSignUp()">Create Account & Continue →</button>
+            <!-- Sign Up Step 2: OTP verification -->
+            <div id="pp-su-step2" style="display:none;">
+              <p style="font-size:13px;color:#8b8baf;margin-bottom:12px;" id="pp-su-otp-desc">Enter the 6-digit code sent to your email.</p>
+              <input type="text" id="pp-su-otp" class="auth-field otp-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" style="letter-spacing:0.3em;font-size:20px;text-align:center;">
+              <button class="prem-cta-btn" onclick="ppVerifyAndSignUp()">Verify & Create Account →</button>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                <button type="button" class="prem-back-btn" style="margin:0;padding:6px 12px;font-size:13px;" onclick="ppSignUpGoBack()">← Back</button>
+                <button type="button" class="prem-back-btn" style="margin:0;padding:6px 12px;font-size:13px;" onclick="ppResendSignupOtp()">Resend code</button>
+              </div>
+            </div>
           </div>
 
           <!-- Sign In -->
           <div id="pp-signin" style="display:none">
-            <input type="text" id="pp-si-username" class="auth-field" placeholder="Username" autocomplete="username">
+            <input type="text" id="pp-si-username" class="auth-field" placeholder="Username or email" autocomplete="username">
             <input type="password" id="pp-si-password" class="auth-field" placeholder="Password" autocomplete="current-password">
             <button class="prem-cta-btn" onclick="ppSignIn()">Sign In & Continue →</button>
+            <div style="text-align:center;margin-top:8px;">
+              <button type="button" style="background:none;border:none;color:#00d09c;font-size:13px;cursor:pointer;" onclick="ppShowForgot()">Forgot password?</button>
+            </div>
+          </div>
+
+          <!-- Forgot Password -->
+          <div id="pp-forgot" style="display:none;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <button type="button" class="prem-back-btn" style="margin:0;padding:6px 12px;font-size:13px;" onclick="ppHideForgot()">← Back</button>
+              <span style="font-size:15px;font-weight:600;">Reset Password</span>
+            </div>
+            <p style="font-size:13px;color:#8b8baf;margin-bottom:12px;">Enter your username or email. We'll send a reset code to your recovery email.</p>
+            <input type="text" id="pp-forgot-username" class="auth-field" placeholder="Username or email" autocomplete="username">
+            <button class="prem-cta-btn" onclick="ppSendForgotOtp()">Send Reset Code</button>
+          </div>
+
+          <!-- Reset Password -->
+          <div id="pp-reset" style="display:none;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <button type="button" class="prem-back-btn" style="margin:0;padding:6px 12px;font-size:13px;" onclick="ppShowForgot()">← Back</button>
+              <span style="font-size:15px;font-weight:600;">Enter Code</span>
+            </div>
+            <p style="font-size:13px;color:#8b8baf;margin-bottom:12px;" id="pp-reset-desc">Enter the 6-digit code sent to your email.</p>
+            <input type="text" id="pp-reset-otp" class="auth-field otp-input" placeholder="000000" maxlength="6" inputmode="numeric" style="letter-spacing:0.3em;font-size:20px;text-align:center;">
+            <input type="password" id="pp-reset-new-pw" class="auth-field" placeholder="New password (min 8 chars)" autocomplete="new-password">
+            <input type="password" id="pp-reset-confirm-pw" class="auth-field" placeholder="Confirm new password" autocomplete="new-password">
+            <button class="prem-cta-btn" onclick="ppSubmitReset()">Reset Password</button>
+            <div style="text-align:center;margin-top:8px;">
+              <button type="button" style="background:none;border:none;color:#00d09c;font-size:13px;cursor:pointer;" onclick="ppResendForgotOtp()">Resend code</button>
+            </div>
           </div>
 
           <p class="auth-err" id="pp-auth-err"></p>
@@ -1074,6 +1152,8 @@
       const isSignup = tab === 'signup';
       document.getElementById('pp-signup').style.display = isSignup ? '' : 'none';
       document.getElementById('pp-signin').style.display = isSignup ? 'none' : '';
+      document.getElementById('pp-forgot').style.display = 'none';
+      document.getElementById('pp-reset').style.display = 'none';
       document.getElementById('pp-tab-signup').classList.toggle('active', isSignup);
       document.getElementById('pp-tab-signin').classList.toggle('active', !isSignup);
       ppClearErr();
@@ -1090,6 +1170,107 @@
       el.classList.remove('show');
     }
 
+    /* ---- Google Login for Premium page ---- */
+    async function ppGoogleLogin() {
+      const btn = document.querySelector('.pp-google-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+      try {
+        if (typeof window.googleLogin !== 'function') {
+          ppShowErr('Google Sign-In not available. Try username/password.');
+          return;
+        }
+        const _origClose = window.closeAuth;
+        const _origInit = window.initAuthState;
+        const _origToast = window.showToast;
+        window.closeAuth = () => {};
+        window.initAuthState = () => {};
+        window.showToast = () => {};
+
+        const prevToken = localStorage.getItem('authToken');
+        await window.googleLogin();
+        const newToken = localStorage.getItem('authToken');
+
+        window.closeAuth = _origClose || (() => {});
+        window.initAuthState = _origInit || (() => {});
+        window.showToast = _origToast || (() => {});
+
+        if (newToken) {
+          if (localStorage.getItem('isPremium') === 'true') {
+            window.location.href = '/?premium=already';
+            return;
+          }
+          ppUpdateCheckout();
+          ppGoStep(3);
+        }
+      } catch(e) {
+        ppShowErr('Google sign-in failed. Try again.');
+      } finally {
+        const btn2 = document.querySelector('.pp-google-btn');
+        if (btn2) {
+          btn2.disabled = false;
+          btn2.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg> Continue with Google`;
+        }
+      }
+    }
+
+    /* ---- Signup OTP flow ---- */
+    let _ppSignupOtpToken = null;
+
+    function ppUpdateSignupBtn() {
+      const email = document.getElementById('pp-su-email')?.value?.trim();
+      const btn = document.getElementById('pp-su-btn');
+      const noEmailWarn = document.getElementById('pp-su-no-email-warn');
+      const emailNotice = document.getElementById('pp-su-email-notice');
+      if (email) {
+        if (noEmailWarn) noEmailWarn.style.display = 'none';
+        if (emailNotice) emailNotice.style.display = 'block';
+        if (btn) btn.textContent = 'Continue →';
+      } else {
+        if (noEmailWarn) noEmailWarn.style.display = 'block';
+        if (emailNotice) emailNotice.style.display = 'none';
+        if (btn) btn.textContent = 'Create Account & Continue →';
+      }
+    }
+
+    function ppSignUpGoBack() {
+      document.getElementById('pp-su-step2').style.display = 'none';
+      document.getElementById('pp-su-step1').style.display = '';
+      document.getElementById('pp-su-otp').value = '';
+      _ppSignupOtpToken = null;
+      ppClearErr();
+    }
+
+    async function ppResendSignupOtp() {
+      ppSignUpGoBack();
+      await ppSignUp();
+    }
+
+    async function ppVerifyAndSignUp() {
+      const username = document.getElementById('pp-su-username').value.trim();
+      const password = document.getElementById('pp-su-password').value;
+      const email = document.getElementById('pp-su-email').value.trim();
+      const otp = document.getElementById('pp-su-otp').value.trim();
+      if (!otp || otp.length !== 6) return ppShowErr('Enter the 6-digit code.');
+      try {
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, email, emailOtp: otp, otpToken: _ppSignupOtpToken })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('username', data.username);
+          localStorage.setItem('isPremium', 'false');
+          _ppSignupOtpToken = null;
+          ppUpdateCheckout();
+          ppGoStep(3);
+        } else {
+          ppShowErr(data.error || 'Sign up failed.');
+        }
+      } catch { ppShowErr('Network error. Please try again.'); }
+    }
+
     /* ---- Sign Up ---- */
     async function ppSignUp() {
       const username = document.getElementById('pp-su-username').value.trim();
@@ -1097,23 +1278,47 @@
       const email    = document.getElementById('pp-su-email').value.trim();
       if (!username || !password) return ppShowErr('Username and password are required.');
 
-      try {
-        const res = await fetch('/api/auth/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, email: email || '' })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          localStorage.setItem('authToken', data.token);
-          localStorage.setItem('username', data.username);
-          localStorage.setItem('isPremium', 'false');
-          ppUpdateCheckout();
-          ppGoStep(3);
-        } else {
-          ppShowErr(data.error || 'Sign up failed. Try a different username.');
-        }
-      } catch { ppShowErr('Network error. Please try again.'); }
+      if (email) {
+        // OTP flow
+        try {
+          const res = await fetch('/api/auth/send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'email_verify', username, email })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            _ppSignupOtpToken = data.otpToken;
+            document.getElementById('pp-su-otp-desc').textContent = `We sent a 6-digit code to ${data.maskedEmail}. Enter it below.`;
+            document.getElementById('pp-su-step1').style.display = 'none';
+            document.getElementById('pp-su-step2').style.display = '';
+            document.getElementById('pp-su-otp').value = '';
+            document.getElementById('pp-su-otp').focus();
+            ppClearErr();
+          } else {
+            ppShowErr(data.error || 'Failed to send verification code.');
+          }
+        } catch { ppShowErr('Network error. Please try again.'); }
+      } else {
+        // No email — direct signup
+        try {
+          const res = await fetch('/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            localStorage.setItem('authToken', data.token);
+            localStorage.setItem('username', data.username);
+            localStorage.setItem('isPremium', 'false');
+            ppUpdateCheckout();
+            ppGoStep(3);
+          } else {
+            ppShowErr(data.error || 'Sign up failed. Try a different username.');
+          }
+        } catch { ppShowErr('Network error. Please try again.'); }
+      }
     }
 
     /* ---- Sign In ---- */
@@ -1145,7 +1350,88 @@
       } catch { ppShowErr('Network error. Please try again.'); }
     }
 
-    /* ---- Checkout Helpers ---- */
+    /* ---- Forgot/Reset Password ---- */
+    let _ppForgotOtpToken = null;
+    let _ppForgotUsername = null;
+
+    function ppShowForgot() {
+      document.getElementById('pp-signup').style.display = 'none';
+      document.getElementById('pp-signin').style.display = 'none';
+      document.getElementById('pp-forgot').style.display = '';
+      document.getElementById('pp-reset').style.display = 'none';
+      document.getElementById('pp-forgot-username').value = '';
+      ppClearErr();
+    }
+
+    function ppHideForgot() {
+      document.getElementById('pp-forgot').style.display = 'none';
+      document.getElementById('pp-reset').style.display = 'none';
+      document.getElementById('pp-signin').style.display = '';
+      ppClearErr();
+    }
+
+    async function ppSendForgotOtp() {
+      const username = document.getElementById('pp-forgot-username').value.trim();
+      if (!username) return ppShowErr('Enter your username or email.');
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'password_reset', username })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          _ppForgotOtpToken = data.otpToken;
+          _ppForgotUsername = username;
+          document.getElementById('pp-reset-desc').textContent = `We sent a 6-digit code to ${data.maskedEmail}.`;
+          document.getElementById('pp-forgot').style.display = 'none';
+          document.getElementById('pp-reset').style.display = '';
+          document.getElementById('pp-reset-otp').value = '';
+          ppClearErr();
+        } else {
+          ppShowErr(data.error || 'Failed to send reset code.');
+        }
+      } catch { ppShowErr('Network error. Please try again.'); }
+    }
+
+    async function ppResendForgotOtp() {
+      if (!_ppForgotUsername) return;
+      document.getElementById('pp-forgot-username').value = _ppForgotUsername;
+      document.getElementById('pp-reset').style.display = 'none';
+      document.getElementById('pp-forgot').style.display = '';
+      _ppForgotOtpToken = null;
+      await ppSendForgotOtp();
+    }
+
+    async function ppSubmitReset() {
+      const code = document.getElementById('pp-reset-otp').value.trim();
+      const newPassword = document.getElementById('pp-reset-new-pw').value;
+      const confirmPassword = document.getElementById('pp-reset-confirm-pw').value;
+      if (!code || code.length !== 6) return ppShowErr('Enter the 6-digit code.');
+      if (!newPassword || newPassword.length < 8) return ppShowErr('Password must be at least 8 characters.');
+      if (newPassword !== confirmPassword) return ppShowErr('Passwords do not match.');
+      try {
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ otpToken: _ppForgotOtpToken, code, newPassword })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          _ppForgotOtpToken = null;
+          _ppForgotUsername = null;
+          ppHideForgot();
+          ppSwitchTab('signin');
+          ppClearErr();
+          const errEl = document.getElementById('pp-auth-err');
+          if (errEl) { errEl.textContent = '✅ Password reset! Please sign in.'; errEl.style.color = '#00d09c'; errEl.classList.add('show'); setTimeout(() => { errEl.classList.remove('show'); errEl.style.color = ''; }, 3000); }
+        } else {
+          ppShowErr(data.error || 'Reset failed.');
+        }
+      } catch { ppShowErr('Network error. Please try again.'); }
+    }
+
+
     function ppUpdateCheckout() {
       const planLabel = ppState.plan === 'yearly' ? 'Yearly Premium' : 'Monthly Premium';
       document.getElementById('pp-plan-name').textContent = planLabel;
@@ -1193,5 +1479,6 @@
         .catch(() => alert('Please copy manually: ' + addr));
     }
   </script>
+  <script type="module" src="/google-auth.js"></script>
 </body>
 </html>
