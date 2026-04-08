@@ -4304,7 +4304,7 @@ button,
   position: fixed !important;
   bottom: 24px !important;
   right: 24px !important;
-  z-index: 99999 !important;
+  z-index: 1050 !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 10px;
@@ -4371,7 +4371,7 @@ button,
   position: fixed !important;
   bottom: 0 !important;
   right: 24px !important;
-  z-index: 99998 !important;
+  z-index: 1040 !important;
   width: 460px;
   max-width: calc(100vw - 32px);
   height: 540px;
