@@ -76,9 +76,10 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Maximum 10 attachments allowed' }, 400);
   }
   if (attachments && attachments.length > 0) {
-    // base64 is ~1.37× the binary size; 14 MB of base64 ≈ 10 MB binary
+    // base64 is exactly 4/3 (≈1.333×) the binary size.
+    // 10 MB binary → ~13.33 MB base64; cap at 13.5 MB to enforce the 10 MB binary limit.
     const totalBase64 = attachments.reduce((s, a) => s + (typeof a.content === 'string' ? a.content.length : 0), 0);
-    if (totalBase64 > 14 * 1024 * 1024) {
+    if (totalBase64 > 13.5 * 1024 * 1024) {
       return jsonResponse({ error: 'Total attachment size too large (max ~10 MB)' }, 400);
     }
     for (const att of attachments) {

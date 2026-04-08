@@ -2244,6 +2244,23 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Re-position compose window on resize so it never goes off-screen
+window.addEventListener('resize', () => {
+  const win = document.getElementById('compose-modal');
+  if (!win || !win.classList.contains('show') || _composeFullscreen) return;
+  // Only nudge when the window is already using top/left (i.e. dragging class is set)
+  if (!win.classList.contains('dragging')) return;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const winW = win.offsetWidth;
+  const curLeft = parseFloat(win.style.getPropertyValue('left')) || 0;
+  const curTop = parseFloat(win.style.getPropertyValue('top')) || 0;
+  const clampedLeft = Math.max(8, Math.min(vw - winW - 8, curLeft));
+  const clampedTop = Math.max(8, Math.min(vh - 56, curTop));
+  if (clampedLeft !== curLeft) win.style.setProperty('left', `${clampedLeft}px`, 'important');
+  if (clampedTop !== curTop) win.style.setProperty('top', `${clampedTop}px`, 'important');
+});
+
 document.getElementById('email-modal')?.addEventListener('click', e => { if (e.target.id === 'email-modal') closeModal(); });
 document.getElementById('about-modal')?.addEventListener('click', e => { if (e.target.id === 'about-modal') closeAbout(); });
 document.getElementById('qr-modal')?.addEventListener('click', e => { if (e.target.id === 'qr-modal') closeQR(); });
@@ -2289,7 +2306,7 @@ function openCompose() {
   if (customFromInput) customFromInput.value = '';
   if (fromSelect) fromSelect.classList.remove('hidden');
 
-  // Reset drag position so window reopens at default bottom-right corner
+  // Reset drag position (clears any previous drag state)
   win.classList.remove('dragging');
   win.style.removeProperty('left');
   win.style.removeProperty('top');
@@ -2305,6 +2322,10 @@ function openCompose() {
   // Force display via inline style so it always works regardless of CSS cascade
   win.style.display = 'flex';
   win.classList.add('show');
+
+  // Apply smart initial position on desktop (after the element is visible so
+  // the browser has laid it out and we can read its dimensions)
+  requestAnimationFrame(() => _setComposeInitialPosition(win));
 
   setTimeout(() => document.getElementById('compose-to').focus(), 80);
 
@@ -2365,6 +2386,50 @@ function closeCompose() {
   composeMinimized = false;
   _composeFullscreen = false;
   _composeDragActive = false;
+}
+
+// ===== COMPOSE: Smart initial position (desktop only) =====
+// Calculates the best place to open the compose window based on the viewport's
+// width/height ratio so it never feels crammed in a corner on large displays.
+function _setComposeInitialPosition(win) {
+  if (!win) return;
+  if (window.innerWidth <= 560) return; // mobile: CSS bottom-sheet handles it
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const ratio = vw / vh;
+
+  // Actual rendered dimensions (fall back to CSS defaults if not yet known)
+  const winW = win.offsetWidth  || Math.min(460, vw - 32);
+  const winH = win.offsetHeight || Math.min(540, vh * 0.92);
+
+  // --- Right margin: scales gently with screen width, capped at 60px ---
+  // On a 1366px screen → ~24px; on a 1920px screen → ~29px; on 2560px → ~46px
+  const rightMargin = Math.round(Math.max(24, Math.min(vw * 0.018, 60)));
+
+  // --- Bottom clearance: let portrait/square-ish screens breathe a little ---
+  // Standard landscape (ratio ≥ 1.5) → sit flush at the bottom
+  // Near-square / portrait → float up slightly
+  const bottomClearance = ratio < 1.4 ? Math.round(vh * 0.04) : 0;
+
+  // Base position: bottom-right with adaptive margins
+  let left = vw - winW - rightMargin;
+  let top  = vh - winH - bottomClearance;
+
+  // Ultra-wide (21:9+, ratio ≥ 2.1): pull a bit further inward from the edge
+  if (ratio >= 2.1) {
+    left = vw - winW - Math.round(Math.min(vw * 0.03, 80));
+  }
+
+  // Clamp strictly inside viewport so no part of the window goes off-screen
+  left = Math.max(8, Math.min(vw - winW - 8, left));
+  top  = Math.max(8, Math.min(vh - 56, top));
+
+  // Switch the window to top/left anchoring (the .dragging class un-sets
+  // the CSS `bottom !important` and `right !important` rules)
+  win.classList.add('dragging');
+  win.style.setProperty('left', `${Math.round(left)}px`, 'important');
+  win.style.setProperty('top',  `${Math.round(top)}px`,  'important');
 }
 
 // ===== COMPOSE: Drag (desktop only) =====
@@ -2441,7 +2506,7 @@ async function addComposeAttachments(input) {
   for (const file of files) {
     const currentTotal = composeAttachments.reduce((s, a) => s + a.size, 0);
     if (currentTotal + file.size > MAX_TOTAL) {
-      showToast('❌ Total attachments exceed 10 MB limit');
+      showToast(`❌ Total attachments exceed ${MAX_TOTAL / (1024 * 1024)} MB limit`);
       break;
     }
     const content = await _readFileBase64(file);
@@ -2505,6 +2570,15 @@ function expandComposeFullscreen() {
   win.classList.toggle('fullscreen', _composeFullscreen);
   win.classList.remove('minimized');
   composeMinimized = false;
+
+  // When leaving fullscreen, re-apply the smart initial position so the window
+  // lands back at the calculated sweet-spot rather than snapping to CSS defaults.
+  if (!_composeFullscreen) {
+    win.classList.remove('dragging');
+    win.style.removeProperty('left');
+    win.style.removeProperty('top');
+    requestAnimationFrame(() => _setComposeInitialPosition(win));
+  }
 }
 
 // ===== COMPOSE: Toggle HTML / Plain Text =====
@@ -2549,10 +2623,15 @@ async function sendComposedEmail() {
   if (customFromWrap && !customFromWrap.classList.contains('hidden')) {
     const customUsername = (document.getElementById('compose-custom-username').value || '').trim();
     if (customUsername) {
-      // Only allow safe characters in username
-      if (!/^[a-zA-Z0-9._+-]+$/.test(customUsername)) {
+      // Only allow safe characters; reject leading/trailing dots and consecutive dots
+      if (
+        !/^[a-zA-Z0-9._+-]+$/.test(customUsername) ||
+        customUsername.startsWith('.') ||
+        customUsername.endsWith('.') ||
+        customUsername.includes('..')
+      ) {
         const errEl = document.getElementById('compose-error');
-        errEl.textContent = 'Custom username may only contain letters, numbers, dots, underscores, plus and hyphens';
+        errEl.textContent = 'Username may only contain letters, numbers, dots, underscores, plus and hyphens — no leading/trailing/consecutive dots';
         errEl.classList.remove('hidden');
         return;
       }
