@@ -16,17 +16,59 @@ export async function onRequestGet(context) {
     const filename = lastPart.replace(/^\d+_\d+_/, '');
 
     const contentType = obj.httpMetadata?.contentType || 'application/octet-stream';
-    // PDFs must be served inline so the browser can render them inside an <iframe>.
-    // Everything else is forced to download.
-    const disposition = contentType === 'application/pdf'
+    const isPdf   = contentType === 'application/pdf';
+    const isImage = contentType.startsWith('image/');
+    const isText  = contentType.startsWith('text/');
+
+    // PDFs, images and plain text render inline; everything else forces a download.
+    const disposition = (isPdf || isImage || isText)
         ? `inline; filename*=UTF-8''${encodeURIComponent(filename)}`
         : `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
 
-    return new Response(obj.body, {
-        headers: {
-            'Content-Type': contentType,
-            'Content-Disposition': disposition,
-            'Cache-Control': 'private, max-age=3600'
+    const headers = {
+        'Content-Type': contentType,
+        'Content-Disposition': disposition,
+        // Content-Length lets the browser show a real progress bar.
+        'Content-Length': String(obj.size),
+        // Accept-Ranges enables download resume and media streaming.
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'private, max-age=3600, immutable',
+        'X-Content-Type-Options': 'nosniff',
+    };
+
+    // HEAD request — return headers only, no body.
+    if (request.method === 'HEAD') {
+        return new Response(null, { status: 200, headers });
+    }
+
+    // Handle Range requests (video/audio seeking and download resume).
+    const rangeHeader = request.headers.get('Range');
+    if (rangeHeader && obj.size) {
+        const match = rangeHeader.match(/bytes=(\d*)-(\d*)/);
+        if (match) {
+            const start = match[1] ? parseInt(match[1], 10) : 0;
+            const end   = match[2] ? parseInt(match[2], 10) : obj.size - 1;
+            const chunkSize = end - start + 1;
+
+            const rangeObj = await env.ATTACHMENTS.get(key, {
+                range: { offset: start, length: chunkSize }
+            });
+
+            return new Response(rangeObj?.body, {
+                status: 206,
+                headers: {
+                    ...headers,
+                    'Content-Range': `bytes ${start}-${end}/${obj.size}`,
+                    'Content-Length': String(chunkSize),
+                }
+            });
         }
-    });
+    }
+
+    return new Response(obj.body, { status: 200, headers });
+}
+
+// Support HEAD requests (browser pre-flight size check).
+export async function onRequestHead(context) {
+    return onRequestGet(context);
 }

@@ -1,0 +1,22 @@
+{
+  "name": "Phantom Mail",
+  "short_name": "PhantomMail",
+  "description": "Free disposable temporary email. Invisible. Anonymous.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a1f",
+  "theme_color": "#00d09c",
+  "icons": [
+    {
+      "src": "https://assets.unknowns.app/android-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://assets.unknowns.app/android-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
