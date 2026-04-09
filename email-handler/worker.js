@@ -19,6 +19,50 @@
 // Cloudflare creates a fresh instance on each deploy, so this runs once per deployment.
 let startupCleanupDone = false;
 
+// Fast base64 decode — direct index assignment is 3-5x faster than
+// Uint8Array.from() with a callback on V8/Workers runtime.
+function fastBase64Decode(b64) {
+    const clean = b64.replace(/\s/g, '');
+    const binary = atob(clean);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+// Upload ALL attachments to R2 in parallel using Promise.all.
+// Mutates each att object: sets att.r2Key / att.size, deletes att.data.
+async function uploadAttachmentsParallel(attachments, recipientEmail, env) {
+    if (!env.ATTACHMENTS || !attachments.length) return;
+
+    await Promise.all(
+        attachments.map(async (att, i) => {
+            if (!att || !att.data) return;
+            try {
+                const r2Key = `attachments/${recipientEmail}/${Date.now()}_${i}_${
+                    att.filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+                }`;
+                const binaryData = fastBase64Decode(att.data);
+                await env.ATTACHMENTS.put(r2Key, binaryData, {
+                    httpMetadata: { contentType: att.contentType },
+                    customMetadata: {
+                        originalName: att.filename,
+                        size: String(binaryData.length),
+                        uploadedAt: String(Date.now())
+                    }
+                });
+                att.r2Key = r2Key;
+                att.size = binaryData.length;
+                delete att.data;
+            } catch (err) {
+                console.log('⚠️ R2 upload failed for', att.filename, err.message);
+                delete att.data;
+            }
+        })
+    );
+}
+
 export default {
     async email(message, env, ctx) {
         // On first email after a deploy, run both cleanup routines immediately once.
@@ -56,35 +100,27 @@ export default {
             // Parse email components
             const parsedEmail = this.parseEmail(rawEmail, message);
 
-            // Upload attachments to R2 (if binding available) and replace data with r2Key
-            for (let i = 0; i < parsedEmail.attachments.length; i++) {
-                const att = parsedEmail.attachments[i];
-                if (att && att.data && env.ATTACHMENTS) {
-                    try {
-                        const r2Key = `attachments/${recipientEmail}/${Date.now()}_${i}_${att.filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-                        const binaryData = Uint8Array.from(atob(att.data), c => c.charCodeAt(0));
-                        await env.ATTACHMENTS.put(r2Key, binaryData, {
-                            httpMetadata: { contentType: att.contentType }
-                        });
-                        att.r2Key = r2Key;
-                        delete att.data; // Don't store base64 in KV — too large
-                        console.log("✅ Attachment uploaded to R2:", r2Key);
-                    } catch (attErr) {
-                        console.log("⚠️ R2 attachment upload failed:", attErr.message);
-                        delete att.data; // Remove data even on failure to avoid KV bloat
-                    }
-                } else if (att && att.data) {
-                    // No R2 binding — drop attachment data to avoid KV bloat
-                    delete att.data;
-                }
-            }
-
             // Extract optional CC / BCC headers (only stored when present)
             const ccHeader  = message.headers.get("cc")  || "";
             const bccHeader = message.headers.get("bcc") || "";
             const toHeader  = message.headers.get("to")  || "";
 
-            // Create storage object
+            // Mark attachments as pending — R2 uploads happen in the background.
+            // This lets us store the email in KV immediately so the user sees it
+            // without waiting for potentially slow R2 uploads.
+            const pendingAttachments = parsedEmail.attachments.map(att => ({
+                filename: att.filename,
+                contentType: att.contentType,
+                size: att.size || 0,
+                status: (att.data && env.ATTACHMENTS) ? 'processing' : 'failed',
+                r2Key: null,
+                data: att.data  // kept temporarily for background upload
+            }));
+
+            // Create storage object — attachments stored without raw data
+            const storageKey = `email:${recipientEmail}:${Date.now()}`;
+            const ttlSeconds = isPermanentAddress ? 30 * 24 * 3600 : 3600;
+
             const emailData = {
                 from: this.extractRealFrom(message),
                 to: recipientEmail,
@@ -96,7 +132,7 @@ export default {
                 rawSource: rawEmail.length > 400000
                     ? rawEmail.substring(0, 400000) + '\r\n...[truncated]'
                     : rawEmail,
-                attachments: parsedEmail.attachments,
+                attachments: pendingAttachments.map(a => ({ ...a, data: undefined })),
                 timestamp: Date.now(),
                 headers: {
                     messageId: message.headers.get("message-id"),
@@ -110,36 +146,58 @@ export default {
                 }
             };
 
-            // Store in KV — permanent addresses keep messages for 30 days; temp for 1 hour
-            const storageKey = `email:${recipientEmail}:${Date.now()}`;
-            const ttlSeconds = isPermanentAddress ? 30 * 24 * 3600 : 3600;
+            // Store immediately — user sees email NOW before R2 uploads finish
+            await env.EMAILS.put(storageKey, JSON.stringify(emailData), {
+                expirationTtl: ttlSeconds
+            });
 
-            await env.EMAILS.put(
-                storageKey,
-                JSON.stringify(emailData),
-                { expirationTtl: ttlSeconds }
-            );
-
-            console.log("✅ Email stored:", storageKey);
+            console.log("✅ Email stored immediately:", storageKey);
             console.log("   Subject:", parsedEmail.subject);
             console.log("   Has HTML:", !!parsedEmail.htmlBody);
-            console.log("   Attachments:", parsedEmail.attachments.length);
+            console.log("   Attachments:", pendingAttachments.length);
 
-            // Check for forwarding rule (Premium feature) — stored in EMAILS namespace
-            // Uses Cloudflare's native message.forward() — no external API key needed.
-            const forwardingKey = `forward:${recipientEmail}`;
-            const forwardingRule = await env.EMAILS.get(forwardingKey, { type: 'json' });
+            // Upload attachments in background — does not block email delivery
+            if (pendingAttachments.some(a => a.data) && env.ATTACHMENTS) {
+                ctx.waitUntil((async () => {
+                    try {
+                        await uploadAttachmentsParallel(pendingAttachments, recipientEmail, env);
 
-            if (forwardingRule && forwardingRule.to) {
-                console.log("📨 Forwarding to:", forwardingRule.to);
-
-                try {
-                    await message.forward(forwardingRule.to);
-                    console.log("✅ Email forwarded successfully");
-                } catch (fwdError) {
-                    console.log("⚠️ Forward error:", fwdError.message);
-                }
+                        // Update KV record with real r2Keys after uploads complete
+                        const updated = await env.EMAILS.get(storageKey, { type: 'json' });
+                        if (updated) {
+                            updated.attachments = pendingAttachments.map(a => ({
+                                filename: a.filename,
+                                contentType: a.contentType,
+                                size: a.size,
+                                r2Key: a.r2Key || null,
+                                status: a.r2Key ? 'ready' : 'failed'
+                            }));
+                            await env.EMAILS.put(storageKey, JSON.stringify(updated), {
+                                expirationTtl: ttlSeconds
+                            });
+                            console.log("✅ Attachments updated in KV after parallel upload");
+                        }
+                    } catch (err) {
+                        console.error("⚠️ Background attachment upload error:", err.message);
+                    }
+                })());
             }
+
+            // Handle forwarding in background — does not block email delivery
+            ctx.waitUntil((async () => {
+                const forwardingRule = await env.EMAILS.get(
+                    `forward:${recipientEmail}`, { type: 'json' }
+                );
+                if (forwardingRule && forwardingRule.to) {
+                    console.log("📨 Forwarding to:", forwardingRule.to);
+                    try {
+                        await message.forward(forwardingRule.to);
+                        console.log("✅ Email forwarded successfully");
+                    } catch (fwdError) {
+                        console.log("⚠️ Forward error:", fwdError.message);
+                    }
+                }
+            })());
 
             console.log("=========================================");
 
