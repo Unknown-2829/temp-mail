@@ -4,11 +4,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#1a1a2e">
   <title>Phantom Mail - Free Disposable Email</title>
-  <meta name="description" content="Free temporary disposable email. Receive emails instantly. No signup required.">
-  <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📬</text></svg>">
+
+  <!-- Favicon complete set -->
+  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="https://assets.unknowns.app/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://assets.unknowns.app/favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://assets.unknowns.app/apple-touch-icon-180.png">
+  <meta name="msapplication-TileImage" content="https://assets.unknowns.app/ms-tile-150.png">
+  <meta name="msapplication-TileColor" content="#0a0a1f">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Primary SEO -->
+  <meta name="description" content="Phantom Mail — Free disposable temporary email address. Invisible, anonymous, no signup. Protect your real inbox from spam forever.">
+  <meta name="keywords" content="temp mail, temporary email, disposable email, anonymous email, fake email, phantom mail, throwaway email, no signup email">
+  <meta name="author" content="Phantom Mail">
+  <meta name="theme-color" content="#00d09c">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://mail.unknowns.app">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mail.unknowns.app">
+  <meta property="og:title" content="Phantom Mail — Invisible Temporary Email">
+  <meta property="og:description" content="Free disposable email. No signup. Instant. Anonymous. Your real inbox stays clean forever.">
+  <meta property="og:image" content="https://assets.unknowns.app/og-image.png">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="1024">
+  <meta property="og:image:alt" content="Phantom Mail - Anonymous Temporary Email Service">
+  <meta property="og:site_name" content="Phantom Mail">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://mail.unknowns.app">
+  <meta name="twitter:title" content="Phantom Mail — Invisible Temporary Email">
+  <meta name="twitter:description" content="Free disposable email. No signup. Instant. Anonymous.">
+  <meta name="twitter:image" content="https://assets.unknowns.app/og-image.png">
+
   <!-- Resource Hints for faster connections -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,7 +58,11 @@
   <!-- Header -->
   <header class="header">
     <div class="logo">
-      <span class="logo-icon">📬</span>
+      <img src="https://assets.unknowns.app/logo.png"
+           alt="Phantom Mail"
+           class="logo-img"
+           width="38" height="38"
+           loading="eager">
       <span class="logo-text">Phantom <span class="logo-mail">MAIL</span></span>
     </div>
     <div class="header-actions">
@@ -662,9 +698,12 @@
           <span>Attach File</span>
         </label>
         <input type="file" id="compose-file-input" multiple style="display:none"
-               onchange="addComposeAttachments(this)">
+               onchange="handleComposeFileSelect(this)">
         <span class="cw-ratelimit" id="compose-ratelimit"></span>
       </div>
+
+      <!-- Attachment preview strip — chips appear here as files are selected -->
+      <div class="cw-attachments hidden" id="compose-attachments"></div>
 
       <!-- Rich editor -->
       <div class="cw-editor-wrap">

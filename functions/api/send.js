@@ -123,19 +123,26 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Maximum 10 attachments allowed' }, 400);
   }
   if (attachments && attachments.length > 0) {
-    // base64 is exactly 4/3 (≈1.333×) the binary size.
-    // 10 MB binary → ~13.33 MB base64; cap at 13.5 MB to enforce the 10 MB binary limit.
-    const totalBase64 = attachments.reduce((s, a) => s + (typeof a.content === 'string' ? a.content.length : 0), 0);
-    if (totalBase64 > 13.5 * 1024 * 1024) {
-      return jsonResponse({ error: 'Total attachment size too large (max ~10 MB)' }, 400);
-    }
+    // base64 encodes 3 bytes as 4 chars, so binary ≈ base64 * 0.75.
+    // Per-file limit: 10 MB binary (≈ 13.5 MB base64).
+    // Total limit: 25 MB binary (≈ 33.5 MB base64).
+    const MAX_FILE_BASE64 = 13.5 * 1024 * 1024;
+    const MAX_TOTAL_BASE64 = 33.5 * 1024 * 1024;
+    let totalBase64 = 0;
     for (const att of attachments) {
       if (!att.filename || typeof att.filename !== 'string') {
         return jsonResponse({ error: 'Each attachment must have a filename' }, 400);
       }
-      if (!att.content || typeof att.content !== 'string') {
-        return jsonResponse({ error: 'Each attachment must have base64 content' }, 400);
+      if (!att.data || typeof att.data !== 'string') {
+        return jsonResponse({ error: 'Each attachment must have base64 data' }, 400);
       }
+      if (att.data.length > MAX_FILE_BASE64) {
+        return jsonResponse({ error: `${att.filename} exceeds 10 MB limit` }, 400);
+      }
+      totalBase64 += att.data.length;
+    }
+    if (totalBase64 > MAX_TOTAL_BASE64) {
+      return jsonResponse({ error: 'Total attachments exceed 25 MB' }, 400);
     }
   }
 
@@ -181,11 +188,14 @@ export async function onRequestPost(context) {
 
   // ── Build Phantom Mail signature footer ───────────────────────
   const phantomFooterHtml = `
-<div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08);
      font-family:Arial,sans-serif;font-size:12px;color:#888;text-align:center;">
+  <img src="https://assets.unknowns.app/logo.png"
+       alt="Phantom Mail" width="24" height="24"
+       style="border-radius:6px;vertical-align:middle;margin-right:6px;">
   Sent via <a href="https://mail.unknowns.app" style="color:#00d09c;text-decoration:none;">
   Phantom Mail</a> &nbsp;·&nbsp;
-  Developer: <a href="https://t.me/unknownlll2829" style="color:#00d09c;text-decoration:none;">
+  <a href="https://t.me/unknownlll2829" style="color:#00d09c;text-decoration:none;">
   @Unknown</a>
 </div>`;
 
@@ -223,7 +233,7 @@ export async function onRequestPost(context) {
     ...(finalText && { text: finalText }),
     ...(replyTo && { reply_to: replyTo }),
     ...(attachments && attachments.length > 0 && {
-      attachments: attachments.map(a => ({ filename: a.filename, content: a.content }))
+      attachments: attachments.map(a => ({ filename: a.filename, content: a.data }))
     }),
     headers: {
       'X-Mailer': 'Phantom Mail (https://mail.unknowns.app)',

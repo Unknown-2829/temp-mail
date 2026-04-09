@@ -35,7 +35,7 @@ let _forgotOtpToken = null;
 let _forgotUsername = null;
 let sentList = [];
 let sentBoxOpen = false;
-let composeAttachments = []; // {filename, content (base64), size, type}
+let composeAttachments = []; // { id, file, name, size, type, previewUrl }
 let _composeDragInited = false;
 let _composeDragActive = false;
 let _composeDragStartX = 0, _composeDragStartY = 0;
@@ -93,6 +93,7 @@ function init() {
   $toastMsg = document.getElementById('toast-message');
 
   requestNotificationPermission();
+  updateLogoForUser();
 
   const saved = localStorage.getItem('tempEmail');
   const savedTime = localStorage.getItem('emailCreatedAt');
@@ -1456,6 +1457,22 @@ function getFileIcon(name) {
   return { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', zip: '📦', mp3: '🎵', mp4: '🎬', txt: '📃' }[ext] || '📎';
 }
 
+// ===== Logo: swap to premium version for premium users =====
+function updateLogoForUser() {
+  const isPremium = localStorage.getItem('isPremium') === 'true';
+  const logoEl = document.querySelector('.logo-img');
+  if (!logoEl) return;
+  if (isPremium) {
+    logoEl.src = 'https://assets.unknowns.app/logo-premium.png';
+    logoEl.title = '⭐ Premium Member';
+    logoEl.style.boxShadow = '0 0 12px rgba(0,208,156,0.4)';
+  } else {
+    logoEl.src = 'https://assets.unknowns.app/logo.png';
+    logoEl.title = 'Phantom Mail';
+    logoEl.style.boxShadow = 'none';
+  }
+}
+
 // ===== Toast =====
 let toastTimer = null;
 function showToast(msg) {
@@ -1619,6 +1636,9 @@ function initAuthState() {
 
     closePremiumDashboard();
   }
+
+  // Update header logo based on premium status
+  updateLogoForUser();
 }
 
 // ===== Refresh Premium Status from Server =====
@@ -3425,38 +3445,52 @@ function toggleCustomFrom() {
 }
 
 // ===== COMPOSE: Attachments =====
-async function addComposeAttachments(input) {
-  const MAX_TOTAL = 10 * 1024 * 1024; // 10 MB total (raw bytes)
+function handleComposeFileSelect(input) {
   const files = Array.from(input.files);
-  for (const file of files) {
+  const MAX_FILE = 10 * 1024 * 1024; // 10 MB per file
+  const MAX_TOTAL = 25 * 1024 * 1024; // 25 MB total
+
+  files.forEach(file => {
+    if (file.size > MAX_FILE) {
+      showComposeError(`${file.name} is too large (max 10 MB)`);
+      return;
+    }
     const currentTotal = composeAttachments.reduce((s, a) => s + a.size, 0);
     if (currentTotal + file.size > MAX_TOTAL) {
-      showToast(`❌ Total attachments exceed ${MAX_TOTAL / (1024 * 1024)} MB limit`);
-      break;
+      showComposeError('Total attachments exceed 25 MB limit');
+      return;
     }
-    const content = await _readFileBase64(file);
-    composeAttachments.push({ filename: file.name, content, size: file.size, type: file.type });
-  }
-  renderComposeAttachments();
-  input.value = ''; // reset so the same file can be re-attached
-}
 
-function _readFileBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const att = {
+      id: `att_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      previewUrl: null
+    };
+
+    // Instant image preview — starts immediately, no waiting for Send
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => { att.previewUrl = e.target.result; renderComposeAttachments(); };
+      reader.readAsDataURL(file);
+    }
+
+    composeAttachments.push(att);
+    renderComposeAttachments();
   });
+
+  input.value = ''; // reset so same file can be reselected
 }
 
-function removeComposeAttachment(index) {
-  composeAttachments.splice(index, 1);
-  renderComposeAttachments();
-}
+// Keep old name as alias so any external callers still work
+function addComposeAttachments(input) { handleComposeFileSelect(input); }
 
 function renderComposeAttachments() {
-  const el = document.getElementById('compose-attach-list');
+  // Prefer the new strip container; fall back to legacy element
+  const el = document.getElementById('compose-attachments') ||
+              document.getElementById('compose-attach-list');
   if (!el) return;
   if (composeAttachments.length === 0) {
     el.innerHTML = '';
@@ -3464,20 +3498,51 @@ function renderComposeAttachments() {
     return;
   }
   el.classList.remove('hidden');
-  el.innerHTML = composeAttachments.map((a, i) => `
-    <div class="cw-attach-chip">
-      <span class="cw-attach-icon">📎</span>
-      <span class="cw-attach-name" title="${escapeHtml(a.filename)}">${escapeHtml(a.filename)}</span>
-      <span class="cw-attach-size">${_fmtFileSize(a.size)}</span>
-      <button class="cw-attach-remove" onclick="removeComposeAttachment(${i})" title="Remove attachment">✕</button>
+  el.innerHTML = composeAttachments.map(a => `
+    <div class="cw-att-chip" data-id="${a.id}">
+      ${a.previewUrl
+        ? `<img src="${escapeHtml(a.previewUrl)}" class="cw-att-thumb" alt="${escapeHtml(a.name)}">`
+        : `<span class="cw-att-icon">${_getFileIconByType(a.type)}</span>`}
+      <span class="cw-att-name" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</span>
+      <span class="cw-att-size">${formatFileSize(a.size)}</span>
+      <button class="cw-att-remove" onclick="removeComposeAttachment('${a.id}')" title="Remove">✕</button>
     </div>`).join('');
 }
 
-function _fmtFileSize(bytes) {
+function removeComposeAttachment(id) {
+  composeAttachments = composeAttachments.filter(a => a.id !== id);
+  renderComposeAttachments();
+}
+
+function showComposeError(msg) {
+  const el = document.getElementById('compose-error');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
+
+// Icon by MIME type — used in compose chips
+function _getFileIconByType(type) {
+  if (!type) return '📎';
+  if (type.startsWith('image/')) return '🖼️';
+  if (type === 'application/pdf') return '📄';
+  if (type.includes('word') || type.includes('document')) return '📝';
+  if (type.includes('sheet') || type.includes('excel')) return '📊';
+  if (type.includes('zip') || type.includes('rar') || type.includes('7z')) return '🗜️';
+  if (type.startsWith('video/')) return '🎥';
+  if (type.startsWith('audio/')) return '🎵';
+  return '📎';
+}
+
+// Legacy alias kept for any call-sites that passed file size as bytes
+function _fmtFileSize(bytes) { return formatFileSize(bytes); }
 
 // ===== COMPOSE: Minimize / restore on header click =====
 function toggleComposeMinimize() {
@@ -3604,11 +3669,30 @@ async function sendComposedEmail() {
 
   try {
     const token = localStorage.getItem('authToken');
+
+    // Convert file objects to base64 at send time (lazy — avoids blocking file selection)
+    let attachmentData = [];
+    if (composeAttachments.length > 0) {
+      sendLabel.textContent = 'Preparing…';
+      attachmentData = await Promise.all(
+        composeAttachments.map(att => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = e => resolve({
+            filename: att.name,
+            contentType: att.type || 'application/octet-stream',
+            data: e.target.result.split(',')[1], // base64 only
+            size: att.size
+          });
+          reader.onerror = reject;
+          reader.readAsDataURL(att.file);
+        }))
+      );
+      sendLabel.textContent = 'Sending…';
+    }
+
     const payload = {
       from, to, subject, body, isHtml: composeIsHtml,
-      ...(composeAttachments.length > 0 && {
-        attachments: composeAttachments.map(a => ({ filename: a.filename, content: a.content }))
-      })
+      ...(attachmentData.length > 0 && { attachments: attachmentData })
     };
     const res = await fetch('/api/send', {
       method: 'POST',
@@ -3624,6 +3708,8 @@ async function sendComposedEmail() {
     if (res.ok) {
       showToast('📤 Email sent!');
       localStorage.removeItem(_DRAFT_KEY); // discard draft on successful send
+      composeAttachments = [];
+      renderComposeAttachments();
       closeCompose();
       setTimeout(() => loadSentEmails(), 500);
     } else {
