@@ -380,7 +380,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - 📩 **Telegram:** [@unknownlll2829](https://t.me/unknownlll2829)
 - 🐛 **Issues:** [GitHub Issues](https://github.com/Unknown-2829/Phantom-mail/issues)
-- 📧 **Email:** Use the service itself! 😉
+- 📧 **Email:** [unknown@unknownlll2829.qzz.io](mailto:unknown@unknownlll2829.qzz.io) (Use the service itself! 😉)
 - ☕ **Buy me a Coffee:** [buymeacoffee.com/unknownlll2829](https://buymeacoffee.com/unknownlll2829)
 
 ---
